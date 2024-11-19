@@ -5,7 +5,7 @@ import LoginButton from './LoginButton'
 
 const NavBar = () => {
     return (
-      <nav className='w-full bg-transparent flex justify-between px-6 py-6'>
+      <nav className='w-full bg-transparent flex justify-between px-6 pt-6'>
         <div className='flex'>
           <Link href="/">
             <Logo rem={4}/>
