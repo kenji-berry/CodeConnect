@@ -31,7 +31,7 @@ const ProjectPreview: React.FC<ProjectPreviewProps> = ({
   return (
     <div className={`radial-background py-2 px-2.5 w-[17.5rem] h-[13rem] transition-transform cursor-pointer ${
       recommended ? 'border-[var(--orange)]' : 'border-[var(--off-white)]'
-    } border inter-bold`}>
+    } border-2 inter-bold`}>
       <div className="flex justify-between items-center mb-1.5">
         <h2 className="text-sm inter-bold text-[var(--off-white)] underline decoration-1 underline-offset-2">
           {name}
