@@ -2,7 +2,7 @@ import React from "react";
 
 const CodeConnectTitle = () => {
   return (
-    <div className="flex flex-col justify-center items-center">
+    <div className="w-fit flex flex-col justify-center items-center">
       <h1 className="code-connect-title inria-sans-bold">
         <span className="orange">C</span>ode<span className="title-red">C</span>
         onnect
@@ -12,5 +12,6 @@ const CodeConnectTitle = () => {
     </div>
   );
 };
+
 
 export default CodeConnectTitle;
