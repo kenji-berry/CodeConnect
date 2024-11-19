@@ -29,17 +29,17 @@ const ProjectPreview: React.FC<ProjectPreviewProps> = ({
   };
 
   return (
-    <div className={`radial-background py-1 px-1.5 w-[17.5rem] h-[13rem] transition-transform cursor-pointer ${
+    <div className={`radial-background py-2 px-2.5 w-[17.5rem] h-[13rem] transition-transform cursor-pointer ${
       recommended ? 'border-[var(--orange)]' : 'border-[var(--off-white)]'
     } border inter-bold`}>
-      <div className="flex justify-between items-center mb-1">
+      <div className="flex justify-between items-center mb-1.5">
         <h2 className="text-sm inter-bold text-[var(--off-white)] underline decoration-1 underline-offset-2">
           {name}
         </h2>
         <span className="text-xs inter-bold">{formatDate(date)}</span>
       </div>
 
-      <div className="flex flex-wrap gap-1 mb-1">
+      <div className="flex flex-wrap gap-1 mb-1.5">
   {tags.map((tag, index) => (
     <span
       key={index}
@@ -50,11 +50,11 @@ const ProjectPreview: React.FC<ProjectPreviewProps> = ({
   ))}
 </div>
 
-      <p className="text-[var(--off-white)] text-xs line-clamp-4 bg-[rgb(121,121,121)] px-2 py-1.5 flex-grow h-[6.75rem] inter-basic">
+      <p className="text-[var(--off-white)] text-xs line-clamp-4 bg-[rgb(121,121,121)] px-2 py-1.5 flex-grow h-[6rem] inter-basic">
         {description}
       </p>
 
-      <div className="flex flex-wrap gap-1 mt-1">
+      <div className="flex flex-wrap gap-1 mt-1.5">
         {techStack.map((tech, index) => (
           <span key={index} className="text-xs">
             {tech}
