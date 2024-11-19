@@ -11,7 +11,7 @@
   --magenta-dark: #3C353D;
   --orange: #F9B028;
   --title-red: #EC7373;
-  --muted-red: #C36767;
+  --muted-red: #B55656;
   --off-white: #F5F5F5;
 }
 
@@ -71,7 +71,7 @@ body {
 .inter-bold {
   font-family: "Inter", sans-serif;
   font-optical-sizing: auto;
-  font-weight:  700;
+  font-weight:  600;
   font-style: normal;
 }
 
