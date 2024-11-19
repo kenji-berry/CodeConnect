@@ -1,6 +1,6 @@
 import React from "react";
 
-const Logo = ({ rem }: number) => {
+const Logo = ({ rem }: { rem: number }) => {
   const size = `${rem}rem`;
   return (
     <div>

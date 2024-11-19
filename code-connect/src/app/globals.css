@@ -112,3 +112,7 @@ body {
 
   background-color: var(--off-white); /* Adjust the color as needed */
 }
+
+.rem-one{
+  font-size: 1rem;
+}
