@@ -23,6 +23,7 @@ body {
 
 .radial-background{
   background: radial-gradient(var(--magenta-dark), var(--primary-color));
+  height: 100%;
 }
 
 .inria-sans-light {
@@ -121,5 +122,28 @@ body {
   box-shadow: 0 8px 32px 0 rgba( 31, 38, 135, 0.37 );
   backdrop-filter: blur( 10px );
   -webkit-backdrop-filter: blur( 10px );
-  border-radius: 10px;
+}
+
+.main-page-recommended-holder{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-direction: row;
+  height: 100%;
+  width: 100%;
+}
+
+.main-page-contents{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  height: 100%;
+  width: 95%;
+}
+
+.main-page-filter-box{
+  height: 10rem;
+  border-width: 2px;
+  border-color: var(--off-white);
 }
