@@ -151,3 +151,19 @@ body {
   flex-wrap: wrap;
   gap: 0.75rem;
 }
+
+
+
+.custom-select {
+  background-color: black;
+  color: white;
+  border: 1px solid white;
+  padding: 0.5rem;
+  border-radius: 0.25rem;
+  overflow-y: auto;
+}
+
+.custom-select option {
+  background-color: black;
+  color: white;
+}

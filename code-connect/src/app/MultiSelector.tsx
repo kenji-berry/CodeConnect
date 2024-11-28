@@ -26,7 +26,7 @@ const MultiSelector: React.FC<MultiSelectorProps> = ({ availableTags, onTagsChan
   return (
     <div>
       <div className="available-tags">
-        <select multiple className="form-multiselect block w-full mt-1" size={availableTags.length}>
+        <select multiple className="form-multiselect block w-full mt-1 custom-select" size={5}>
           {availableTags.map(tag => (
             <option key={tag} value={tag} onDoubleClick={() => handleDoubleClick(tag)}>
               {tag}
