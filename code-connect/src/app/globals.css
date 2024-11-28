@@ -108,8 +108,8 @@ body {
 .line {
   display: block;
   width: 70%;
-  height: 1px; /* Adjust the height as needed */
-  background-color: var(--off-white); /* Adjust the color as needed */
+  height: 1px;
+  background-color: var(--off-white);
 }
 
 .rem-one{
