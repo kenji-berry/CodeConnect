@@ -63,13 +63,19 @@ export default function Home() {
         <div className="w-full py-2">
           <h3 className="inter-bold">More Projects:</h3>
           <div className="w-full flex justify-evenly">
-            <div className="w-1/2 mr-2">
+            <div className="w-1/2 mr-2 h-full">
               <h3 className="inter-bold">Filter By:</h3>
-              <div className="main-page-filter-box radial-background"></div>
+              <div className="main-page-filter-box radial-background px-2 py-1 inria-sans-bold flex flex-col justify-center">
+                <p>Languages:</p>
+                <p>Technologies:</p>
+                <p>Contribution Type:</p>
+                <p>Difficulty:</p>
+                <p>Last Updated:</p>
+              </div>
             </div>
             <div className="w-1/2 ml-2">
               <h3 className="inter-bold rad">Include These Tags:</h3>
-              <div className="main-page-filter-box radial-background"></div>
+              <div className="main-page-filter-box radial-background px-2 py-1"></div>
             </div>
           </div>
         </div>

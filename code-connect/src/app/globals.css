@@ -38,6 +38,7 @@ body {
   font-style: normal;
 }
 
+
 .inria-sans-bold {
   font-family: "Inria Sans", sans-serif;
   font-weight: 700;
@@ -143,7 +144,7 @@ body {
 }
 
 .main-page-filter-box{
-  height: 10rem;
+  height: auto;
   border-width: 2px;
   border-color: var(--off-white);
 }
