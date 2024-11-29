@@ -91,6 +91,10 @@ const Page = () => {
           </div>
         </div>
       </div>
+      <div className="full-width flex flex-col items-center preview">
+          <h2 className="project-preview-link inter-medium"><a href="preview">Preview And Post</a></h2>
+          <p>See how your post will appear once it's live.</p>
+        </div>
     </div>
   );
 };

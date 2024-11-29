@@ -35,3 +35,13 @@
   font-size: 2rem;
   text-decoration: underline;
 }
+
+.project-preview-link{
+    color: var(--title-red);
+    font-size: 1.5rem;
+    text-decoration: underline;
+}
+
+.preview{
+    margin-bottom: 1rem;
+}

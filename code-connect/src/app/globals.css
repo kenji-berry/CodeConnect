@@ -69,6 +69,13 @@ body {
   font-style: normal;
 }
 
+.inter-medium {
+  font-family: "Inter", sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 500;
+  font-style: normal;
+}
+
 .inter-bold {
   font-family: "Inter", sans-serif;
   font-optical-sizing: auto;
