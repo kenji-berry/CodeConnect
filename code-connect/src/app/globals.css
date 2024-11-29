@@ -18,6 +18,8 @@
 body {
   color: var(--off-white);
   font-family: Arial, Helvetica, sans-serif;
+  background: radial-gradient(var(--magenta-dark), var(--primary-color));
+  height: 100%;
 }
 
 .radial-background {

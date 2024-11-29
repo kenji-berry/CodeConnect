@@ -1,6 +1,5 @@
 "use client";
 import React from "react";
-import NavBar from "../Components/NavBar";
 import "../post-project/style.css";
 import MultiSelector from "../Components/MultiSelector";
 import SingleSelector from "../Components/SingleSelector";
@@ -8,7 +7,6 @@ import SingleSelector from "../Components/SingleSelector";
 const Page = () => {
   return (
     <div className="w-screen h-screen radial-background flex flex-col items-center">
-      <NavBar />
       <div className="project-header w-full flex justify-center items-center">
         <div className="flex items-center gap-4">
           <h1 className="project-page-project-name relative">
