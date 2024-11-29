@@ -5,11 +5,16 @@ import Logo from "./Components/Logo";
 import NavBar from "./Components/NavBar";
 import ProjectPreview from "./Components/ProjectPreview";
 import MultiSelector from "./MultiSelector";
+import SingleSelector from "./SingleSelector";
 
 export default function Home() {
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
-  const [selectedTechnologies, setSelectedTechnologies] = useState<string[]>([]);
-  const [selectedContributionTypes, setSelectedContributionTypes] = useState<string[]>([]);
+  const [selectedTechnologies, setSelectedTechnologies] = useState<string[]>(
+    []
+  );
+  const [selectedContributionTypes, setSelectedContributionTypes] = useState<
+    string[]
+  >([]);
 
   const handleTagsChange = (type: string, tags: string[]) => {
     switch (type) {
@@ -26,37 +31,89 @@ export default function Home() {
         break;
     }
   };
+
+  const [selectedValue, setSelectedValue] = useState<string | null>(null);
+
+  const handleValueChange = (value: string) => {
+    setSelectedValue(value);
+  };
+
   const languages = [
-    "Ada", "APL", "Assembly", "Bash", "C", "C#", "C++", "COBOL", "CSS", 
-    "D", "Dart", "Elixir", "Erlang", "F#", "Fortran", "Go", "Groovy", 
-    "Haskell", "HTML", "Java", "JavaScript", "Julia", "Kotlin", "Lisp", 
-    "Lua", "MATLAB", "Objective-C", "Pascal", "Perl", "PHP", "Prolog", 
-    "Python", "R", "Ruby", "Rust", "Scala", "Shell", "Smalltalk", "SQL", 
-    "Swift", "TypeScript", "Visual Basic", "Zig"
+    "Ada",
+    "APL",
+    "Assembly",
+    "Bash",
+    "C",
+    "C#",
+    "C++",
+    "COBOL",
+    "CSS",
+    "D",
+    "Dart",
+    "Elixir",
+    "Erlang",
+    "F#",
+    "Fortran",
+    "Go",
+    "Groovy",
+    "Haskell",
+    "HTML",
+    "Java",
+    "JavaScript",
+    "Julia",
+    "Kotlin",
+    "Lisp",
+    "Lua",
+    "MATLAB",
+    "Objective-C",
+    "Pascal",
+    "Perl",
+    "PHP",
+    "Prolog",
+    "Python",
+    "R",
+    "Ruby",
+    "Rust",
+    "Scala",
+    "Shell",
+    "Smalltalk",
+    "SQL",
+    "Swift",
+    "TypeScript",
+    "Visual Basic",
+    "Zig",
   ];
-  
 
   const technologies = [
-    "Next.js", 
-    "React.js", 
-    "Tailwind CSS", 
-    "jQuery", 
-    "Bootstrap", 
-    "Material-UI", 
-    "Git", 
-    "VS Code", 
-    "Figma", 
-    "Spline", 
-    "Django"
+    "Next.js",
+    "React.js",
+    "Tailwind CSS",
+    "jQuery",
+    "Bootstrap",
+    "Material-UI",
+    "Git",
+    "VS Code",
+    "Figma",
+    "Spline",
+    "Django",
   ];
 
-  const contributionTypes = ["Documentation", "Design", "Testing", "????", "Translation"];
+  const contributionTypes = [
+    "Documentation",
+    "Design",
+    "Testing",
+    "????",
+    "Translation",
+  ];
+
+  const difficulty = ["Beginner", "Intermediate", "Advanced", "Expert"];
 
   const printTags = () => {
     console.log("selected stuff");
     console.log(selectedLanguages);
     console.log(selectedTechnologies);
     console.log(selectedContributionTypes);
+    console.log(selectedValue);
   };
 
   return (
@@ -115,17 +172,36 @@ export default function Home() {
               <div className="main-page-filter-box radial-background px-2 py-1 inria-sans-bold flex flex-col justify-center">
                 <div>
                   <p>Languages:</p>
-                  <MultiSelector availableTags={languages} onTagsChange={(tags) => handleTagsChange("languages", tags)} />
+                  <MultiSelector
+                    availableTags={languages}
+                    onTagsChange={(tags) => handleTagsChange("languages", tags)}
+                  />
                 </div>
                 <div>
                   <p>Technologies:</p>
-                  <MultiSelector availableTags={technologies} onTagsChange={(tags) => handleTagsChange("technologies", tags)} />
+                  <MultiSelector
+                    availableTags={technologies}
+                    onTagsChange={(tags) =>
+                      handleTagsChange("technologies", tags)
+                    }
+                  />
                 </div>
                 <div>
                   <p>Contribution Type:</p>
-                  <MultiSelector availableTags={contributionTypes} onTagsChange={(tags) => handleTagsChange("contributionTypes", tags)} />
+                  <MultiSelector
+                    availableTags={contributionTypes}
+                    onTagsChange={(tags) =>
+                      handleTagsChange("contributionTypes", tags)
+                    }
+                  />
                 </div>
-                <p>Difficulty:</p>
+                <div>
+                  <p>Difficulty:</p>
+                  <SingleSelector
+                    values={difficulty}
+                    onValueChange={handleValueChange}
+                  />
+                </div>
                 <p>Last Updated:</p>
               </div>
             </div>

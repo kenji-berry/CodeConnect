@@ -1,18 +1,18 @@
-@import url('https://fonts.googleapis.com/css2?family=Inria+Sans:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Zilla+Slab:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Inria+Sans:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Zilla+Slab:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&display=swap");
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --primary-color: #2F2C34;
-  --magenta-dark: #3C353D;
-  --orange: #F9B028;
-  --title-red: #EC7373;
-  --muted-red: #B55656;
-  --off-white: #F5F5F5;
+  --primary-color: #2f2c34;
+  --magenta-dark: #3c353d;
+  --orange: #f9b028;
+  --title-red: #ec7373;
+  --muted-red: #b55656;
+  --off-white: #f5f5f5;
 }
 
 body {
@@ -20,12 +20,12 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
-
-.radial-background{
+.radial-background {
   background: radial-gradient(var(--magenta-dark), var(--primary-color));
   height: 100%;
 }
 
+/* -------------------- FONTS -------------------- */
 .inria-sans-light {
   font-family: "Inria Sans", sans-serif;
   font-weight: 300;
@@ -37,7 +37,6 @@ body {
   font-weight: 400;
   font-style: normal;
 }
-
 
 .inria-sans-bold {
   font-family: "Inria Sans", sans-serif;
@@ -73,7 +72,7 @@ body {
 .inter-bold {
   font-family: "Inter", sans-serif;
   font-optical-sizing: auto;
-  font-weight:  600;
+  font-weight: 600;
   font-style: normal;
 }
 
@@ -82,13 +81,6 @@ body {
   font-weight: 500;
   font-style: normal;
 }
-
-
-
-
-
-
-
 
 .muted-red {
   color: var(--muted-red);
@@ -102,6 +94,7 @@ body {
   color: var(--orange);
 }
 
+/* -------------------- MAIN PAGE -------------------- */
 .code-connect-title {
   font-size: 5rem;
   line-height: 1;
@@ -114,18 +107,18 @@ body {
   background-color: var(--off-white);
 }
 
-.rem-one{
+.rem-one {
   font-size: 1rem;
 }
 
-.blur{
-  background: rgba( 255, 255, 255, 0.15 );
-  box-shadow: 0 8px 32px 0 rgba( 31, 38, 135, 0.37 );
-  backdrop-filter: blur( 10px );
-  -webkit-backdrop-filter: blur( 10px );
+.blur {
+  background: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
-.main-page-contents{
+.main-page-contents {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -134,14 +127,14 @@ body {
   width: 95%;
 }
 
-.main-page-filter-box{
+.main-page-filter-box {
   height: auto;
   min-height: 8.25rem;
   border-width: 2px;
   border-color: var(--off-white);
 }
 
-.main-page-holder{
+.main-page-holder {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -152,15 +145,15 @@ body {
   gap: 0.75rem;
 }
 
-.form-input{
-  color:#2F2C34;
+.form-input {
+  color: #2f2c34;
 }
 
-.tag-item{
+.tag-item {
   width: auto;
 }
 
-.selected-tags{
+.selected-tags {
   display: flex;
   align-items: center;
   flex-direction: row;
@@ -180,7 +173,6 @@ body {
   background-color: black;
   color: white;
 }
-
 
 body {
   font-family: Arial, sans-serif;
@@ -215,5 +207,15 @@ input[type="text"] {
 .dropdown-list li {
   padding: 10px;
   cursor: pointer;
-  
+}
+
+.single-selector {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+
+.single-selector-item {
+  padding: 0.5rem;
+  cursor: pointer;
 }
