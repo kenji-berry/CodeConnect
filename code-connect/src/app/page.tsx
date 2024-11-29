@@ -192,7 +192,6 @@ export default function Home() {
     <div className="w-screen h-screen radial-background flex flex-col items-center">
       <NavBar />
       <CodeConnectTitle />
-      <button onClick={printTags}>dwadwad</button>
       <div className="main-page-contents">
         <div className="w-full">
           <h3 className="inter-bold main-subtitle">Recommended for you:</h3>
