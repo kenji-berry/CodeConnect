@@ -1,11 +1,9 @@
 import React from 'react'
 import CodeConnectTitle from '../Components/CodeConnectTitle'
-import NavBar from '../Components/NavBar'
 
 const page = () => {
   return (
     <div className="w-screen h-screen radial-background flex flex-col items-center">
-      <NavBar />
       <CodeConnectTitle />
       <div className='w-3/4'>
         <h1 className='text-3xl'>About Code Connect</h1>
