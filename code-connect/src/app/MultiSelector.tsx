@@ -4,16 +4,22 @@ import React, { useState, useEffect, useRef } from "react";
 interface MultiSelectorProps {
   availableTags: string[];
   onTagsChange: (tags: string[]) => void;
+  initialTags?: string[]; 
 }
 
 const MultiSelector: React.FC<MultiSelectorProps> = ({
   availableTags,
   onTagsChange,
+  initialTags = [], 
 }) => {
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [selectedTags, setSelectedTags] = useState<string[]>(initialTags); // Initialize with props
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    setSelectedTags(initialTags);
+  }, [initialTags]);
 
   const handleSelectTag = (tag: string) => {
     if (!selectedTags.includes(tag)) {

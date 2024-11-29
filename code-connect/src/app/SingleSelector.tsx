@@ -1,12 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 interface SingleSelectorProps {
   values: string[];
   onValueChange: (selectedValue: string | null) => void;
+  initialValue?: string;
 }
 
-const SingleSelector: React.FC<SingleSelectorProps> = ({ values, onValueChange }) => {
-  const [selectedValue, setSelectedValue] = useState<string | null>(null);
+const SingleSelector: React.FC<SingleSelectorProps> = ({ 
+  values, 
+  onValueChange,
+  initialValue = null 
+}) => {
+  const [selectedValue, setSelectedValue] = useState<string | null>(initialValue);
+
+  useEffect(() => {
+    setSelectedValue(initialValue);
+  }, [initialValue]);
 
   const handleValueChange = (value: string) => {
     const newValue = selectedValue === value ? null : value;

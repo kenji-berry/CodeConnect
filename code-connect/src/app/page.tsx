@@ -1,5 +1,6 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import CodeConnectTitle from "./Components/CodeConnectTitle";
 import Logo from "./Components/Logo";
 import NavBar from "./Components/NavBar";
@@ -8,6 +9,9 @@ import MultiSelector from "./MultiSelector";
 import SingleSelector from "./SingleSelector";
 
 export default function Home() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
   const [selectedTechnologies, setSelectedTechnologies] = useState<string[]>(
     []
@@ -15,12 +19,52 @@ export default function Home() {
   const [selectedContributionTypes, setSelectedContributionTypes] = useState<
     string[]
   >([]);
-  const [selectedDifficulty, setSelectedDifficulty] = useState<string | null>(
-    null
-  );
-  const [selectedLastUpdated, setSelectedLastUpdated] = useState<string | null>(
-    null
-  );
+  const [selectedDifficulty, setSelectedDifficulty] = useState<string>("");
+  const [selectedLastUpdated, setSelectedLastUpdated] = useState<string>("");
+
+  useEffect(() => {
+    const languages = searchParams.get("languages")?.split(",") || [];
+    const technologies = searchParams.get("technologies")?.split(",") || [];
+    const contributionTypes =
+      searchParams.get("contributionTypes")?.split(",") || [];
+    const difficulty = searchParams.get("difficulty") || "";
+    const lastUpdated = searchParams.get("lastUpdated") || "";
+
+    setSelectedLanguages(languages.filter(Boolean));
+    setSelectedTechnologies(technologies.filter(Boolean));
+    setSelectedContributionTypes(contributionTypes.filter(Boolean));
+    setSelectedDifficulty(difficulty);
+    setSelectedLastUpdated(lastUpdated);
+  }, [searchParams]);
+
+  useEffect(() => {
+    const params = new URLSearchParams();
+
+    if (selectedLanguages.length > 0) {
+      params.append("languages", selectedLanguages.join(","));
+    }
+    if (selectedTechnologies.length > 0) {
+      params.append("technologies", selectedTechnologies.join(","));
+    }
+    if (selectedContributionTypes.length > 0) {
+      params.append("contributionTypes", selectedContributionTypes.join(","));
+    }
+    if (selectedDifficulty) {
+      params.append("difficulty", selectedDifficulty);
+    }
+    if (selectedLastUpdated) {
+      params.append("lastUpdated", selectedLastUpdated);
+    }
+
+    router.push(`?${params.toString()}`, { scroll: false });
+  }, [
+    selectedLanguages,
+    selectedTechnologies,
+    selectedContributionTypes,
+    selectedDifficulty,
+    selectedLastUpdated,
+    router,
+  ]);
 
   const handleTagsChange = (type: string, tags: string[]) => {
     switch (type) {
@@ -38,7 +82,7 @@ export default function Home() {
     }
   };
 
-  const handleValueChange = (type: string, value: string | null) => {
+  const handleValueChange = (type: string, value: string) => {
     switch (type) {
       case "difficulty":
         setSelectedDifficulty(value);
@@ -190,6 +234,7 @@ export default function Home() {
                   <MultiSelector
                     availableTags={languages}
                     onTagsChange={(tags) => handleTagsChange("languages", tags)}
+                    initialTags={selectedLanguages}
                   />
                 </div>
                 <div>
@@ -199,6 +244,7 @@ export default function Home() {
                     onTagsChange={(tags) =>
                       handleTagsChange("technologies", tags)
                     }
+                    initialTags={selectedTechnologies}
                   />
                 </div>
                 <div>
@@ -208,6 +254,7 @@ export default function Home() {
                     onTagsChange={(tags) =>
                       handleTagsChange("contributionTypes", tags)
                     }
+                    initialTags={selectedContributionTypes}
                   />
                 </div>
                 <div>
@@ -215,8 +262,9 @@ export default function Home() {
                   <SingleSelector
                     values={difficulty}
                     onValueChange={(value) =>
-                      handleValueChange("difficulty", value)
+                      handleValueChange("difficulty", value || "")
                     }
+                    initialValue={selectedDifficulty}
                   />
                 </div>
                 <div>
@@ -224,8 +272,9 @@ export default function Home() {
                   <SingleSelector
                     values={lastUpdated}
                     onValueChange={(value) =>
-                      handleValueChange("lastUpdated", value)
+                      handleValueChange("lastUpdated", value || "")
                     }
+                    initialValue={selectedLastUpdated}
                   />
                 </div>
               </div>
