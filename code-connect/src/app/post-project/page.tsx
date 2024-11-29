@@ -8,7 +8,7 @@ import SingleSelector from "../Components/SingleSelector";
 const Page = () => {
   const tags = ["tag1", "tag2", "tag3", "tag4", "tag5"];
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [descriptionOption, setDescriptionOption] = useState<string>("existing");
+  const [descriptionOption, setDescriptionOption] = useState<string>("Use README");
 
   const handleTagsChange = (tags: string[]) => {
     setSelectedTags(tags);
@@ -20,9 +20,14 @@ const Page = () => {
 
   const descriptionOptions = ["Use README", "Write your Own"];
 
+  const printDescription = () => {
+    console.log(descriptionOption);
+  };
+
   return (
     <div className="w-screen h-screen radial-background flex flex-col items-center">
       <NavBar />
+      <button onClick={printDescription}>dddd</button>
       <h1 className="project-page-project-name">
         <a target="_blank" href="project">
           Project Name
