@@ -38,6 +38,12 @@ body {
   font-style: normal;
 }
 
+.inria-sans-semibold {
+  font-family: "Inria Sans", sans-serif;
+  font-weight: 600;
+  font-style: normal;
+}
+
 .inria-sans-bold {
   font-family: "Inria Sans", sans-serif;
   font-weight: 700;

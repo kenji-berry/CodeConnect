@@ -36,7 +36,7 @@ const Page = () => {
       <div className="bento-container w-full inria-sans-regular">
         <div className="bento-box full-width radial-background">
           <div className="flex items-center">
-            <span className="mr-2">
+            <span className="mr-2 inria-sans-semibold">
               Write your own project description or use existing README?
             </span>
             <SingleSelector
@@ -66,7 +66,7 @@ const Page = () => {
           />
         </div>
         <div className="full-width">
-          <h2>READ ONLY Project Information (as of xx/xx/xx)</h2>
+          <h2 className="inria-sans-semibold">READ ONLY Project Information (as of xx/xx/xx)</h2>
         </div>
         <div className="bento-box half-width radial-background">
           <h4>Owner:</h4>
@@ -83,7 +83,7 @@ const Page = () => {
           <h4>Pull Requests:</h4>
         </div>
         <div className="bento-box full-width radial-background">
-          <h3>Recent Activity:</h3>
+          <h3 className="inria-sans-semibold">Recent Activity:</h3>
           <h4>Most Recent Commit:</h4>
           <div>
             <h4>Activity Graph:</h4>
