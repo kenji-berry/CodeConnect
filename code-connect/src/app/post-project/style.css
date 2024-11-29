@@ -1,0 +1,31 @@
+.bento-container {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.bento-box {
+  background-color: red;
+  padding: 1rem;
+  border: 1.5px solid var(--off-white);
+  border-radius: 0.25rem;
+}
+
+.full-width {
+  grid-column: span 2;
+}
+
+.half-width {
+  grid-column: span 1;
+}
+
+@media (max-width: 768px) {
+    .bento-container {
+      grid-template-columns: 1fr;
+    }
+  
+    .full-width, .half-width {
+      grid-column: span 1;
+    }
+  }
