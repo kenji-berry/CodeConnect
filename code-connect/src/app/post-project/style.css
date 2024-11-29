@@ -36,12 +36,24 @@
   text-decoration: underline;
 }
 
-.project-preview-link{
-    color: var(--title-red);
-    font-size: 1.5rem;
-    text-decoration: underline;
+.project-preview-link {
+  color: var(--title-red);
+  font-size: 1.5rem;
+  text-decoration: underline;
 }
 
-.preview{
-    margin-bottom: 1rem;
+.preview {
+  margin-bottom: 1rem;
+}
+
+.project-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 1rem;
+}
+
+.star{
+  max-width: none;
+  
 }
