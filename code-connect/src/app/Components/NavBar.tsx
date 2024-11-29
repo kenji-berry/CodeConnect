@@ -5,12 +5,12 @@ import LoginButton from './LoginButton'
 
 const NavBar = () => {
     return (
-      <nav className='w-full bg-transparent flex justify-between px-6 pt-6'>
+      <nav className='w-full bg-transparent flex justify-between px-3 pt-3'>
         <div className='flex'>
           <Link href="/">
-            <Logo rem={4}/>
+            <Logo rem={2.5}/>
           </Link>
-          <ul className='flex gap-10 ml-10 inria-sans-bold mt-1 rem-one'>
+          <ul className='flex gap-5 ml-6 inria-sans-bold mt-1 text-sm'>
             <li>
               <Link href="/contributions" className='text-off-white hover:text-orange transition-colors cursor-pointer'>
                 Your Contributions
