@@ -3,14 +3,22 @@ import React, { useState } from "react";
 import NavBar from "../Components/NavBar";
 import "./style.css";
 import MultiSelector from "../Components/MultiSelector";
+import SingleSelector from "../Components/SingleSelector";
 
 const Page = () => {
   const tags = ["tag1", "tag2", "tag3", "tag4", "tag5"];
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [descriptionOption, setDescriptionOption] = useState<string>("existing");
 
   const handleTagsChange = (tags: string[]) => {
     setSelectedTags(tags);
   };
+
+  const handleDescriptionOptionChange = (option: string) => {
+    setDescriptionOption(option);
+  };
+
+  const descriptionOptions = ["Use README", "Write your Own"];
 
   return (
     <div className="w-screen h-screen radial-background flex flex-col items-center">
@@ -22,14 +30,27 @@ const Page = () => {
       </h1>
       <div className="bento-container w-full inria-sans-regular">
         <div className="bento-box full-width radial-background">
-          Write your own project description or use existing README?
+          <div className="flex items-center">
+            <span className="mr-2">
+              Write your own project description or use existing README?
+            </span>
+            <SingleSelector
+              values={descriptionOptions}
+              onValueChange={(value) =>
+                handleDescriptionOptionChange(value || "")
+              }
+              initialValue={descriptionOption}
+            />
+          </div>
+          {descriptionOption === "Write your Own" && (
+            <textarea
+              className="w-full mt-2 p-2 border rounded"
+              placeholder="Write your project description here..."
+            />
+          )}
         </div>
         <div className="bento-box half-width radial-background">
           <h4>Tech Stack:</h4>
-          <h4>Recommended Skill Level:</h4>
-          <h4>Contribution Guidelines:</h4>
-          <h4>Code of Conduct:</h4>
-          <h4>Roadmap:</h4>
         </div>
         <div className="bento-box half-width radial-background">
           <h4>Tags:</h4>
