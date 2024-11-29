@@ -105,15 +105,6 @@ export default function Home() {
               issueCount={5}
               recommended={true}
             />
-            <ProjectPreview
-              name="My Project"
-              date="March 15, 2024"
-              tags={["Frontend", "Open Source"]}
-              description="A description of the project that takes up multiple lines and explains what the project does in detail."
-              techStack={["React", "TypeScript", "Tailwind"]}
-              issueCount={5}
-              recommended={true}
-            />
           </div>
         </div>
 
