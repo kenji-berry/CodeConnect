@@ -15,6 +15,12 @@ export default function Home() {
   const [selectedContributionTypes, setSelectedContributionTypes] = useState<
     string[]
   >([]);
+  const [selectedDifficulty, setSelectedDifficulty] = useState<string | null>(
+    null
+  );
+  const [selectedLastUpdated, setSelectedLastUpdated] = useState<string | null>(
+    null
+  );
 
   const handleTagsChange = (type: string, tags: string[]) => {
     switch (type) {
@@ -32,10 +38,17 @@ export default function Home() {
     }
   };
 
-  const [selectedValue, setSelectedValue] = useState<string | null>(null);
-
-  const handleValueChange = (value: string) => {
-    setSelectedValue(value);
+  const handleValueChange = (type: string, value: string | null) => {
+    switch (type) {
+      case "difficulty":
+        setSelectedDifficulty(value);
+        break;
+      case "lastUpdated":
+        setSelectedLastUpdated(value);
+        break;
+      default:
+        break;
+    }
   };
 
   const languages = [
@@ -107,13 +120,15 @@ export default function Home() {
   ];
 
   const difficulty = ["Beginner", "Intermediate", "Advanced", "Expert"];
+  const lastUpdated = ["Last 24 hours", "Last 7 days", "Last 30 days"];
 
   const printTags = () => {
     console.log("selected stuff");
     console.log(selectedLanguages);
     console.log(selectedTechnologies);
     console.log(selectedContributionTypes);
-    console.log(selectedValue);
+    console.log(selectedDifficulty);
+    console.log(selectedLastUpdated);
   };
 
   return (
@@ -199,10 +214,16 @@ export default function Home() {
                   <p>Difficulty:</p>
                   <SingleSelector
                     values={difficulty}
-                    onValueChange={handleValueChange}
+                    onValueChange={(value) => handleValueChange("difficulty", value)}
                   />
                 </div>
-                <p>Last Updated:</p>
+                <div>
+                  <p>Last Updated:</p>
+                  <SingleSelector
+                    values={lastUpdated}
+                    onValueChange={(value) => handleValueChange("lastUpdated", value)}
+                  />
+                </div>
               </div>
             </div>
             <div className="w-1/2 ml-2">
