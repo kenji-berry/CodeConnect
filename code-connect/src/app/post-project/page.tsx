@@ -24,7 +24,7 @@ const Page = () => {
   };
 
   return (
-    <div className="w-screen h-screen radial-background flex flex-col items-center">
+    <div className="w-screen h-screen flex flex-col items-center">
       <button onClick={printDescription}>dddd</button>
       <h1 className="project-page-project-name">
         <a target="_blank" href="project">

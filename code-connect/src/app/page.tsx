@@ -187,195 +187,196 @@ export default function Home() {
   };
 
   return (
-    <div className="w-screen h-screen radial-background flex flex-col items-center">
+    <div className="w-screen min-h-screen justify-center flex flex-col items-center">
       <CodeConnectTitle />
-      <div className="main-page-contents">
-        <div className="w-full">
-          <h3 className="inter-bold main-subtitle">Recommended for you:</h3>
-          <div className="main-page-holder">
-            <ProjectPreview
-              name="My Project"
-              date="March 15, 2024"
-              tags={["Frontend", "Open Source"]}
-              description="A description of the project that takes up multiple lines and explains what the project does in detail."
-              techStack={["React", "TypeScript", "Tailwind"]}
-              issueCount={5}
-              recommended={true}
-            />
-            <ProjectPreview
-              name="My Project"
-              date="March 15, 2024"
-              tags={["Frontend", "Open Source"]}
-              description="A description of the project that takes up multiple lines and explains what the project does in detail."
-              techStack={["React", "TypeScript", "Tailwind"]}
-              issueCount={5}
-              recommended={true}
-            />
-            <ProjectPreview
-              name="My Project"
-              date="March 15, 2024"
-              tags={["Frontend", "Open Source"]}
-              description="A description of the project that takes up multiple lines and explains what the project does in detail."
-              techStack={["React", "TypeScript", "Tailwind"]}
-              issueCount={5}
-              recommended={true}
-            />
-            <ProjectPreview
-              name="My Project"
-              date="March 15, 2024"
-              tags={["Frontend", "Open Source"]}
-              description="A description of the project that takes up multiple lines and explains what the project does in detail."
-              techStack={["React", "TypeScript", "Tailwind"]}
-              issueCount={5}
-              recommended={true}
-            />
+      <div className="flex justify-center w-full">
+        <div className="main-page-contents">
+          <div className="w-full">
+            <h3 className="inter-bold main-subtitle">Recommended for you:</h3>
+            <div className="main-page-holder">
+              <ProjectPreview
+                name="My Project"
+                date="March 15, 2024"
+                tags={["Frontend", "Open Source"]}
+                description="A description of the project that takes up multiple lines and explains what the project does in detail."
+                techStack={["React", "TypeScript", "Tailwind"]}
+                issueCount={5}
+                recommended={true}
+              />
+              <ProjectPreview
+                name="My Project"
+                date="March 15, 2024"
+                tags={["Frontend", "Open Source"]}
+                description="A description of the project that takes up multiple lines and explains what the project does in detail."
+                techStack={["React", "TypeScript", "Tailwind"]}
+                issueCount={5}
+                recommended={true}
+              />
+              <ProjectPreview
+                name="My Project"
+                date="March 15, 2024"
+                tags={["Frontend", "Open Source"]}
+                description="A description of the project that takes up multiple lines and explains what the project does in detail."
+                techStack={["React", "TypeScript", "Tailwind"]}
+                issueCount={5}
+                recommended={true}
+              />
+              <ProjectPreview
+                name="My Project"
+                date="March 15, 2024"
+                tags={["Frontend", "Open Source"]}
+                description="A description of the project that takes up multiple lines and explains what the project does in detail."
+                techStack={["React", "TypeScript", "Tailwind"]}
+                issueCount={5}
+                recommended={true}
+              />
+            </div>
           </div>
-        </div>
 
-        <div className="w-full py-2.5">
-          <h3 className="inter-bold main-subtitle">More Projects:</h3>
-          <div className="w-full flex justify-evenly filtertag-holder">
-            <div className="w-1/2 mr-2 h-full filter-holder">
-              <h3 className="inter-bold main-subtitle">Filter By:</h3>
-              <div className="main-page-filter-box radial-background px-2 py-1 inria-sans-bold flex flex-col justify-center">
-                <div>
-                  <p>Languages:</p>
-                  <MultiSelector
-                    availableTags={languages}
-                    onTagsChange={(tags) => handleTagsChange("languages", tags)}
-                    initialTags={selectedLanguages}
-                  />
-                </div>
-                <div>
-                  <p>Technologies:</p>
-                  <MultiSelector
-                    availableTags={technologies}
-                    onTagsChange={(tags) =>
-                      handleTagsChange("technologies", tags)
-                    }
-                    initialTags={selectedTechnologies}
-                  />
-                </div>
-                <div>
-                  <p>Contribution Type:</p>
-                  <MultiSelector
-                    availableTags={contributionTypes}
-                    onTagsChange={(tags) =>
-                      handleTagsChange("contributionTypes", tags)
-                    }
-                    initialTags={selectedContributionTypes}
-                  />
-                </div>
-                <div>
-                  <p>Difficulty:</p>
-                  <SingleSelector
-                    values={difficulty}
-                    onValueChange={(value) =>
-                      handleValueChange("difficulty", value || "")
-                    }
-                    initialValue={selectedDifficulty}
-                  />
-                </div>
-                <div>
-                  <p>Last Updated:</p>
-                  <SingleSelector
-                    values={lastUpdated}
-                    onValueChange={(value) =>
-                      handleValueChange("lastUpdated", value || "")
-                    }
-                    initialValue={selectedLastUpdated}
-                  />
-                </div>
-                <div>
-                  <p>Filter Mode:</p>
-                  <SingleSelector
-                    values={['AND', 'OR']}
-                    onValueChange={(value) => handleValueChange("filterMode", value || 'AND')}
-                    initialValue={filterMode}
-                  />
-                </div>
-                <div>
-                  <button onClick={clearAllFilters} className="flex items-center py-1 px-2 m-1 bg-red-700 hover:bg-red-900 rounded">
-                    Clear All
-                  </button>
+          <div className="w-full py-2.5">
+            <h3 className="inter-bold main-subtitle">More Projects:</h3>
+            <div className="w-full flex justify-evenly filtertag-holder">
+              <div className="w-1/2 mr-2 h-full filter-holder">
+                <h3 className="inter-bold main-subtitle">Filter By:</h3>
+                <div className="main-page-filter-box radial-background px-2 py-1 inria-sans-bold flex flex-col justify-center">
+                  <div>
+                    <p>Languages:</p>
+                    <MultiSelector
+                      availableTags={languages}
+                      onTagsChange={(tags) => handleTagsChange("languages", tags)}
+                      initialTags={selectedLanguages}
+                    />
+                  </div>
+                  <div>
+                    <p>Technologies:</p>
+                    <MultiSelector
+                      availableTags={technologies}
+                      onTagsChange={(tags) =>
+                        handleTagsChange("technologies", tags)
+                      }
+                      initialTags={selectedTechnologies}
+                    />
+                  </div>
+                  <div>
+                    <p>Contribution Type:</p>
+                    <MultiSelector
+                      availableTags={contributionTypes}
+                      onTagsChange={(tags) =>
+                        handleTagsChange("contributionTypes", tags)
+                      }
+                      initialTags={selectedContributionTypes}
+                    />
+                  </div>
+                  <div>
+                    <p>Difficulty:</p>
+                    <SingleSelector
+                      values={difficulty}
+                      onValueChange={(value) =>
+                        handleValueChange("difficulty", value || "")
+                      }
+                      initialValue={selectedDifficulty}
+                    />
+                  </div>
+                  <div>
+                    <p>Last Updated:</p>
+                    <SingleSelector
+                      values={lastUpdated}
+                      onValueChange={(value) =>
+                        handleValueChange("lastUpdated", value || "")
+                      }
+                      initialValue={selectedLastUpdated}
+                    />
+                  </div>
+                  <div>
+                    <p>Filter Mode:</p>
+                    <SingleSelector
+                      values={['AND', 'OR']}
+                      onValueChange={(value) => handleValueChange("filterMode", value || 'AND')}
+                      initialValue={filterMode}
+                    />
+                  </div>
+                  <div>
+                    <button onClick={clearAllFilters} className="flex items-center py-1 px-2 m-1 bg-red-700 hover:bg-red-900 rounded">
+                      Clear All
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-            <div className="w-1/2 ml-2 filter-holder">
-              <h3 className="inter-bold rad main-subtitle">Include These Tags:</h3>
-              <div className="main-page-filter-box radial-background px-2 py-1"></div>
+              <div className="w-1/2 ml-2 filter-holder">
+                <h3 className="inter-bold rad main-subtitle">Include These Tags:</h3>
+                <div className="main-page-filter-box radial-background px-2 py-1"></div>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="main-page-holder">
-          <ProjectPreview
-            name="Project Name"
-            date="March 15, 2024"
-            tags={["Project Tag", "Project Tag", "Project Tag"]}
-            description="Project Description"
-            techStack={["React", "TypeScript", "Tailwind"]}
-            issueCount={5}
-          />
-          <ProjectPreview
-            name="Project Name"
-            date="March 15, 2024"
-            tags={["Project Tag", "Project Tag", "Project Tag"]}
-            description="Project Description"
-            techStack={["React", "TypeScript", "Tailwind"]}
-            issueCount={5}
-          />
-          <ProjectPreview
-            name="Project Name"
-            date="March 15, 2024"
-            tags={["Project Tag", "Project Tag", "Project Tag"]}
-            description="Project Description"
-            techStack={["React", "TypeScript", "Tailwind"]}
-            issueCount={5}
-          />
-          <ProjectPreview
-            name="Project Name"
-            date="March 15, 2024"
-            tags={["Project Tag", "Project Tag", "Project Tag"]}
-            description="Project Description"
-            techStack={["React", "TypeScript", "Tailwind"]}
-            issueCount={5}
-          />
-          <ProjectPreview
-            name="Project Name"
-            date="March 15, 2024"
-            tags={["Project Tag", "Project Tag", "Project Tag"]}
-            description="Project Description"
-            techStack={["React", "TypeScript", "Tailwind"]}
-            issueCount={5}
-          />
-          <ProjectPreview
-            name="Project Name"
-            date="March 15, 2024"
-            tags={["Project Tag", "Project Tag", "Project Tag"]}
-            description="Project Description"
-            techStack={["React", "TypeScript", "Tailwind"]}
-            issueCount={5}
-          />
-          <ProjectPreview
-            name="Project Name"
-            date="March 15, 2024"
-            tags={["Project Tag", "Project Tag", "Project Tag"]}
-            description="Project Description"
-            techStack={["React", "TypeScript", "Tailwind"]}
-            issueCount={5}
-          />
-          <ProjectPreview
-            name="Project Name"
-            date="March 15, 2024"
-            tags={["Project Tag", "Project Tag", "Project Tag"]}
-            description="Project Description"
-            techStack={["React", "TypeScript", "Tailwind"]}
-            issueCount={5}
-          />
+          <div className="main-page-holder">
+            <ProjectPreview
+              name="Project Name"
+              date="March 15, 2024"
+              tags={["Project Tag", "Project Tag", "Project Tag"]}
+              description="Project Description"
+              techStack={["React", "TypeScript", "Tailwind"]}
+              issueCount={5}
+            />
+            <ProjectPreview
+              name="Project Name"
+              date="March 15, 2024"
+              tags={["Project Tag", "Project Tag", "Project Tag"]}
+              description="Project Description"
+              techStack={["React", "TypeScript", "Tailwind"]}
+              issueCount={5}
+            />
+            <ProjectPreview
+              name="Project Name"
+              date="March 15, 2024"
+              tags={["Project Tag", "Project Tag", "Project Tag"]}
+              description="Project Description"
+              techStack={["React", "TypeScript", "Tailwind"]}
+              issueCount={5}
+            />
+            <ProjectPreview
+              name="Project Name"
+              date="March 15, 2024"
+              tags={["Project Tag", "Project Tag", "Project Tag"]}
+              description="Project Description"
+              techStack={["React", "TypeScript", "Tailwind"]}
+              issueCount={5}
+            />
+            <ProjectPreview
+              name="Project Name"
+              date="March 15, 2024"
+              tags={["Project Tag", "Project Tag", "Project Tag"]}
+              description="Project Description"
+              techStack={["React", "TypeScript", "Tailwind"]}
+              issueCount={5}
+            />
+            <ProjectPreview
+              name="Project Name"
+              date="March 15, 2024"
+              tags={["Project Tag", "Project Tag", "Project Tag"]}
+              description="Project Description"
+              techStack={["React", "TypeScript", "Tailwind"]}
+              issueCount={5}
+            />
+            <ProjectPreview
+              name="Project Name"
+              date="March 15, 2024"
+              tags={["Project Tag", "Project Tag", "Project Tag"]}
+              description="Project Description"
+              techStack={["React", "TypeScript", "Tailwind"]}
+              issueCount={5}
+            />
+            <ProjectPreview
+              name="Project Name"
+              date="March 15, 2024"
+              tags={["Project Tag", "Project Tag", "Project Tag"]}
+              description="Project Description"
+              techStack={["React", "TypeScript", "Tailwind"]}
+              issueCount={5}
+            />
+          </div>
         </div>
       </div>
-      <footer className="row-start-3 flex gap-6 flex-wrap justify-center"></footer>
     </div>
   );
 }

@@ -4,7 +4,7 @@ import "../post-project/style.css";
 
 const Page = () => {
   return (
-    <div className="w-screen h-screen radial-background flex flex-col items-center">
+    <div className="w-screen h-screen flex flex-col items-center">
       <div className="project-header w-full flex justify-center items-center">
         <div className="flex items-center gap-4">
           <h1 className="project-page-project-name relative">

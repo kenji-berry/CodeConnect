@@ -20,10 +20,15 @@ body {
   font-family: Arial, Helvetica, sans-serif;
   background: radial-gradient(var(--magenta-dark), var(--primary-color));
   height: 100%;
+  width: 100%;
 }
 
 .radial-background {
   background: radial-gradient(var(--magenta-dark), var(--primary-color));
+  height: 100%;
+}
+
+.container {
   height: 100%;
 }
 
@@ -140,6 +145,8 @@ body {
   flex-direction: column;
   height: 100%;
   width: 95%;
+  max-width: 1920px;
+  margin: 0 auto;
 }
 
 @media (max-width: 768px) {
@@ -262,5 +269,3 @@ input[type="text"] {
 .single-selector-item {
   cursor: pointer;
 }
-
-
