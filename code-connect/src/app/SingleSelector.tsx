@@ -19,7 +19,7 @@ const SingleSelector: React.FC<SingleSelectorProps> = ({ values, onValueChange }
       {values.map((value) => (
         <div
           key={value}
-          className={`single-selector-item mx-1 rounded mt-1 select-none ${selectedValue === value ? 'bg-red-700' : 'bg-slate-500'}`}
+          className={`single-selector-item mx-1  py-1 px-2 rounded mt-1 select-none ${selectedValue === value ? 'bg-red-700' : 'bg-slate-500'}`}
           onClick={() => handleValueChange(value)}
         >
           {value}

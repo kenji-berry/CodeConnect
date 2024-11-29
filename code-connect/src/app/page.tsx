@@ -214,14 +214,18 @@ export default function Home() {
                   <p>Difficulty:</p>
                   <SingleSelector
                     values={difficulty}
-                    onValueChange={(value) => handleValueChange("difficulty", value)}
+                    onValueChange={(value) =>
+                      handleValueChange("difficulty", value)
+                    }
                   />
                 </div>
                 <div>
                   <p>Last Updated:</p>
                   <SingleSelector
                     values={lastUpdated}
-                    onValueChange={(value) => handleValueChange("lastUpdated", value)}
+                    onValueChange={(value) =>
+                      handleValueChange("lastUpdated", value)
+                    }
                   />
                 </div>
               </div>
