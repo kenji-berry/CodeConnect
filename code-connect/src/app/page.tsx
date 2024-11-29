@@ -7,12 +7,25 @@ import ProjectPreview from "./Components/ProjectPreview";
 import MultiSelector from "./MultiSelector";
 
 export default function Home() {
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
+  const [selectedTechnologies, setSelectedTechnologies] = useState<string[]>([]);
+  const [selectedContributionTypes, setSelectedContributionTypes] = useState<string[]>([]);
 
-  const handleTagsChange = (tags: string[]) => {
-    setSelectedTags(tags);
+  const handleTagsChange = (type: string, tags: string[]) => {
+    switch (type) {
+      case "languages":
+        setSelectedLanguages(tags);
+        break;
+      case "technologies":
+        setSelectedTechnologies(tags);
+        break;
+      case "contributionTypes":
+        setSelectedContributionTypes(tags);
+        break;
+      default:
+        break;
+    }
   };
-
   const languages = [
     "JavaScript",
     "Python",
@@ -41,7 +54,10 @@ export default function Home() {
   const contributionTypes = ["Documentation", "Design", "Testing", "????", "Translation"];
 
   const printTags = () => {
-    console.log(selectedTags);
+    console.log("selected stuff");
+    console.log(selectedLanguages);
+    console.log(selectedTechnologies);
+    console.log(selectedContributionTypes);
   };
 
   return (
@@ -109,24 +125,15 @@ export default function Home() {
               <div className="main-page-filter-box radial-background px-2 py-1 inria-sans-bold flex flex-col justify-center">
                 <div>
                   <p>Languages:</p>
-                  <MultiSelector
-                    availableTags={languages}
-                    onTagsChange={handleTagsChange}
-                  />
+                  <MultiSelector availableTags={languages} onTagsChange={(tags) => handleTagsChange("languages", tags)} />
                 </div>
                 <div>
                   <p>Technologies:</p>
-                  <MultiSelector
-                    availableTags={technologies}
-                    onTagsChange={handleTagsChange}
-                  />
+                  <MultiSelector availableTags={technologies} onTagsChange={(tags) => handleTagsChange("technologies", tags)} />
                 </div>
                 <div>
                   <p>Contribution Type:</p>
-                  <MultiSelector
-                    availableTags={contributionTypes}
-                    onTagsChange={handleTagsChange}
-                    />
+                  <MultiSelector availableTags={contributionTypes} onTagsChange={(tags) => handleTagsChange("contributionTypes", tags)} />
                 </div>
                 <p>Difficulty:</p>
                 <p>Last Updated:</p>
