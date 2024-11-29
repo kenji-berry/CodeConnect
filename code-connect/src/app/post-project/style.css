@@ -21,11 +21,17 @@
 }
 
 @media (max-width: 768px) {
-    .bento-container {
-      grid-template-columns: 1fr;
-    }
-  
-    .full-width, .half-width {
-      grid-column: span 1;
-    }
+  .bento-container {
+    grid-template-columns: 1fr;
   }
+
+  .full-width,
+  .half-width {
+    grid-column: span 1;
+  }
+}
+
+.project-page-project-name {
+  font-size: 2rem;
+  text-decoration: underline;
+}
