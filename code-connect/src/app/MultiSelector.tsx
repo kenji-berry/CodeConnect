@@ -62,7 +62,7 @@ const MultiSelector: React.FC<MultiSelectorProps> = ({
         <select
           multiple
           className="form-multiselect block w-full custom-select"
-          size={5}
+          size={3}
         >
           {filteredTags.map((tag) => (
             <option
