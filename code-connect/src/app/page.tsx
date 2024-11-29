@@ -21,6 +21,7 @@ export default function Home() {
   >([]);
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>("");
   const [selectedLastUpdated, setSelectedLastUpdated] = useState<string>("");
+  const [filterMode, setFilterMode] = useState<string>('AND');
 
   useEffect(() => {
     const languages = searchParams.get("languages")?.split(",") || [];
@@ -29,12 +30,14 @@ export default function Home() {
       searchParams.get("contributionTypes")?.split(",") || [];
     const difficulty = searchParams.get("difficulty") || "";
     const lastUpdated = searchParams.get("lastUpdated") || "";
+    const mode = searchParams.get("filterMode") || 'AND';
 
     setSelectedLanguages(languages.filter(Boolean));
     setSelectedTechnologies(technologies.filter(Boolean));
     setSelectedContributionTypes(contributionTypes.filter(Boolean));
     setSelectedDifficulty(difficulty);
     setSelectedLastUpdated(lastUpdated);
+    setFilterMode(mode);
   }, [searchParams]);
 
   useEffect(() => {
@@ -55,6 +58,9 @@ export default function Home() {
     if (selectedLastUpdated) {
       params.append("lastUpdated", selectedLastUpdated);
     }
+    if (filterMode) {
+      params.append("filterMode", filterMode);
+    }
 
     router.push(`?${params.toString()}`, { scroll: false });
   }, [
@@ -63,6 +69,7 @@ export default function Home() {
     selectedContributionTypes,
     selectedDifficulty,
     selectedLastUpdated,
+    filterMode,
     router,
   ]);
 
@@ -89,6 +96,9 @@ export default function Home() {
         break;
       case "lastUpdated":
         setSelectedLastUpdated(value);
+        break;
+      case "filterMode":
+        setFilterMode(value);
         break;
       default:
         break;
@@ -275,6 +285,14 @@ export default function Home() {
                       handleValueChange("lastUpdated", value || "")
                     }
                     initialValue={selectedLastUpdated}
+                  />
+                </div>
+                <div>
+                  <p>Filter Mode:</p>
+                  <SingleSelector
+                    values={['AND', 'OR']}
+                    onValueChange={(value) => handleValueChange("filterMode", value || 'AND')}
+                    initialValue={filterMode}
                   />
                 </div>
               </div>
