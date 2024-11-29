@@ -5,6 +5,9 @@ import "../post-project/style.css";
 const Page = () => {
   return (
     <div className="w-screen h-screen radial-background flex flex-col items-center">
+        <div className="full-width w-full flex flex-col preview">
+          <a href="post-project"><p>Return to editing.</p></a>
+        </div>
       <div className="project-header w-full flex justify-center items-center">
         <div className="flex items-center gap-4">
           <h1 className="project-page-project-name relative">
@@ -67,6 +70,10 @@ const Page = () => {
           </div>
         </div>
       </div>
+      <div className="full-width flex flex-col items-center preview">
+          <h2 className="project-preview-link inter-medium"><a href="preview">Post</a></h2>
+          <p>Publish your project.</p>
+        </div>
     </div>
   );
 };
