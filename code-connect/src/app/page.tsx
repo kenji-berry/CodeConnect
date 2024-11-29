@@ -13,12 +13,8 @@ export default function Home() {
   const router = useRouter();
 
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
-  const [selectedTechnologies, setSelectedTechnologies] = useState<string[]>(
-    []
-  );
-  const [selectedContributionTypes, setSelectedContributionTypes] = useState<
-    string[]
-  >([]);
+  const [selectedTechnologies, setSelectedTechnologies] = useState<string[]>([]);
+  const [selectedContributionTypes, setSelectedContributionTypes] = useState<string[]>([]);
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>("");
   const [selectedLastUpdated, setSelectedLastUpdated] = useState<string>("");
   const [filterMode, setFilterMode] = useState<string>('AND');
@@ -26,8 +22,7 @@ export default function Home() {
   useEffect(() => {
     const languages = searchParams.get("languages")?.split(",") || [];
     const technologies = searchParams.get("technologies")?.split(",") || [];
-    const contributionTypes =
-      searchParams.get("contributionTypes")?.split(",") || [];
+    const contributionTypes = searchParams.get("contributionTypes")?.split(",") || [];
     const difficulty = searchParams.get("difficulty") || "";
     const lastUpdated = searchParams.get("lastUpdated") || "";
     const mode = searchParams.get("filterMode") || 'AND';
@@ -58,9 +53,7 @@ export default function Home() {
     if (selectedLastUpdated) {
       params.append("lastUpdated", selectedLastUpdated);
     }
-    if (filterMode) {
-      params.append("filterMode", filterMode);
-    }
+    params.append("filterMode", filterMode);
 
     router.push(`?${params.toString()}`, { scroll: false });
   }, [
@@ -70,7 +63,7 @@ export default function Home() {
     selectedDifficulty,
     selectedLastUpdated,
     filterMode,
-    router,
+    router
   ]);
 
   const handleTagsChange = (type: string, tags: string[]) => {
@@ -103,6 +96,16 @@ export default function Home() {
       default:
         break;
     }
+  };
+
+  const clearAllFilters = () => {
+    setSelectedLanguages([]);
+    setSelectedTechnologies([]);
+    setSelectedContributionTypes([]);
+    setSelectedDifficulty("");
+    setSelectedLastUpdated("");
+    setFilterMode('AND');
+    router.push(`?`, { scroll: false });
   };
 
   const languages = [
@@ -294,6 +297,11 @@ export default function Home() {
                     onValueChange={(value) => handleValueChange("filterMode", value || 'AND')}
                     initialValue={filterMode}
                   />
+                </div>
+                <div>
+                  <button onClick={clearAllFilters} className="flex items-center py-1 px-2 m-1 bg-red-700 hover:bg-red-900 rounded">
+                    Clear All
+                  </button>
                 </div>
               </div>
             </div>

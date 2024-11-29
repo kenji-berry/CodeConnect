@@ -103,7 +103,7 @@ const MultiSelector: React.FC<MultiSelectorProps> = ({
         {selectedTags.map((tag) => (
           <button
             key={tag}
-            className="tag-item selected-tag flex items-center py-1 px-2 m-1 bg-slate-500 rounded hover:bg-red-700"
+            className="tag-item selected-tag flex items-center py-1 px-2 m-1 bg-slate-500 rounded hover:bg-red-900"
             onClick={() => handleRemoveTag(tag)}
           >
             {tag}
