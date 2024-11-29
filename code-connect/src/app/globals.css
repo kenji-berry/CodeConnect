@@ -152,7 +152,20 @@ body {
   gap: 0.75rem;
 }
 
+.form-input{
+  color:#2F2C34;
+}
 
+.tag-item{
+  width: auto;
+}
+
+.selected-tags{
+  display: flex;
+  align-items: center;
+  flex-direction: row;
+  flex-wrap: wrap;
+}
 
 .custom-select {
   background-color: black;
