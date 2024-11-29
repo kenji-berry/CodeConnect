@@ -127,6 +127,35 @@ body {
   width: 95%;
 }
 
+@media (max-width: 768px) {
+  .main-subtitle {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  .main-page-contents {
+    flex-direction: column !important;
+    align-items: center !important;
+  }
+
+  .main-page-holder {
+    align-items: center !important;
+  }
+
+  .filtertag-holder {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-direction: column;
+  }
+
+  .filter-holder {
+    margin: 0 !important;
+    width: 100% !important;
+  }
+}
+
 .main-page-filter-box {
   height: auto;
   min-height: 8.25rem;
@@ -137,7 +166,7 @@ body {
 .main-page-holder {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: space-evenly;
   flex-direction: row;
   height: 100%;
   width: 100%;

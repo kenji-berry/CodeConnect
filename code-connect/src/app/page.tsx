@@ -195,7 +195,7 @@ export default function Home() {
       <button onClick={printTags}>dwadwad</button>
       <div className="main-page-contents">
         <div className="w-full">
-          <h3 className="inter-bold">Recommended for you:</h3>
+          <h3 className="inter-bold main-subtitle">Recommended for you:</h3>
           <div className="main-page-holder">
             <ProjectPreview
               name="My Project"
@@ -237,10 +237,10 @@ export default function Home() {
         </div>
 
         <div className="w-full py-2.5">
-          <h3 className="inter-bold">More Projects:</h3>
-          <div className="w-full flex justify-evenly">
-            <div className="w-1/2 mr-2 h-full">
-              <h3 className="inter-bold">Filter By:</h3>
+          <h3 className="inter-bold main-subtitle">More Projects:</h3>
+          <div className="w-full flex justify-evenly filtertag-holder">
+            <div className="w-1/2 mr-2 h-full filter-holder">
+              <h3 className="inter-bold main-subtitle">Filter By:</h3>
               <div className="main-page-filter-box radial-background px-2 py-1 inria-sans-bold flex flex-col justify-center">
                 <div>
                   <p>Languages:</p>
@@ -305,8 +305,8 @@ export default function Home() {
                 </div>
               </div>
             </div>
-            <div className="w-1/2 ml-2">
-              <h3 className="inter-bold rad">Include These Tags:</h3>
+            <div className="w-1/2 ml-2 filter-holder">
+              <h3 className="inter-bold rad main-subtitle">Include These Tags:</h3>
               <div className="main-page-filter-box radial-background px-2 py-1"></div>
             </div>
           </div>
