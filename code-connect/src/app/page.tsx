@@ -27,15 +27,14 @@ export default function Home() {
     }
   };
   const languages = [
-    "JavaScript",
-    "Python",
-    "Java",
-    "C#",
-    "Ruby",
-    "PHP",
-    "TypeScript",
-    "Go",
+    "Ada", "APL", "Assembly", "Bash", "C", "C#", "C++", "COBOL", "CSS", 
+    "D", "Dart", "Elixir", "Erlang", "F#", "Fortran", "Go", "Groovy", 
+    "Haskell", "HTML", "Java", "JavaScript", "Julia", "Kotlin", "Lisp", 
+    "Lua", "MATLAB", "Objective-C", "Pascal", "Perl", "PHP", "Prolog", 
+    "Python", "R", "Ruby", "Rust", "Scala", "Shell", "Smalltalk", "SQL", 
+    "Swift", "TypeScript", "Visual Basic", "Zig"
   ];
+  
 
   const technologies = [
     "Next.js", 
