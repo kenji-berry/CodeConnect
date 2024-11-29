@@ -48,7 +48,7 @@ const MultiSelector: React.FC<MultiSelectorProps> = ({
             placeholder="Search..."
             value={searchTerm}
             onChange={handleSearchChange}
-            className="form-input block w-full mt-1 mb-2 px-1 rounded"
+            className="form-input block w-full px-1 rounded-t"
           />
           {searchTerm && (
             <button
@@ -61,7 +61,7 @@ const MultiSelector: React.FC<MultiSelectorProps> = ({
         </div>
         <select
           multiple
-          className="form-multiselect block w-full mt-1 custom-select"
+          className="form-multiselect block w-full custom-select"
           size={5}
         >
           {filteredTags.map((tag) => (
