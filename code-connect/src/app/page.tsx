@@ -38,6 +38,8 @@ export default function Home() {
     "Django"
   ];
 
+  const contributionTypes = ["Documentation", "Design", "Testing", "????", "Translation"];
+
   const printTags = () => {
     console.log(selectedTags);
   };
@@ -119,7 +121,13 @@ export default function Home() {
                     onTagsChange={handleTagsChange}
                   />
                 </div>
-                <p>Contribution Type:</p>
+                <div>
+                  <p>Contribution Type:</p>
+                  <MultiSelector
+                    availableTags={contributionTypes}
+                    onTagsChange={handleTagsChange}
+                    />
+                </div>
                 <p>Difficulty:</p>
                 <p>Last Updated:</p>
               </div>
