@@ -1,6 +1,5 @@
 "use client";
 import React, { useState } from "react";
-import NavBar from "../Components/NavBar";
 import "./style.css";
 import MultiSelector from "../Components/MultiSelector";
 import SingleSelector from "../Components/SingleSelector";
@@ -26,7 +25,6 @@ const Page = () => {
 
   return (
     <div className="w-screen h-screen radial-background flex flex-col items-center">
-      <NavBar />
       <button onClick={printDescription}>dddd</button>
       <h1 className="project-page-project-name">
         <a target="_blank" href="project">

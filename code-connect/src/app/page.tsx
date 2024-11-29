@@ -2,8 +2,6 @@
 import React, { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import CodeConnectTitle from "./Components/CodeConnectTitle";
-import Logo from "./Components/Logo";
-import NavBar from "./Components/NavBar";
 import ProjectPreview from "./Components/ProjectPreview";
 import MultiSelector from "./Components/MultiSelector";
 import SingleSelector from "./Components/SingleSelector";
@@ -190,7 +188,6 @@ export default function Home() {
 
   return (
     <div className="w-screen h-screen radial-background flex flex-col items-center">
-      <NavBar />
       <CodeConnectTitle />
       <div className="main-page-contents">
         <div className="w-full">
