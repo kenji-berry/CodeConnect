@@ -5,8 +5,8 @@ import CodeConnectTitle from "./Components/CodeConnectTitle";
 import Logo from "./Components/Logo";
 import NavBar from "./Components/NavBar";
 import ProjectPreview from "./Components/ProjectPreview";
-import MultiSelector from "./MultiSelector";
-import SingleSelector from "./SingleSelector";
+import MultiSelector from "./Components/MultiSelector";
+import SingleSelector from "./Components/SingleSelector";
 
 export default function Home() {
   const searchParams = useSearchParams();
