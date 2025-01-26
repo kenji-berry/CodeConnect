@@ -21,6 +21,7 @@ body {
   background: radial-gradient(var(--magenta-dark), var(--primary-color));
   height: 100%;
   width: 100%;
+  overflow-x: hidden;
 }
 
 .radial-background {

@@ -5,6 +5,7 @@ import CodeConnectTitle from "./Components/CodeConnectTitle";
 import ProjectPreview from "./Components/ProjectPreview";
 import MultiSelector from "./Components/MultiSelector";
 import SingleSelector from "./Components/SingleSelector";
+import { supabase } from '@/supabaseClient';
 
 export default function Home() {
   const searchParams = useSearchParams();
@@ -16,6 +17,7 @@ export default function Home() {
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>("");
   const [selectedLastUpdated, setSelectedLastUpdated] = useState<string>("");
   const [filterMode, setFilterMode] = useState<string>('AND');
+  const [user, setUser] = useState<{ email: string } | null>(null);
 
   useEffect(() => {
     const languages = searchParams.get("languages")?.split(",") || [];
@@ -63,6 +65,23 @@ export default function Home() {
     filterMode,
     router
   ]);
+
+  useEffect(() => {
+    const checkUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setUser(session?.user && session.user.email ? { email: session.user.email } : null);
+    };
+
+    checkUser();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      setUser(session?.user && session.user.email ? { email: session.user.email } : null);
+    });
+
+    return () => {
+      authListener?.subscription.unsubscribe();
+    };
+  }, []);
 
   const handleTagsChange = (type: string, tags: string[]) => {
     switch (type) {
@@ -188,21 +207,17 @@ export default function Home() {
 
   return (
     <div className="w-screen min-h-screen justify-center flex flex-col items-center">
+      {user && (
+        <div className="bg-blue-100 p-4 text-center">
+          <pre>{JSON.stringify(user, null, 2)}</pre>
+        </div>
+      )}
       <CodeConnectTitle />
       <div className="flex justify-center w-full">
         <div className="main-page-contents">
           <div className="w-full">
             <h3 className="inter-bold main-subtitle">Recommended for you:</h3>
             <div className="main-page-holder">
-              <ProjectPreview
-                name="My Project"
-                date="March 15, 2024"
-                tags={["Frontend", "Open Source"]}
-                description="A description of the project that takes up multiple lines and explains what the project does in detail."
-                techStack={["React", "TypeScript", "Tailwind"]}
-                issueCount={5}
-                recommended={true}
-              />
               <ProjectPreview
                 name="My Project"
                 date="March 15, 2024"
