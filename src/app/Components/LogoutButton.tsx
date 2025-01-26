@@ -3,24 +3,22 @@
 import React from 'react';
 import { supabase } from '@/supabaseClient';
 
-const LoginButton = () => {
-  const handleLogin = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'github',
-    });
+const LogoutButton = () => {
+  const handleLogout = async () => {
+    const { error } = await supabase.auth.signOut();
     if (error) {
-      console.error('Error logging in with GitHub:', error.message);
+      console.error('Error logging out:', error.message);
     }
   };
 
   return (
     <button 
-      onClick={handleLogin}
+      onClick={handleLogout}
       className="bg-[--muted-red] hover:bg-red-700 px-3 py-2 rounded-full transition-colors duration-200 inria-sans-bold text-off-white text-sm"
     >
-      Log in with GitHub
+      Log out
     </button>
   );
 };
 
-export default LoginButton;
+export default LogoutButton;
