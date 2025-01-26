@@ -5,11 +5,13 @@ import Logo from './Logo';
 import Link from 'next/link';
 import LoginButton from './LoginButton';
 import LogoutButton from './LogoutButton';
+import Notification from './Notification';
 import { supabase } from '@/supabaseClient';
 
 const NavBar = () => {
   const [loggedIn, setLoggedIn] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   useEffect(() => {
     const checkUser = async () => {
@@ -22,6 +24,11 @@ const NavBar = () => {
 
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
       setLoggedIn(!!session);
+      if (event === 'SIGNED_IN') {
+        setNotification({ message: 'Logged in successfully', type: 'success' });
+      } else if (event === 'SIGNED_OUT') {
+        setNotification({ message: 'Logged out successfully', type: 'success' });
+      }
     });
 
     return () => {
@@ -60,6 +67,13 @@ const NavBar = () => {
           loggedIn ? <LogoutButton /> : <LoginButton />
         )}
       </div>
+      {notification && (
+        <Notification
+          message={notification.message}
+          type={notification.type}
+          onClose={() => setNotification(null)}
+        />
+      )}
     </nav>
   );
 };
