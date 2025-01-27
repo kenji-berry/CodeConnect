@@ -7,6 +7,15 @@ import MultiSelector from "./Components/MultiSelector";
 import SingleSelector from "./Components/SingleSelector";
 import { supabase } from '@/supabaseClient';
 
+interface GitHubData {
+  repositories?: any[];
+  user?: {
+    login: string;
+    name: string;
+    email: string;
+  };
+}
+
 export default function Home() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -18,6 +27,7 @@ export default function Home() {
   const [selectedLastUpdated, setSelectedLastUpdated] = useState<string>("");
   const [filterMode, setFilterMode] = useState<string>('AND');
   const [user, setUser] = useState<{ email: string } | null>(null);
+  const [githubData, setGithubData] = useState<GitHubData | null>(null);
 
   useEffect(() => {
     const languages = searchParams.get("languages")?.split(",") || [];
@@ -81,6 +91,40 @@ export default function Home() {
     return () => {
       authListener?.subscription.unsubscribe();
     };
+  }, []);
+
+  useEffect(() => {
+    const fetchGitHubData = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session?.provider_token) {
+        try {
+          // Fetch repositories
+          const repoResponse = await fetch('https://api.github.com/user/repos', {
+            headers: {
+              'Authorization': `Bearer ${session.provider_token}`
+            }
+          });
+          const repos = await repoResponse.json();
+          
+          // Fetch user data
+          const userResponse = await fetch('https://api.github.com/user', {
+            headers: {
+              'Authorization': `Bearer ${session.provider_token}`
+            }
+          });
+          const userData = await userResponse.json();
+          
+          const githubInfo = { repositories: repos, user: userData };
+          console.log('GitHub Data:', githubInfo);
+          setGithubData(githubInfo);
+        } catch (error) {
+          console.error('Error fetching GitHub data:', error);
+        }
+      }
+    };
+
+    fetchGitHubData();
   }, []);
 
   const handleTagsChange = (type: string, tags: string[]) => {
@@ -392,6 +436,11 @@ export default function Home() {
           </div>
         </div>
       </div>
+      {githubData && (
+        <div className="p-4">
+          <pre>{JSON.stringify(githubData, null, 2)}</pre>
+        </div>
+      )}
     </div>
   );
 }
