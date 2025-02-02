@@ -12,7 +12,7 @@ const LoginButton = () => {
       }
     });
 
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: session } = await supabase.auth.getSession();
 
     if (error) {
       console.error('Error logging in with GitHub:', error.message);
