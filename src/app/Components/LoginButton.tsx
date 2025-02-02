@@ -11,8 +11,26 @@ const LoginButton = () => {
         scopes: 'repo'
       }
     });
+
+    const { data: { session } } = await supabase.auth.getSession();
+
     if (error) {
       console.error('Error logging in with GitHub:', error.message);
+      return;
+    }
+
+    if (session?.provider_token) {
+      try {
+        const repoResponse = await fetch('https://api.github.com/user/repos', {
+          headers: {
+            'Authorization': `Bearer ${session.provider_token}`
+          }
+        });
+        const repos = await repoResponse.json();
+        console.log('GitHub Repositories:', repos);
+      } catch (error) {
+        console.error('Error fetching GitHub repositories:', error);
+      }
     }
   };
 

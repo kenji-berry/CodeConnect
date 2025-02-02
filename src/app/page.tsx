@@ -251,11 +251,6 @@ export default function Home() {
 
   return (
     <div className="w-screen min-h-screen justify-center flex flex-col items-center">
-      {user && (
-        <div className="bg-blue-100 p-4 text-center">
-          <pre>{JSON.stringify(user, null, 2)}</pre>
-        </div>
-      )}
       <CodeConnectTitle />
       <div className="flex justify-center w-full">
         <div className="main-page-contents">
