@@ -6,6 +6,7 @@ import { supabase } from '@/supabaseClient';
 const Page = () => {
   const [repositories, setRepositories] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [languages, setLanguages] = useState({});
 
   const formatDate = (dateString) => {
     const options = { year: 'numeric', month: 'numeric', day: 'numeric' };
@@ -30,7 +31,14 @@ const Page = () => {
           });
           const repos = await repoResponse.json();
           setRepositories(repos);
-          console.log(repos)
+
+          // Fetch languages for each repository
+          repos.forEach(async (repo) => {
+            const languagesResponse = await fetch(`https://api.github.com/repos/${repo.owner.login}/${repo.name}/languages`);
+            const languagesData = await languagesResponse.json();
+            setLanguages(prevLanguages => ({ ...prevLanguages, [repo.id]: languagesData }));
+          });
+
         } catch (error) {
           console.error('Error fetching GitHub repositories:', error);
         }
@@ -45,14 +53,14 @@ const Page = () => {
   );
 
   return (
-    <div className="w-screen h-screen flex flex-col items-center">
+    <div className="w-screen h-screen flex flex-col items-center inria-sans-regular">
       <h1 className="text-2xl font-bold">GitHub Repositories</h1>
       <input
         type="text"
         placeholder="Search repositories"
         value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}
-        className="mb-4 p-2 border rounded"
+        className="mb-2 p-2 border rounded"
       />
       <div className="w-full flex flex-wrap justify-center">
         {filteredRepositories.map((repo) => (
@@ -61,7 +69,7 @@ const Page = () => {
             <p>{repo.description}</p>
             <p><strong>Stars:</strong> {repo.stargazers_count}</p>
             <p><strong>Forks:</strong> {repo.forks_count}</p>
-            <p><strong>Language:</strong> {repo.language}</p>
+            <p><strong>Languages:</strong> {languages[repo.id] ? Object.keys(languages[repo.id]).join(', ') : 'Loading...'}</p>
           </div>
         ))}
       </div>

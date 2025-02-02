@@ -12,6 +12,7 @@ const NavBar = () => {
   const [loggedIn, setLoggedIn] = useState(false);
   const [loading, setLoading] = useState(true);
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [notificationShown, setNotificationShown] = useState(false);
 
   useEffect(() => {
     const checkUser = async () => {
@@ -24,17 +25,19 @@ const NavBar = () => {
 
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
       setLoggedIn(!!session);
-      if (event === 'SIGNED_IN') {
+      if (event === 'SIGNED_IN' && !notificationShown) {
         setNotification({ message: 'Logged in successfully', type: 'success' });
+        setNotificationShown(true);
       } else if (event === 'SIGNED_OUT') {
         setNotification({ message: 'Logged out successfully', type: 'success' });
+        setNotificationShown(false);
       }
     });
 
     return () => {
       authListener?.subscription.unsubscribe();
     };
-  }, []);
+  }, [notificationShown]);
 
   return (
     <nav className='w-full bg-transparent flex justify-between px-3 pt-3'>
