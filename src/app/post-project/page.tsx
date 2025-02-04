@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/supabaseClient';
+import { FaExternalLinkAlt } from "react-icons/fa";
 
 const Page = () => {
   const [repositories, setRepositories] = useState([]);
@@ -65,7 +66,13 @@ const Page = () => {
       <div className="w-full flex flex-wrap justify-center">
         {filteredRepositories.map((repo) => (
           <div key={repo.id} className="m-4 p-4 border rounded shadow-lg w-full">
-            <h2 className="text-xl font-semibold flex justify-between"><a href={repo.html_url} target='blank'>{repo.name}</a>Last Updated: {formatDate(repo.updated_at)}</h2>
+            <h2 className="text-xl font-semibold flex justify-between">
+              <a href={repo.html_url} target='blank' className='underline title-red hover:text-red-600 flex items-center'>
+              {repo.name}
+              <span className="ml-1 text-sm"><FaExternalLinkAlt /></span>
+              </a>
+              Last Updated: {formatDate(repo.updated_at)}
+            </h2>
             <p>{repo.description}</p>
             <p><strong>Stars:</strong> {repo.stargazers_count}</p>
             <p><strong>Forks:</strong> {repo.forks_count}</p>
