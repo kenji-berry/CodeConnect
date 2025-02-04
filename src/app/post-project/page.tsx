@@ -54,29 +54,50 @@ const Page = () => {
   );
 
   return (
-    <div className="w-screen h-screen flex flex-col items-center inria-sans-regular">
-      <h1 className="text-2xl font-bold">GitHub Repositories</h1>
+    <div className="w-screen h-screen flex flex-col items-center inria-sans-regular p-8 radial-background">
+      <h1 className="text-3xl font-bold mb text-neutral-100">Select a Repository:</h1>
       <input
         type="text"
         placeholder="Search repositories"
         value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}
-        className="mb-2 p-2 border rounded"
+        className="mb-8 p-3 border rounded-lg w-full max-w-xl shadow-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-transparent text-neutral-100 placeholder-neutral-400"
       />
-      <div className="w-full flex flex-wrap justify-center">
+      <div className="w-full max-w-6xl grid grid-cols-1 md:grid-cols-2 gap-6">
         {filteredRepositories.map((repo) => (
-          <div key={repo.id} className="m-4 p-4 border rounded shadow-lg w-full">
-            <h2 className="text-xl font-semibold flex justify-between">
-              <a href={repo.html_url} target='blank' className='underline title-red hover:text-red-600 flex items-center'>
-              {repo.name}
-              <span className="ml-1 text-sm"><FaExternalLinkAlt /></span>
-              </a>
-              Last Updated: {formatDate(repo.updated_at)}
-            </h2>
-            <p>{repo.description}</p>
-            <p><strong>Stars:</strong> {repo.stargazers_count}</p>
-            <p><strong>Forks:</strong> {repo.forks_count}</p>
-            <p><strong>Languages:</strong> {languages[repo.id] ? Object.keys(languages[repo.id]).join(', ') : 'Loading...'}</p>
+          <div key={repo.id} className="p-6 border-2 border-neutral-200 rounded-xl hover:border-red-200 transition-all duration-300 backdrop-blur-sm">
+            <div className="mb-4">
+              <h2 className="text-xl font-semibold flex justify-between items-start">
+                <a href={repo.html_url} target='blank' className='text-red-400 hover:text-red-300 flex items-center group'>
+                  {repo.name}
+                  <span className="ml-2 text-sm opacity-60 group-hover:opacity-100 transition-opacity">
+                    <FaExternalLinkAlt />
+                  </span>
+                </a>
+              </h2>
+              <p className="text-sm text-neutral-300 mt-1">
+                Updated: {formatDate(repo.updated_at)}
+              </p>
+            </div>
+            
+            <p className="text-neutral-200 mb-4 line-clamp-2">{repo.description || 'No description available'}</p>
+            
+            <div className="flex justify-between text-sm text-neutral-300">
+              <div className="flex items-center space-x-4">
+                <span className="flex items-center">
+                  <span className="text-yellow-300 mr-1">★</span>
+                  {repo.stargazers_count}
+                </span>
+                <span className="flex items-center">
+                  <span className="mr-1">🍴</span>
+                  {repo.forks_count}
+                </span>
+              </div>
+              <div>
+                {languages[repo.id] && 
+                  Object.keys(languages[repo.id]).slice(0,2).join(', ')}
+              </div>
+            </div>
           </div>
         ))}
       </div>
