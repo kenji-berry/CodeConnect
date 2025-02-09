@@ -81,7 +81,7 @@ const Page = () => {
           <Link
             key={repo.id}
             href={`/post-project/project-form?repo=${repo.name}&owner=${repo.owner.login}`}
-            className="p-6 border-2 border-neutral-200 rounded-xl hover:border-red-200 transition-all duration-300 backdrop-blur-sm cursor-pointer"
+            className="p-6 border-2 border-neutral-200 rounded-xl hover:border-red-300 transition-all duration-300 backdrop-blur-sm cursor-pointer"
           >
             <div className="mb-4">
               <h2 className="text-xl font-semibold flex justify-between items-start">
