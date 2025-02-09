@@ -5,11 +5,13 @@ import { supabase } from "@/supabaseClient";
 import "../../post-project/style.css";
 import MultiSelector from "../../Components/MultiSelector";
 import SingleSelector from "../../Components/SingleSelector";
+import ActivityGraph from "../../Components/ActivityGraph";
 
 const Page = () => {
   const tags = ["tag1", "tag2", "tag3", "tag4", "tag5"];
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [descriptionOption, setDescriptionOption] = useState<string>("Use README");
+  const [session, setSession] = useState<any>(null);
 
   const handleTagsChange = (tags: string[]) => {
     setSelectedTags(tags);
@@ -42,6 +44,19 @@ const Page = () => {
     pullRequests: 0,
     latestCommit: '',
   });
+
+  useEffect(() => {
+    const fetchSession = async () => {
+      const { data: { session: authSession }, error } = await supabase.auth.getSession();
+      if (error) {
+        console.error("Error fetching session:", error.message);
+        return;
+      }
+      setSession(authSession);
+    };
+
+    fetchSession();
+  }, []);
 
   useEffect(() => {
     const fetchRepoData = async () => {
@@ -192,10 +207,14 @@ const Page = () => {
         </div>
         <div className="bento-box full-width radial-background">
           <h3 className="inria-sans-semibold">Recent Activity:</h3>
-          <h4>Most Recent Commit:</h4>
+          <h4>Most Recent Commit: {repoInfo.latestCommit}</h4>
           <div>
             <h4>Activity Graph:</h4>
-            <img src="EXAMPLEActivityGraph.jpg" alt="activity graph" />
+            <ActivityGraph 
+              owner={owner || ''} 
+              repo={repoName || ''} 
+              token={session?.provider_token || ''}
+            />
           </div>
         </div>
       </div>
