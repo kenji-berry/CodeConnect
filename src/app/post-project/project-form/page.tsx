@@ -136,10 +136,9 @@ const Page = () => {
 
   return (
     <div className="w-screen h-screen flex flex-col items-center">
-      <button onClick={printDescription}>dddd</button>
       <h1 className="project-page-project-name">
         <a target="_blank" href="project">
-          Project Name
+          {repoName}
         </a>
       </h1>
       <div className="bento-container w-full inria-sans-regular">

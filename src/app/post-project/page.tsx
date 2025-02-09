@@ -85,12 +85,18 @@ const Page = () => {
           >
             <div className="mb-4">
               <h2 className="text-xl font-semibold flex justify-between items-start">
-                <span className="text-red-400 hover:text-red-300 flex items-center group">
+                <a 
+                  href={repo.html_url} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-red-400 hover:text-red-300 flex items-center group"
+                  onClick={(e) => e.stopPropagation()}
+                >
                   {repo.name}
                   <span className="ml-2 text-sm opacity-60 group-hover:opacity-100 transition-opacity">
                     <FaExternalLinkAlt />
                   </span>
-                </span>
+                </a>
               </h2>
               <p className="text-sm text-neutral-300 mt-1">
                 Updated: {formatDate(repo.updated_at)}
