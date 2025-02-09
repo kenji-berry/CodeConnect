@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "@/supabaseClient";
 import { FaExternalLinkAlt } from "react-icons/fa";
+import Link from 'next/link';
 
 const Page = () => {
   const [repositories, setRepositories] = useState([]);
@@ -77,22 +78,19 @@ const Page = () => {
       />
       <div className="w-full max-w-6xl grid grid-cols-1 md:grid-cols-2 gap-6">
         {filteredRepositories.map((repo) => (
-          <div
+          <Link
             key={repo.id}
-            className="p-6 border-2 border-neutral-200 rounded-xl hover:border-red-200 transition-all duration-300 backdrop-blur-sm"
+            href={`/post-project/project-form?repo=${repo.name}&owner=${repo.owner.login}`}
+            className="p-6 border-2 border-neutral-200 rounded-xl hover:border-red-200 transition-all duration-300 backdrop-blur-sm cursor-pointer"
           >
             <div className="mb-4">
               <h2 className="text-xl font-semibold flex justify-between items-start">
-                <a
-                  href={repo.html_url}
-                  target="blank"
-                  className="text-red-400 hover:text-red-300 flex items-center group"
-                >
+                <span className="text-red-400 hover:text-red-300 flex items-center group">
                   {repo.name}
                   <span className="ml-2 text-sm opacity-60 group-hover:opacity-100 transition-opacity">
                     <FaExternalLinkAlt />
                   </span>
-                </a>
+                </span>
               </h2>
               <p className="text-sm text-neutral-300 mt-1">
                 Updated: {formatDate(repo.updated_at)}
@@ -127,7 +125,7 @@ const Page = () => {
                 }
               </div>
             </div>
-          </div>
+          </Link>
         ))}
       </div>
     </div>
