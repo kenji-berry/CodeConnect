@@ -101,7 +101,7 @@ const Page = () => {
             }
           );
           const contributorsCount = contributorsResponse.headers.get('link')
-            ? parseInt(contributorsResponse.headers.get('link').match(/page=(\d+)>; rel="last"/)[1])
+            ? parseInt(contributorsResponse.headers.get('link')?.match(/page=(\d+)>; rel="last"/)?.[1] || '1')
             : 1;
 
           const issuesResponse = await fetch(
@@ -124,7 +124,36 @@ const Page = () => {
           );
           const [latestCommit] = await commitsResponse.json();
 
-          setRepoInfo({
+          interface RepoInfo {
+            owner: string;
+            license: string;
+            languages: Record<string, number>;
+            size: number;
+            stars: number;
+            forks: number;
+            contributors: number;
+            openIssues: number;
+            goodFirstIssues: number;
+            pullRequests: number;
+            latestCommit: string;
+          }
+
+          interface Issue {
+            labels: { name: string }[];
+            pull_request?: object;
+          }
+
+          interface Commit {
+            commit: { message: string };
+          }
+
+          const setRepoInfoData = (
+            repoData: any,
+            languagesData: Record<string, number>,
+            contributorsCount: number,
+            issuesData: Issue[],
+            latestCommit: Commit
+          ): RepoInfo => ({
             owner: repoData.owner.login,
             license: repoData.license?.name || 'No license',
             languages: languagesData,
@@ -138,6 +167,8 @@ const Page = () => {
             pullRequests: issuesData.filter(issue => 'pull_request' in issue).length,
             latestCommit: latestCommit?.commit?.message || 'No commits',
           });
+
+          setRepoInfo(setRepoInfoData(repoData, languagesData, contributorsCount, issuesData, latestCommit));
         } catch (error) {
           console.error("Error fetching repo data:", error);
         }
