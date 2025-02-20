@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 
 interface MultiSelectorProps {
   availableTags: string[];
@@ -8,18 +8,25 @@ interface MultiSelectorProps {
 }
 
 const MultiSelector: React.FC<MultiSelectorProps> = ({
-  availableTags,
+  availableTags = [],
   onTagsChange,
   initialTags = [], 
 }) => {
-  const [selectedTags, setSelectedTags] = useState<string[]>(initialTags); // Initialize with props
+  const [selectedTags, setSelectedTags] = useState<string[]>(initialTags);
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => {
-    setSelectedTags(initialTags);
-  }, [initialTags]);
+  // Filter available tags based on search term using useMemo with null checks
+  const filteredTags = useMemo(() => {
+    return (availableTags || [])
+      .filter((tag): tag is string => 
+        typeof tag === 'string' && tag !== null && tag !== undefined)
+      .filter(tag => 
+        tag.toLowerCase().includes((searchTerm || "").toLowerCase()) &&
+        !selectedTags.includes(tag)
+      );
+  }, [availableTags, searchTerm, selectedTags]);
 
   const handleSelectTag = (tag: string) => {
     if (!selectedTags.includes(tag)) {
@@ -47,10 +54,6 @@ const MultiSelector: React.FC<MultiSelectorProps> = ({
     setIsDropdownOpen(false);
   };
 
-  const filteredTags = availableTags.filter((tag) =>
-    tag.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -74,7 +77,7 @@ const MultiSelector: React.FC<MultiSelectorProps> = ({
             placeholder="Search..."
             value={searchTerm}
             onChange={handleSearchChange}
-            onClick={() => setIsDropdownOpen((prev) => !prev)}
+            onClick={() => setIsDropdownOpen(true)}
           />
           {searchTerm && (
             <button
@@ -89,7 +92,7 @@ const MultiSelector: React.FC<MultiSelectorProps> = ({
           <ul className="dropdown-list absolute w-full mt-1 z-10">
             {filteredTags.map((tag) => (
               <li
-                key={tag}
+                key={`available-${tag}`}
                 onClick={() => handleSelectTag(tag)}
                 className="p-2 cursor-pointer hover:bg-slate-800 bg-slate-700 text-black inter-regular"
               >
@@ -102,7 +105,7 @@ const MultiSelector: React.FC<MultiSelectorProps> = ({
       <div className="selected-tags mt-1">
         {selectedTags.map((tag) => (
           <button
-            key={tag}
+            key={`selected-${tag}`}
             className="tag-item selected-tag flex items-center py-1 px-2 m-1 bg-slate-500 rounded hover:bg-red-900"
             onClick={() => handleRemoveTag(tag)}
           >

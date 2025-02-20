@@ -8,9 +8,9 @@ import SingleSelector from "../../Components/SingleSelector";
 import ActivityGraph from "../../Components/ActivityGraph";
 
 const Page = () => {
-  const tags = ["tag1", "tag2", "tag3", "tag4", "tag5"];
+  const [tags, setTags] = useState<string[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [descriptionOption, setDescriptionOption] = useState<string>("Use README");
+  const [descriptionOption, setDescriptionOption] = useState<string>("Use existing description");
   const [session, setSession] = useState<any>(null);
 
   const handleTagsChange = (tags: string[]) => {
@@ -21,7 +21,7 @@ const Page = () => {
     setDescriptionOption(option);
   };
 
-  const descriptionOptions = ["Use README", "Write your Own"];
+  const descriptionOptions = ["Use existing description", "Write your Own"];
 
   const printDescription = () => {
     console.log(descriptionOption);
@@ -46,114 +46,59 @@ const Page = () => {
   });
 
   useEffect(() => {
-    const fetchSession = async () => {
-      const { data: { session: authSession }, error } = await supabase.auth.getSession();
-      if (error) {
-        console.error("Error fetching session:", error.message);
+    const fetchAllData = async () => {
+      // Fetch session
+      const { data: { session: authSession }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) {
+        console.error("Error fetching session:", sessionError.message);
         return;
       }
       setSession(authSession);
-    };
 
-    fetchSession();
-  }, []);
-
-  useEffect(() => {
-    const fetchRepoData = async () => {
-      const {
-        data: { session },
-        error,
-      } = await supabase.auth.getSession();
-
-      if (error) {
-        console.error("Error fetching session:", error.message);
-        return;
-      }
-
-      if (session?.provider_token) {
+      // Fetch repo data if we have repo name and owner
+      if (repoName && owner && authSession?.provider_token) {
         try {
           const repoResponse = await fetch(
             `https://api.github.com/repos/${owner}/${repoName}`,
             {
               headers: {
-                Authorization: `Bearer ${session.provider_token}`,
+                Authorization: `Bearer ${authSession.provider_token}`,
               },
             }
           );
           const repoData = await repoResponse.json();
 
-          const languagesResponse = await fetch(
-            `https://api.github.com/repos/${owner}/${repoName}/languages`,
-            {
-              headers: {
-                Authorization: `Bearer ${session.provider_token}`,
-              },
-            }
-          );
-          const languagesData = await languagesResponse.json();
+          const [
+            languagesResponse,
+            contributorsResponse,
+            issuesResponse,
+            commitsResponse
+          ] = await Promise.all([
+            fetch(`https://api.github.com/repos/${owner}/${repoName}/languages`, {
+              headers: { Authorization: `Bearer ${authSession.provider_token}` },
+            }),
+            fetch(`https://api.github.com/repos/${owner}/${repoName}/contributors?per_page=1`, {
+              headers: { Authorization: `Bearer ${authSession.provider_token}` },
+            }),
+            fetch(`https://api.github.com/repos/${owner}/${repoName}/issues?state=open`, {
+              headers: { Authorization: `Bearer ${authSession.provider_token}` },
+            }),
+            fetch(`https://api.github.com/repos/${owner}/${repoName}/commits?per_page=1`, {
+              headers: { Authorization: `Bearer ${authSession.provider_token}` },
+            })
+          ]);
 
-          const contributorsResponse = await fetch(
-            `https://api.github.com/repos/${owner}/${repoName}/contributors?per_page=1`,
-            {
-              headers: {
-                Authorization: `Bearer ${session.provider_token}`,
-              },
-            }
-          );
+          const [languagesData, issuesData, [latestCommit]] = await Promise.all([
+            languagesResponse.json(),
+            issuesResponse.json(),
+            commitsResponse.json()
+          ]);
+
           const contributorsCount = contributorsResponse.headers.get('link')
             ? parseInt(contributorsResponse.headers.get('link')?.match(/page=(\d+)>; rel="last"/)?.[1] || '1')
             : 1;
 
-          const issuesResponse = await fetch(
-            `https://api.github.com/repos/${owner}/${repoName}/issues?state=open`,
-            {
-              headers: {
-                Authorization: `Bearer ${session.provider_token}`,
-              },
-            }
-          );
-          const issuesData = await issuesResponse.json();
-          
-          const commitsResponse = await fetch(
-            `https://api.github.com/repos/${owner}/${repoName}/commits?per_page=1`,
-            {
-              headers: {
-                Authorization: `Bearer ${session.provider_token}`,
-              },
-            }
-          );
-          const [latestCommit] = await commitsResponse.json();
-
-          interface RepoInfo {
-            owner: string;
-            license: string;
-            languages: Record<string, number>;
-            size: number;
-            stars: number;
-            forks: number;
-            contributors: number;
-            openIssues: number;
-            goodFirstIssues: number;
-            pullRequests: number;
-            latestCommit: string;
-          }
-
-          interface Issue {
-            labels: { name: string }[];
-            pull_request?: object;
-          }
-
-          interface Commit {
-            commit: { message: string };
-          }
-
-          const setRepoInfoData = (
-            repoData: any,
-            languagesData: Record<string, number>,
-            contributorsCount: number,
-            issuesData: Issue[],
-            latestCommit: Commit
-          ): RepoInfo => ({
+          const repoInfoData = {
             owner: repoData.owner.login,
             license: repoData.license?.name || 'No license',
             languages: languagesData,
@@ -166,18 +111,44 @@ const Page = () => {
               issue.labels.some(label => label.name === 'good first issue')).length,
             pullRequests: issuesData.filter(issue => 'pull_request' in issue).length,
             latestCommit: latestCommit?.commit?.message || 'No commits',
-          });
+          };
 
-          setRepoInfo(setRepoInfoData(repoData, languagesData, contributorsCount, issuesData, latestCommit));
+          setRepoInfo(repoInfoData);
         } catch (error) {
           console.error("Error fetching repo data:", error);
         }
       }
+
+      // Fetch tags
+      try {
+        const { data: tagsData, error: tagsError } = await supabase
+          .from('tags')
+          .select('name');
+
+        if (tagsError) {
+          console.error('Error fetching tags:', tagsError);
+          setTags([]);
+          return;
+        }
+
+        if (tagsData && Array.isArray(tagsData)) {
+          const tagNames = tagsData
+            .filter((tag): tag is { name: string } => 
+              tag && typeof tag.name === 'string')
+            .map(tag => tag.name)
+            .filter(name => name.length > 0);
+
+          setTags(tagNames);
+        } else {
+          setTags([]);
+        }
+      } catch (error) {
+        console.error('Error in fetchTags:', error);
+        setTags([]);
+      }
     };
 
-    if (repoName && owner) {
-      fetchRepoData();
-    }
+    fetchAllData();
   }, [repoName, owner]);
 
   return (
@@ -191,7 +162,7 @@ const Page = () => {
         <div className="bento-box full-width radial-background">
           <div className="flex items-center">
             <span className="mr-2 inria-sans-semibold">
-              Write your own project description or use existing README?
+              Write your own project description or use existing description?
             </span>
             <SingleSelector
               values={descriptionOptions}
@@ -201,15 +172,17 @@ const Page = () => {
               initialValue={descriptionOption}
             />
           </div>
-          {descriptionOption === "Write your Own" && (
+            {descriptionOption === "Write your Own" && (
             <textarea
-              className="w-full mt-2 p-2 border rounded"
+              className="w-full mt-2 p-2 border rounded-lg shadow-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none text-black resize-y min-h-[2.6rem]"
               placeholder="Write your project description here..."
+              rows={3}
+              style={{ resize: 'vertical' }}
             />
-          )}
+            )}
         </div>
         <div className="bento-box half-width radial-background">
-          <h4>Tech Stack:</h4>
+          <h4>Technologies and Languages:</h4>
         </div>
         <div className="bento-box half-width radial-background">
           <h4>Tags:</h4>
@@ -225,8 +198,6 @@ const Page = () => {
         <div className="bento-box half-width radial-background">
           <h4>Owner: {repoInfo.owner}</h4>
           <h4>License: {repoInfo.license}</h4>
-          <h4>Languages: {Object.keys(repoInfo.languages).join(', ')}</h4>
-          <h4>Repo Size: {(repoInfo.size / 1024).toFixed(2)} MB</h4>
           <h4>Stars: {repoInfo.stars}</h4>
           <h4>Forks: {repoInfo.forks}</h4>
           <h4>Contributors: {repoInfo.contributors}</h4>
