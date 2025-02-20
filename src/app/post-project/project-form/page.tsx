@@ -28,6 +28,12 @@ const statusOptions = [
   }
 ];
 
+interface ResourceLink {
+  name: string;
+  url: string;
+  isValid: boolean;
+}
+
 const Page = () => {
   const [tags, setTags] = useState<string[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -37,6 +43,7 @@ const Page = () => {
   const [session, setSession] = useState<any>(null);
   const [projectStatus, setProjectStatus] = useState<string>("Active Development");
   const [difficulty, setDifficulty] = useState<number>(1);
+  const [resourceLinks, setResourceLinks] = useState<ResourceLink[]>([]);
 
   const handleTagsChange = (tags: string[]) => {
     setSelectedTags(tags);
@@ -63,6 +70,15 @@ const Page = () => {
 
   const printDescription = () => {
     console.log(descriptionOption);
+  };
+
+  const isValidUrl = (url: string): boolean => {
+    try {
+      new URL(url);
+      return true;
+    } catch {
+      return false;
+    }
   };
 
   const searchParams = useSearchParams();
@@ -265,6 +281,78 @@ const Page = () => {
         </div>
         <div className="bento-box full-width radial-background">
           <h4>Resource Links:</h4>
+          <div className="flex flex-col gap-2 mt-2">
+            {resourceLinks.map((link, index) => (
+              <div key={index} className="flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={link.name}
+                    onChange={(e) => {
+                      const newLinks = [...resourceLinks];
+                      newLinks[index] = { ...newLinks[index], name: e.target.value };
+                      setResourceLinks(newLinks);
+                    }}
+                    className="w-1/6 p-2 rounded-lg border border-gray-300 outline-none text-black"
+                    placeholder="Resource name..."
+                  />
+                  <input
+                    type="url"
+                    value={link.url}
+                    onChange={(e) => {
+                      const newLinks = [...resourceLinks];
+                      const isValid = isValidUrl(e.target.value);
+                      newLinks[index] = { 
+                        ...newLinks[index], 
+                        url: e.target.value,
+                        isValid 
+                      };
+                      setResourceLinks(newLinks);
+                    }}
+                    className={`w-5/6 p-2 rounded-lg border ${
+                      link.url && !link.isValid 
+                        ? 'border-red-500' 
+                        : 'border-gray-300'
+                    } outline-none text-black`}
+                    placeholder="Enter resource link..."
+                  />
+                  <button
+                    onClick={() => {
+                      const newLinks = resourceLinks.filter((_, i) => i !== index);
+                      setResourceLinks(newLinks);
+                    }}
+                    className="p-2 text-red-500 hover:text-red-700"
+                  >
+                    ✕
+                  </button>
+                </div>
+                {link.url && !link.isValid && (
+                  <span className="text-red-500 text-sm ml-1">
+                    Please enter a valid URL (e.g., https://example.com)
+                  </span>
+                )}
+              </div>
+            ))}
+            <button
+              onClick={() => setResourceLinks([...resourceLinks, { name: '', url: '', isValid: false }])}
+              className="w-fit px-4 py-2 bg-[color:--muted-red] text-white rounded-lg hover:bg-red-700 
+                transition-colors duration-200 flex items-center gap-2"
+            >
+              <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                className="h-5 w-5" 
+                viewBox="0 0 20 20" 
+                fill="currentColor"
+              >
+                <path 
+                  fillRule="evenodd" 
+                  d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" 
+                  clipRule="evenodd" 
+                />
+              </svg>
+              Add Resource Link
+            </button>
+          </div>
         </div>
       </div>
       <div className="full-width flex flex-col items-center preview">

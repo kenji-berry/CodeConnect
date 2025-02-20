@@ -73,7 +73,7 @@ const MultiSelector: React.FC<MultiSelectorProps> = ({
         <div className="relative">
           <input
             type="text"
-            className="form-input block w-full mb-2 pr-10"
+            className="form-input block w-full mb-2 pr-10 main-input"
             placeholder="Search..."
             value={searchTerm}
             onChange={handleSearchChange}
