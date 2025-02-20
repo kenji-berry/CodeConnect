@@ -223,12 +223,10 @@ const Page = () => {
           />
         </div>
         <div className="bento-box half-width radial-background">
-          <h4>Project Status:</h4>
-          <MultiSelector
-            availableTags={tags}
-            onTagsChange={handleTagsChange}
-            initialTags={selectedTags}
-          />
+          <h4>Beginner friendlyness:</h4>
+        </div>
+        <div className="bento-box full-width radial-background">
+          <h4>Resource Links:</h4>
         </div>
       </div>
       <div className="full-width flex flex-col items-center preview">
