@@ -10,11 +10,17 @@ import ActivityGraph from "../../Components/ActivityGraph";
 const Page = () => {
   const [tags, setTags] = useState<string[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [technologies, setTechnologies] = useState<string[]>([]);
+  const [selectedTechnologies, setSelectedTechnologies] = useState<string[]>([]);
   const [descriptionOption, setDescriptionOption] = useState<string>("Use existing description");
   const [session, setSession] = useState<any>(null);
 
   const handleTagsChange = (tags: string[]) => {
     setSelectedTags(tags);
+  };
+
+  const handleTechnologiesChange = (technologies: string[]) => {
+    setSelectedTechnologies(technologies);
   };
 
   const handleDescriptionOptionChange = (option: string) => {
@@ -47,33 +53,48 @@ const Page = () => {
 
   useEffect(() => {
     const fetchAllData = async () => {
-      // Fetch session
-      const { data: { session: authSession }, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError) {
-        console.error("Error fetching session:", sessionError.message);
-        return;
-      }
-      setSession(authSession);
-
-      // Fetch repo data if we have repo name and owner
-      if (repoName && owner && authSession?.provider_token) {
-        try {
-          const repoResponse = await fetch(
-            `https://api.github.com/repos/${owner}/${repoName}`,
-            {
-              headers: {
-                Authorization: `Bearer ${authSession.provider_token}`,
-              },
-            }
-          );
-          const repoData = await repoResponse.json();
-
+      try {
+        // 1. Fetch session
+        const { data: { session: authSession }, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) throw new Error(sessionError.message);
+        setSession(authSession);
+  
+        // 2. Parallel fetch for tags and technologies
+        const [tagsResponse, technologiesResponse] = await Promise.all([
+          supabase.from('tags').select('name'),
+          supabase.from('technologies').select('name')
+        ]);
+  
+        // Handle tags response
+        if (tagsResponse.error) throw new Error(tagsResponse.error.message);
+        const tagNames = (tagsResponse.data || [])
+          .filter((tag): tag is { name: string } => tag && typeof tag.name === 'string')
+          .map(tag => tag.name)
+          .filter(name => name.length > 0);
+        setTags(tagNames);
+        console.log('Fetched tags:', tagNames);
+  
+        // Handle technologies response
+        if (technologiesResponse.error) throw new Error(technologiesResponse.error.message);
+        const techNames = (technologiesResponse.data || [])
+          .filter((tech): tech is { name: string } => tech && typeof tech.name === 'string')
+          .map(tech => tech.name)
+          .filter(name => name.length > 0);
+        setTechnologies(techNames);
+        console.log('Fetched technologies:', techNames);
+  
+        // 3. Fetch GitHub repo data if we have repo name, owner, and token
+        if (repoName && owner && authSession?.provider_token) {
           const [
+            repoResponse,
             languagesResponse,
             contributorsResponse,
             issuesResponse,
             commitsResponse
           ] = await Promise.all([
+            fetch(`https://api.github.com/repos/${owner}/${repoName}`, {
+              headers: { Authorization: `Bearer ${authSession.provider_token}` },
+            }),
             fetch(`https://api.github.com/repos/${owner}/${repoName}/languages`, {
               headers: { Authorization: `Bearer ${authSession.provider_token}` },
             }),
@@ -87,18 +108,20 @@ const Page = () => {
               headers: { Authorization: `Bearer ${authSession.provider_token}` },
             })
           ]);
-
-          const [languagesData, issuesData, [latestCommit]] = await Promise.all([
+  
+          const [repoData, languagesData, , issuesData, commitsData] = await Promise.all([
+            repoResponse.json(),
             languagesResponse.json(),
+            null, // placeholder for contributorsResponse
             issuesResponse.json(),
-            commitsResponse.json()
+            commitsResponse.json(),
           ]);
-
+  
           const contributorsCount = contributorsResponse.headers.get('link')
             ? parseInt(contributorsResponse.headers.get('link')?.match(/page=(\d+)>; rel="last"/)?.[1] || '1')
             : 1;
-
-          const repoInfoData = {
+  
+          setRepoInfo({
             owner: repoData.owner.login,
             license: repoData.license?.name || 'No license',
             languages: languagesData,
@@ -110,44 +133,14 @@ const Page = () => {
             goodFirstIssues: issuesData.filter(issue => 
               issue.labels.some(label => label.name === 'good first issue')).length,
             pullRequests: issuesData.filter(issue => 'pull_request' in issue).length,
-            latestCommit: latestCommit?.commit?.message || 'No commits',
-          };
-
-          setRepoInfo(repoInfoData);
-        } catch (error) {
-          console.error("Error fetching repo data:", error);
-        }
-      }
-
-      // Fetch tags
-      try {
-        const { data: tagsData, error: tagsError } = await supabase
-          .from('tags')
-          .select('name');
-
-        if (tagsError) {
-          console.error('Error fetching tags:', tagsError);
-          setTags([]);
-          return;
-        }
-
-        if (tagsData && Array.isArray(tagsData)) {
-          const tagNames = tagsData
-            .filter((tag): tag is { name: string } => 
-              tag && typeof tag.name === 'string')
-            .map(tag => tag.name)
-            .filter(name => name.length > 0);
-
-          setTags(tagNames);
-        } else {
-          setTags([]);
+            latestCommit: commitsData[0]?.commit?.message || 'No commits',
+          });
         }
       } catch (error) {
-        console.error('Error in fetchTags:', error);
-        setTags([]);
+        console.error('Error in fetchAllData:', error);
       }
     };
-
+  
     fetchAllData();
   }, [repoName, owner]);
 
@@ -183,6 +176,11 @@ const Page = () => {
         </div>
         <div className="bento-box half-width radial-background">
           <h4>Technologies and Languages:</h4>
+          <MultiSelector
+            availableTags={technologies}
+            onTagsChange={handleTechnologiesChange}
+            initialTags={selectedTechnologies}
+          />
         </div>
         <div className="bento-box half-width radial-background">
           <h4>Tags:</h4>
