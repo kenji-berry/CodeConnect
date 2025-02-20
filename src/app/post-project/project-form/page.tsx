@@ -8,6 +8,25 @@ import SingleSelector from "../../Components/SingleSelector";
 import ActivityGraph from "../../Components/ActivityGraph";
 import LanguageBar from "../../Components/LanguageBar";
 
+const statusOptions = [
+  {
+    value: "Active Development",
+    tooltip: "Project is being actively developed with regular updates"
+  },
+  {
+    value: "Stable/Maintenance",
+    tooltip: "Project is complete and stable, receiving occasional updates"
+  },
+  {
+    value: "Seeking Contributors",
+    tooltip: "Project is actively looking for new contributors"
+  },
+  {
+    value: "Early Stage/Experimental",
+    tooltip: "Project is in its early phases with potential for significant changes"
+  }
+];
+
 const Page = () => {
   const [tags, setTags] = useState<string[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -15,7 +34,7 @@ const Page = () => {
   const [selectedTechnologies, setSelectedTechnologies] = useState<string[]>([]);
   const [descriptionOption, setDescriptionOption] = useState<string>("Use existing description");
   const [session, setSession] = useState<any>(null);
-  const [projectStatus, setProjectStatus] = useState<string>("In Progress");
+  const [projectStatus, setProjectStatus] = useState<string>("Active Development");
 
   const handleTagsChange = (tags: string[]) => {
     setSelectedTags(tags);
@@ -222,9 +241,10 @@ const Page = () => {
         <div className="bento-box half-width radial-background">
           <h4>Project Status:</h4>
           <SingleSelector
-            values={["Active Development", "Stable/Maintenance", "Seeking Contributors", "Early Stage/Experimental"]}
+            values={statusOptions.map(opt => opt.value)}
             onValueChange={handleStatusChange}
             initialValue={projectStatus}
+            tooltips={Object.fromEntries(statusOptions.map(opt => [opt.value, opt.tooltip]))}
           />
         </div>
         <div className="bento-box half-width radial-background">
