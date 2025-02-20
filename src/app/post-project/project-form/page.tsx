@@ -15,6 +15,7 @@ const Page = () => {
   const [selectedTechnologies, setSelectedTechnologies] = useState<string[]>([]);
   const [descriptionOption, setDescriptionOption] = useState<string>("Use existing description");
   const [session, setSession] = useState<any>(null);
+  const [projectStatus, setProjectStatus] = useState<string>("In Progress");
 
   const handleTagsChange = (tags: string[]) => {
     setSelectedTags(tags);
@@ -26,6 +27,10 @@ const Page = () => {
 
   const handleDescriptionOptionChange = (option: string) => {
     setDescriptionOption(option);
+  };
+
+  const handleStatusChange = (status: string | null) => {
+    setProjectStatus(status);
   };
 
   const descriptionOptions = ["Use existing description", "Write your Own"];
@@ -216,10 +221,10 @@ const Page = () => {
         </div>
         <div className="bento-box half-width radial-background">
           <h4>Project Status:</h4>
-          <MultiSelector
-            availableTags={tags}
-            onTagsChange={handleTagsChange}
-            initialTags={selectedTags}
+          <SingleSelector
+            values={["Active Development", "Stable/Maintenance", "Seeking Contributors", "Early Stage/Experimental"]}
+            onValueChange={handleStatusChange}
+            initialValue={projectStatus}
           />
         </div>
         <div className="bento-box half-width radial-background">
@@ -230,7 +235,7 @@ const Page = () => {
         </div>
       </div>
       <div className="full-width flex flex-col items-center preview">
-          <h2 className="project-preview-link inter-medium"><a href="preview">Preview And Post</a></h2>
+          <h2 className="project-preview-link inter-medium"><a href="preview-post">Preview And Post</a></h2>
           <p>See how your post will appear once it's live.</p>
         </div>
     </div>
