@@ -7,6 +7,7 @@ import MultiSelector from "../../Components/MultiSelector";
 import SingleSelector from "../../Components/SingleSelector";
 import ActivityGraph from "../../Components/ActivityGraph";
 import LanguageBar from "../../Components/LanguageBar";
+import DifficultySelector from "../../Components/DifficultySelector";
 
 const statusOptions = [
   {
@@ -35,6 +36,7 @@ const Page = () => {
   const [descriptionOption, setDescriptionOption] = useState<string>("Use existing description");
   const [session, setSession] = useState<any>(null);
   const [projectStatus, setProjectStatus] = useState<string>("Active Development");
+  const [difficulty, setDifficulty] = useState<number>(1);
 
   const handleTagsChange = (tags: string[]) => {
     setSelectedTags(tags);
@@ -50,6 +52,11 @@ const Page = () => {
 
   const handleStatusChange = (status: string | null) => {
     setProjectStatus(status);
+  };
+
+  const handleDifficultyChange = (level: number) => {
+    console.log(level)
+    setDifficulty(level);
   };
 
   const descriptionOptions = ["Use existing description", "Write your Own"];
@@ -248,7 +255,13 @@ const Page = () => {
           />
         </div>
         <div className="bento-box half-width radial-background">
-          <h4>Beginner friendlyness:</h4>
+          <h4>Beginner Friendliness:</h4>
+          <div className="mt-4 flex items-center justify-center">
+            <DifficultySelector
+              onDifficultyChange={handleDifficultyChange}
+              initialDifficulty={difficulty}
+            />
+          </div>
         </div>
         <div className="bento-box full-width radial-background">
           <h4>Resource Links:</h4>
