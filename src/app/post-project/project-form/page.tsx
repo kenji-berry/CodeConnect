@@ -147,9 +147,31 @@ const Page = () => {
 
   return (
     <div className="w-screen h-screen flex flex-col items-center">
-      <h1 className="project-page-project-name">
-        <a target="_blank" href="project">
+      <h1 className="my-1 text-4xl font-bold flex items-center group">
+        <a 
+          href={`https://github.com/${owner}/${repoName}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-2 relative text-white hover:text-red-500 transition-colors duration-300"
+        >
           {repoName}
+          <div className="relative">
+            <div className="absolute bottom-0 left-0 w-full h-0.5 bg-red-500 transform scale-x-0 transition-transform duration-300 group-hover:scale-x-100" />
+          </div>
+          <svg 
+            xmlns="http://www.w3.org/2000/svg" 
+            className="h-6 w-6 transform transition-transform duration-300 group-hover:translate-x-1 group-hover:-translate-y-1" 
+            fill="none" 
+            viewBox="0 0 24 24" 
+            stroke="currentColor"
+          >
+            <path 
+              strokeLinecap="round" 
+              strokeLinejoin="round" 
+              strokeWidth={2} 
+              d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" 
+            />
+          </svg>
         </a>
       </h1>
       <div className="bento-container w-full inria-sans-regular">
@@ -191,33 +213,6 @@ const Page = () => {
             onTagsChange={handleTagsChange}
             initialTags={selectedTags}
           />
-        </div>
-        <div className="full-width">
-          <h2 className="inria-sans-semibold">READ ONLY Project Information (as of xx/xx/xx)</h2>
-        </div>
-        <div className="bento-box half-width radial-background">
-          <h4>Owner: {repoInfo.owner}</h4>
-          <h4>License: {repoInfo.license}</h4>
-          <h4>Stars: {repoInfo.stars}</h4>
-          <h4>Forks: {repoInfo.forks}</h4>
-          <h4>Contributors: {repoInfo.contributors}</h4>
-        </div>
-        <div className="bento-box half-width radial-background">
-          <h4>Issues Open: {repoInfo.openIssues}</h4>
-          <h4>Good First Issues: {repoInfo.goodFirstIssues}</h4>
-          <h4>Pull Requests: {repoInfo.pullRequests}</h4>
-        </div>
-        <div className="bento-box full-width radial-background">
-          <h3 className="inria-sans-semibold">Recent Activity:</h3>
-          <h4>Most Recent Commit: {repoInfo.latestCommit}</h4>
-          <div>
-            <h4>Activity Graph:</h4>
-            <ActivityGraph 
-              owner={owner || ''} 
-              repo={repoName || ''} 
-              token={session?.provider_token || ''}
-            />
-          </div>
         </div>
       </div>
       <div className="full-width flex flex-col items-center preview">
