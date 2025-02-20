@@ -35,12 +35,6 @@ const SingleSelector: React.FC<SingleSelectorProps> = ({
             -translate-x-1/2 -translate-y-full -top-2 left-1/2"
         >
           {tooltips[hoveredValue]}
-          <div 
-            className="absolute left-1/2 -translate-x-1/2 bottom-[-8px]
-              w-0 h-0 border-l-[6px] border-l-transparent
-              border-r-[6px] border-r-transparent
-              border-t-[8px] border-t-zinc-800"
-          />
         </div>
       )}
       <div className="single-selector flex flex-wrap">
