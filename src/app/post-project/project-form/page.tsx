@@ -214,6 +214,22 @@ const Page = () => {
             initialTags={selectedTags}
           />
         </div>
+        <div className="bento-box half-width radial-background">
+          <h4>Project Status:</h4>
+          <MultiSelector
+            availableTags={tags}
+            onTagsChange={handleTagsChange}
+            initialTags={selectedTags}
+          />
+        </div>
+        <div className="bento-box half-width radial-background">
+          <h4>Project Status:</h4>
+          <MultiSelector
+            availableTags={tags}
+            onTagsChange={handleTagsChange}
+            initialTags={selectedTags}
+          />
+        </div>
       </div>
       <div className="full-width flex flex-col items-center preview">
           <h2 className="project-preview-link inter-medium"><a href="preview">Preview And Post</a></h2>
