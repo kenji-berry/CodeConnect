@@ -6,6 +6,7 @@ import "../../post-project/style.css";
 import MultiSelector from "../../Components/MultiSelector";
 import SingleSelector from "../../Components/SingleSelector";
 import ActivityGraph from "../../Components/ActivityGraph";
+import LanguageBar from "../../Components/LanguageBar";
 
 const Page = () => {
   const [tags, setTags] = useState<string[]>([]);
@@ -181,6 +182,7 @@ const Page = () => {
             onTagsChange={handleTechnologiesChange}
             initialTags={selectedTechnologies}
           />
+          <LanguageBar languages={repoInfo.languages} />
         </div>
         <div className="bento-box half-width radial-background">
           <h4>Tags:</h4>
