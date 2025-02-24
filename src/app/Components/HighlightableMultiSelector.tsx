@@ -1,14 +1,14 @@
 "use client";
 import React, { useState, useEffect, useRef, useMemo } from "react";
 
-interface MultiSelectorProps {
+interface HighlightableMultiSelectorProps {
   availableTags: string[];
   onTagsChange: (tags: string[]) => void;
   initialTags?: string[];
   nonRemovableTags?: string[];
 }
 
-const MultiSelector: React.FC<MultiSelectorProps> = ({
+const HighlightableMultiSelector: React.FC<HighlightableMultiSelectorProps> = ({
   availableTags = [],
   onTagsChange,
   initialTags = [],
@@ -17,6 +17,7 @@ const MultiSelector: React.FC<MultiSelectorProps> = ({
   const [selectedTags, setSelectedTags] = useState<string[]>([
     ...new Set([...initialTags, ...nonRemovableTags])
   ]);
+  const [highlightedTags, setHighlightedTags] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
@@ -46,6 +47,7 @@ const MultiSelector: React.FC<MultiSelectorProps> = ({
         const newTags = selectedTags.filter((t) => t !== tag);
         setSelectedTags(newTags);
         onTagsChange(newTags);
+        setHighlightedTags(highlightedTags.filter((t) => t !== tag));
       }
     } else {
       const newTags = [...selectedTags, tag];
@@ -54,6 +56,14 @@ const MultiSelector: React.FC<MultiSelectorProps> = ({
     }
     setSearchTerm("");
     setIsDropdownOpen(false);
+  };
+
+  const handleHighlightChange = (tag: string) => {
+    if (highlightedTags.includes(tag)) {
+      setHighlightedTags(highlightedTags.filter((t) => t !== tag));
+    } else if (highlightedTags.length < 3) {
+      setHighlightedTags([...highlightedTags, tag]);
+    }
   };
 
   const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -116,22 +126,36 @@ const MultiSelector: React.FC<MultiSelectorProps> = ({
       </div>
       <div className="selected-tags mt-1">
         {selectedTags.map((tag) => (
-          <button
+          <div
             key={`selected-${tag}`}
-            className={`tag-item selected-tag flex items-center py-1 px-2 m-1 rounded text-uppercase ${
+            className={`tag-item selected-tag flex items-center py-1 px-2 m-1 rounded text-uppercase transition-colors duration-300 ${
               nonRemovableTags.includes(tag)
                 ? 'bg-blue-500 hover:bg-blue-700'
-                : 'bg-slate-500 hover:bg-red-900'
+                : highlightedTags.includes(tag)
+                ? 'bg-yellow-500 hover:bg-yellow-400'
+                : 'bg-slate-500 hover:bg-slate-600'
             }`}
-            onClick={() => handleTagChange(tag)}
-            disabled={nonRemovableTags.includes(tag)}
           >
-            {tag.toUpperCase()}
-          </button>
+            <span className="flex-1">{tag.toUpperCase()}</span>
+            <button
+              className="ml-2 text-white transition-transform duration-300 transform hover:scale-125"
+              onClick={() => handleHighlightChange(tag)}
+            >
+              {highlightedTags.includes(tag) ? '★' : '☆'}
+            </button>
+            {!nonRemovableTags.includes(tag) && (
+              <button
+                className="ml-2 text-white transition-transform duration-300 transform hover:scale-125"
+                onClick={() => handleTagChange(tag)}
+              >
+                ✕
+              </button>
+            )}
+          </div>
         ))}
       </div>
     </div>
   );
 };
 
-export default MultiSelector;
+export default HighlightableMultiSelector;

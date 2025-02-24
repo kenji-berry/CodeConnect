@@ -8,6 +8,7 @@ import SingleSelector from "../../Components/SingleSelector";
 import ActivityGraph from "../../Components/ActivityGraph";
 import LanguageBar from "../../Components/LanguageBar";
 import DifficultySelector from "../../Components/DifficultySelector";
+import HighlightableMultiSelector from "../../Components/HighlightableMultiSelector";
 
 const statusOptions = [
   {
@@ -183,6 +184,10 @@ const Page = () => {
             pullRequests: issuesData.filter(issue => 'pull_request' in issue).length,
             latestCommit: commitsData[0]?.commit?.message || 'No commits',
           });
+
+          const nonRemovableTechnologies = Object.keys(languagesData).map(lang => lang.toLowerCase());
+          console.log(nonRemovableTechnologies);
+          setSelectedTechnologies(nonRemovableTechnologies);
         }
       } catch (error) {
         console.error('Error in fetchAllData:', error);
@@ -191,6 +196,11 @@ const Page = () => {
   
     fetchAllData();
   }, [repoName, owner]);
+
+  useEffect(() => {
+    const nonRemovableTechnologies = Object.keys(repoInfo.languages).map(lang => lang.toLowerCase());
+    setSelectedTechnologies(nonRemovableTechnologies);
+  }, [repoInfo.languages]);
 
   return (
     <div className="w-screen h-screen flex flex-col items-center">
@@ -216,7 +226,7 @@ const Page = () => {
               strokeLinecap="round" 
               strokeLinejoin="round" 
               strokeWidth={2} 
-              d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" 
+              d="M10 6H6a2 2  0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" 
             />
           </svg>
         </a>
@@ -246,10 +256,11 @@ const Page = () => {
         </div>
         <div className="bento-box half-width radial-background">
           <h4>Technologies and Languages:</h4>
-          <MultiSelector
+          <HighlightableMultiSelector
             availableTags={technologies}
             onTagsChange={handleTechnologiesChange}
             initialTags={selectedTechnologies}
+            nonRemovableTags={Object.keys(repoInfo.languages).map(lang => lang.toLowerCase())}
           />
           <LanguageBar languages={repoInfo.languages} />
         </div>
