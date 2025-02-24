@@ -6,18 +6,21 @@ interface HighlightableMultiSelectorProps {
   onTagsChange: (tags: string[]) => void;
   initialTags?: string[];
   nonRemovableTags?: string[];
+  highlightedTags: string[];
+  onHighlightedTagsChange: (highlighted: string[]) => void;
 }
 
 const HighlightableMultiSelector: React.FC<HighlightableMultiSelectorProps> = ({
   availableTags = [],
   onTagsChange,
   initialTags = [],
-  nonRemovableTags = []
+  nonRemovableTags = [],
+  highlightedTags,
+  onHighlightedTagsChange
 }) => {
   const [selectedTags, setSelectedTags] = useState<string[]>([
     ...new Set([...initialTags, ...nonRemovableTags])
   ]);
-  const [highlightedTags, setHighlightedTags] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
@@ -47,7 +50,7 @@ const HighlightableMultiSelector: React.FC<HighlightableMultiSelectorProps> = ({
         const newTags = selectedTags.filter((t) => t !== tag);
         setSelectedTags(newTags);
         onTagsChange(newTags);
-        setHighlightedTags(highlightedTags.filter((t) => t !== tag));
+        onHighlightedTagsChange(highlightedTags.filter((t) => t !== tag));
       }
     } else {
       const newTags = [...selectedTags, tag];
@@ -60,9 +63,9 @@ const HighlightableMultiSelector: React.FC<HighlightableMultiSelectorProps> = ({
 
   const handleHighlightChange = (tag: string) => {
     if (highlightedTags.includes(tag)) {
-      setHighlightedTags(highlightedTags.filter((t) => t !== tag));
+      onHighlightedTagsChange(highlightedTags.filter((t) => t !== tag));
     } else if (highlightedTags.length < 3) {
-      setHighlightedTags([...highlightedTags, tag]);
+      onHighlightedTagsChange([...highlightedTags, tag]);
     }
   };
 

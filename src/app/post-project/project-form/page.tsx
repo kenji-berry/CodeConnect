@@ -40,6 +40,7 @@ const Page = () => {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [technologies, setTechnologies] = useState<string[]>([]);
   const [selectedTechnologies, setSelectedTechnologies] = useState<string[]>([]);
+  const [highlightedTechnologies, setHighlightedTechnologies] = useState<string[]>([]);
   const [descriptionOption, setDescriptionOption] = useState<string>("Use existing description");
   const [session, setSession] = useState<any>(null);
   const [projectStatus, setProjectStatus] = useState<string>("Active Development");
@@ -52,6 +53,10 @@ const Page = () => {
 
   const handleTechnologiesChange = (technologies: string[]) => {
     setSelectedTechnologies(technologies);
+  };
+
+  const handleHighlightedTechnologiesChange = (highlighted: string[]) => {
+    setHighlightedTechnologies(highlighted);
   };
 
   const handleDescriptionOptionChange = (option: string) => {
@@ -202,6 +207,12 @@ const Page = () => {
     setSelectedTechnologies(nonRemovableTechnologies);
   }, [repoInfo.languages]);
 
+
+  function printstuff(){
+    console.log(highlightedTechnologies)
+  }
+
+
   return (
     <div className="w-screen h-screen flex flex-col items-center">
       <h1 className="my-1 text-4xl font-bold flex items-center group">
@@ -261,6 +272,8 @@ const Page = () => {
             onTagsChange={handleTechnologiesChange}
             initialTags={selectedTechnologies}
             nonRemovableTags={Object.keys(repoInfo.languages).map(lang => lang.toLowerCase())}
+            highlightedTags={highlightedTechnologies}
+            onHighlightedTagsChange={handleHighlightedTechnologiesChange}
           />
           <LanguageBar languages={repoInfo.languages} />
         </div>
@@ -271,6 +284,7 @@ const Page = () => {
             onTagsChange={handleTagsChange}
             initialTags={selectedTags}
           />
+          <button onClick={printstuff}>fff</button>
         </div>
         <div className="bento-box half-width radial-background">
           <h4>Project Status:</h4>
