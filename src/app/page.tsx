@@ -16,11 +16,16 @@ interface GitHubData {
   };
 }
 
+interface Technology {
+  id: number;
+  name: string;
+}
+
 export default function Home() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
+  const [availableTechnologies, setAvailableTechnologies] = useState<Technology[]>([]);
   const [selectedTechnologies, setSelectedTechnologies] = useState<string[]>([]);
   const [selectedContributionTypes, setSelectedContributionTypes] = useState<string[]>([]);
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>("");
@@ -30,14 +35,12 @@ export default function Home() {
   const [githubData, setGithubData] = useState<GitHubData | null>(null);
 
   useEffect(() => {
-    const languages = searchParams.get("languages")?.split(",") || [];
     const technologies = searchParams.get("technologies")?.split(",") || [];
     const contributionTypes = searchParams.get("contributionTypes")?.split(",") || [];
     const difficulty = searchParams.get("difficulty") || "";
     const lastUpdated = searchParams.get("lastUpdated") || "";
     const mode = searchParams.get("filterMode") || 'AND';
 
-    setSelectedLanguages(languages.filter(Boolean));
     setSelectedTechnologies(technologies.filter(Boolean));
     setSelectedContributionTypes(contributionTypes.filter(Boolean));
     setSelectedDifficulty(difficulty);
@@ -48,9 +51,6 @@ export default function Home() {
   useEffect(() => {
     const params = new URLSearchParams();
 
-    if (selectedLanguages.length > 0) {
-      params.append("languages", selectedLanguages.join(","));
-    }
     if (selectedTechnologies.length > 0) {
       params.append("technologies", selectedTechnologies.join(","));
     }
@@ -67,7 +67,6 @@ export default function Home() {
 
     router.push(`?${params.toString()}`, { scroll: false });
   }, [
-    selectedLanguages,
     selectedTechnologies,
     selectedContributionTypes,
     selectedDifficulty,
@@ -94,13 +93,31 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    const fetchTechnologies = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('technologies')
+          .select('id, name')
+          .order('name');
+
+        if (error) {
+          console.error('Error fetching technologies:', error);
+          return;
+        }
+
+        if (data) {
+          setAvailableTechnologies(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch technologies:', error);
+      }
+    };
+
+    fetchTechnologies();
   }, []);
 
   const handleTagsChange = (type: string, tags: string[]) => {
     switch (type) {
-      case "languages":
-        setSelectedLanguages(tags);
-        break;
       case "technologies":
         setSelectedTechnologies(tags);
         break;
@@ -129,7 +146,6 @@ export default function Home() {
   };
 
   const clearAllFilters = () => {
-    setSelectedLanguages([]);
     setSelectedTechnologies([]);
     setSelectedContributionTypes([]);
     setSelectedDifficulty("");
@@ -137,66 +153,6 @@ export default function Home() {
     setFilterMode('AND');
     router.push(`?`, { scroll: false });
   };
-
-  const languages = [
-    "Ada",
-    "APL",
-    "Assembly",
-    "Bash",
-    "C",
-    "C#",
-    "C++",
-    "COBOL",
-    "CSS",
-    "D",
-    "Dart",
-    "Elixir",
-    "Erlang",
-    "F#",
-    "Fortran",
-    "Go",
-    "Groovy",
-    "Haskell",
-    "HTML",
-    "Java",
-    "JavaScript",
-    "Julia",
-    "Kotlin",
-    "Lisp",
-    "Lua",
-    "MATLAB",
-    "Objective-C",
-    "Pascal",
-    "Perl",
-    "PHP",
-    "Prolog",
-    "Python",
-    "R",
-    "Ruby",
-    "Rust",
-    "Scala",
-    "Shell",
-    "Smalltalk",
-    "SQL",
-    "Swift",
-    "TypeScript",
-    "Visual Basic",
-    "Zig",
-  ];
-
-  const technologies = [
-    "Next.js",
-    "React.js",
-    "Tailwind CSS",
-    "jQuery",
-    "Bootstrap",
-    "Material-UI",
-    "Git",
-    "VS Code",
-    "Figma",
-    "Spline",
-    "Django",
-  ];
 
   const contributionTypes = [
     "Documentation",
@@ -211,7 +167,6 @@ export default function Home() {
 
   const printTags = () => {
     console.log("selected stuff");
-    console.log(selectedLanguages);
     console.log(selectedTechnologies);
     console.log(selectedContributionTypes);
     console.log(selectedDifficulty);
@@ -263,17 +218,9 @@ export default function Home() {
                 <h3 className="inter-bold main-subtitle">Filter By:</h3>
                 <div className="main-page-filter-box radial-background px-2 py-1 inria-sans-bold flex flex-col justify-center">
                   <div>
-                    <p>Languages:</p>
+                    <p>Technologies/Languages:</p>
                     <MultiSelector
-                      availableTags={languages}
-                      onTagsChange={(tags) => handleTagsChange("languages", tags)}
-                      initialTags={selectedLanguages}
-                    />
-                  </div>
-                  <div>
-                    <p>Technologies:</p>
-                    <MultiSelector
-                      availableTags={technologies}
+                      availableTags={availableTechnologies.map(tech => tech.name)}
                       onTagsChange={(tags) =>
                         handleTagsChange("technologies", tags)
                       }
