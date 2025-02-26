@@ -61,7 +61,10 @@ const HighlightableMultiSelector: React.FC<HighlightableMultiSelectorProps> = ({
     setIsDropdownOpen(false);
   };
 
-  const handleHighlightChange = (tag: string) => {
+  const handleHighlightChange = (e: React.MouseEvent, tag: string) => {
+    e.preventDefault(); // Prevent default button behavior
+    e.stopPropagation(); // Stop event from bubbling up to form
+  
     if (highlightedTags.includes(tag)) {
       onHighlightedTagsChange(highlightedTags.filter((t) => t !== tag));
     } else if (highlightedTags.length < 3) {
@@ -142,14 +145,20 @@ const HighlightableMultiSelector: React.FC<HighlightableMultiSelectorProps> = ({
             <span className="flex-1">{tag.toUpperCase()}</span>
             <button
               className="ml-2 text-white transition-transform duration-300 transform hover:scale-125"
-              onClick={() => handleHighlightChange(tag)}
+              onClick={(e) => handleHighlightChange(e, tag)}
+              type="button" // Add this to explicitly prevent form submission
             >
               {highlightedTags.includes(tag) ? '★' : '☆'}
             </button>
             {!nonRemovableTags.includes(tag) && (
               <button
                 className="ml-2 text-white transition-transform duration-300 transform hover:scale-125"
-                onClick={() => handleTagChange(tag)}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleTagChange(tag);
+                }}
+                type="button" // Add this to explicitly prevent form submission
               >
                 ✕
               </button>
