@@ -21,6 +21,21 @@ interface Technology {
   name: string;
 }
 
+interface Project {
+  id: number;
+  repo_name: string;
+  repo_owner: string;
+  description_type: string;
+  custom_description: string | null;
+  difficulty_level: number;
+  created_at: string;
+  technologies: {
+    name: string;
+    is_highlighted: boolean;
+  }[];
+  tags: string[];
+}
+
 export default function Home() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -33,6 +48,7 @@ export default function Home() {
   const [filterMode, setFilterMode] = useState<string>('AND');
   const [user, setUser] = useState<{ email: string } | null>(null);
   const [githubData, setGithubData] = useState<GitHubData | null>(null);
+  const [recentProjects, setRecentProjects] = useState<Project[]>([]);
 
   useEffect(() => {
     const technologies = searchParams.get("technologies")?.split(",") || [];
@@ -114,6 +130,84 @@ export default function Home() {
     };
 
     fetchTechnologies();
+  }, []);
+
+  useEffect(() => {
+    const fetchRecentProjects = async () => {
+      try {
+        // Fetch the 5 most recent projects with their basic info
+        const { data: projects, error: projectsError } = await supabase
+          .from('project')
+          .select(`
+            id,
+            repo_name,
+            repo_owner,
+            description_type,
+            custom_description,
+            difficulty_level,
+            created_at
+          `)
+          .order('created_at', { ascending: false })
+          .limit(5);
+
+        if (projectsError) {
+          console.error('Error fetching projects:', projectsError);
+          return;
+        }
+
+        // Fetch technologies and tags for each project
+        const projectsWithData = await Promise.all(
+          projects.map(async (project) => {
+            // Fetch technologies
+            const { data: techData, error: techError } = await supabase
+              .from('project_technologies')
+              .select(`
+                technologies (name),
+                is_highlighted
+              `)
+              .eq('project_id', project.id);
+
+            // Fetch tags
+            const { data: tagData, error: tagError } = await supabase
+              .from('project_assoc')
+              .select(`
+                association_id,
+                project_tag!inner (
+                  name
+                )
+              `)
+              .eq('project_id', project.id)
+              .eq('type', 'tag');
+
+            if (techError) {
+              console.error('Error fetching technologies:', techError);
+            }
+
+            if (tagError) {
+              console.error('Error fetching tags:', tagError.message || tagError);
+            }
+
+            console.log('Fetched technologies:', techData);
+            console.log('Fetched tags:', tagData);
+
+            return {
+              ...project,
+              technologies: techData?.map(tech => ({
+                name: tech.technologies.name,
+                is_highlighted: tech.is_highlighted
+              })) || [],
+              tags: tagData?.map(tag => tag.project_tag.name) || []
+            };
+          })
+        );
+
+        setRecentProjects(projectsWithData);
+      } catch (error) {
+        console.error('Failed to fetch recent projects:', error);
+      }
+    };
+
+    fetchRecentProjects();
   }, []);
 
   const handleTagsChange = (type: string, tags: string[]) => {
@@ -280,70 +374,29 @@ export default function Home() {
           </div>
 
           <div className="main-page-holder">
-            <ProjectPreview
-              name="Project Name"
-              date="March 15, 2024"
-              tags={["Project Tag", "Project Tag", "Project Tag"]}
-              description="Project Description"
-              techStack={["React", "TypeScript", "Tailwind"]}
-              issueCount={5}
-            />
-            <ProjectPreview
-              name="Project Name"
-              date="March 15, 2024"
-              tags={["Project Tag", "Project Tag", "Project Tag"]}
-              description="Project Description"
-              techStack={["React", "TypeScript", "Tailwind"]}
-              issueCount={5}
-            />
-            <ProjectPreview
-              name="Project Name"
-              date="March 15, 2024"
-              tags={["Project Tag", "Project Tag", "Project Tag"]}
-              description="Project Description"
-              techStack={["React", "TypeScript", "Tailwind"]}
-              issueCount={5}
-            />
-            <ProjectPreview
-              name="Project Name"
-              date="March 15, 2024"
-              tags={["Project Tag", "Project Tag", "Project Tag"]}
-              description="Project Description"
-              techStack={["React", "TypeScript", "Tailwind"]}
-              issueCount={5}
-            />
-            <ProjectPreview
-              name="Project Name"
-              date="March 15, 2024"
-              tags={["Project Tag", "Project Tag", "Project Tag"]}
-              description="Project Description"
-              techStack={["React", "TypeScript", "Tailwind"]}
-              issueCount={5}
-            />
-            <ProjectPreview
-              name="Project Name"
-              date="March 15, 2024"
-              tags={["Project Tag", "Project Tag", "Project Tag"]}
-              description="Project Description"
-              techStack={["React", "TypeScript", "Tailwind"]}
-              issueCount={5}
-            />
-            <ProjectPreview
-              name="Project Name"
-              date="March 15, 2024"
-              tags={["Project Tag", "Project Tag", "Project Tag"]}
-              description="Project Description"
-              techStack={["React", "TypeScript", "Tailwind"]}
-              issueCount={5}
-            />
-            <ProjectPreview
-              name="Project Name"
-              date="March 15, 2024"
-              tags={["Project Tag", "Project Tag", "Project Tag"]}
-              description="Project Description"
-              techStack={["React", "TypeScript", "Tailwind"]}
-              issueCount={5}
-            />
+            {recentProjects.map((project) => (
+              <ProjectPreview
+                key={project.id}
+                name={project.repo_name}
+                date={new Date(project.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                tags={project.tags.slice(0, 3)}
+                description={
+                  project.description_type === "Write your Own" 
+                    ? project.custom_description 
+                    : "Loading GitHub description..."
+                }
+                techStack={project.technologies
+                  .filter(tech => tech.is_highlighted)
+                  .map(tech => tech.name)}
+                issueCount={0}
+                recommended={false}
+              />
+            ))}
+            {recentProjects.length === 0 && (
+              <div className="text-center text-gray-400 py-4">
+                No projects found
+              </div>
+            )}
           </div>
         </div>
       </div>
