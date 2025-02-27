@@ -2,11 +2,12 @@
 
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import supabase from '@/supabaseClient'; // Adjust the import based on your project structure
+import {supabase} from '@/supabaseClient'; 
 
 const ProjectDetails = () => {
   const { id } = useParams();
   const [project, setProject] = useState(null);
+  const [comments, setComments] = useState([]);
 
   useEffect(() => {
     if (id) {
@@ -24,7 +25,22 @@ const ProjectDetails = () => {
         }
       };
 
+      const fetchComments = async () => {
+        const { data, error } = await supabase
+          .from('project_comments')
+          .select('*')
+          .eq('project_id', id)
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          console.error('Error fetching comments:', error);
+        } else {
+          setComments(data);
+        }
+      };
+
       fetchProject();
+      fetchComments();
     }
   }, [id]);
 
@@ -54,6 +70,23 @@ const ProjectDetails = () => {
         <div>
           <strong>Links:</strong> {project.links.length > 0 ? project.links.join(', ') : 'N/A'}
         </div>
+      </div>
+
+      <h2 className="text-xl font-bold mt-8 mb-4">Comments</h2>
+      <div className="space-y-4">
+        {comments.map((comment) => (
+          <div key={comment.id} className="p-4 bg-gray-900 rounded-lg shadow-sm">
+            <p>{comment.comment}</p>
+            <p className="text-sm text-gray-500">
+              {new Date(comment.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+            </p>
+          </div>
+        ))}
+        {comments.length === 0 && (
+          <div className="text-center text-gray-400 py-4">
+            No comments found
+          </div>
+        )}
       </div>
     </div>
   );
