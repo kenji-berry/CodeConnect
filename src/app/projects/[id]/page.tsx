@@ -2,7 +2,7 @@
 
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import {supabase} from '@/supabaseClient'; 
+import { supabase } from '@/supabaseClient';
 
 const ProjectDetails = () => {
   const { id } = useParams();
@@ -26,17 +26,38 @@ const ProjectDetails = () => {
       };
 
       const fetchComments = async () => {
-        const { data, error } = await supabase
+        // fetch comments
+        const { data: commentsData, error: commentsError } = await supabase
           .from('project_comments')
           .select('*')
           .eq('project_id', id)
           .order('created_at', { ascending: false });
 
-        if (error) {
-          console.error('Error fetching comments:', error);
-        } else {
-          setComments(data);
+        if (commentsError) {
+          console.error('Error fetching comments:', commentsError);
+          return;
         }
+
+        // fetch display names for each comment's user_id
+        const { data: profilesData, error: profilesError } = await supabase
+          .from('profiles')
+          .select('user_id, display_name')
+          .in('user_id', commentsData.map(comment => comment.user_id));
+
+        if (profilesError) {
+          console.error('Error fetching profiles:', profilesError);
+          return;
+        }
+
+        // combine comments with display names
+        const commentsWithProfiles = commentsData.map(comment => ({
+          ...comment,
+          profiles: {
+            display_name: profilesData.find(profile => profile.user_id === comment.user_id)?.display_name
+          }
+        }));
+
+        setComments(commentsWithProfiles);
       };
 
       fetchProject();
@@ -76,6 +97,7 @@ const ProjectDetails = () => {
       <div className="space-y-4">
         {comments.map((comment) => (
           <div key={comment.id} className="p-4 bg-gray-900 rounded-lg shadow-sm">
+            <p className="font-bold">{comment.profiles.display_name}</p>
             <p>{comment.comment}</p>
             <p className="text-sm text-gray-500">
               {new Date(comment.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
