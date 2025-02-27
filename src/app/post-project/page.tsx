@@ -102,7 +102,7 @@ const Page = () => {
   );
 
   return (
-    <div className="w-screen h-screen flex flex-col items-center inria-sans-regular p-8 radial-background">
+    <div className="w-screen h-screen flex flex-col items-center inria-sans-regular p-8">
       <h1 className="text-3xl font-bold mb text-neutral-100">
         Select a Repository:
       </h1>
