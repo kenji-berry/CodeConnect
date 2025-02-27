@@ -8,9 +8,50 @@ const ProjectDetails = () => {
   const { id } = useParams();
   const [project, setProject] = useState(null);
   const [comments, setComments] = useState([]);
+  const [likes, setLikes] = useState(0);
+  const [isLiked, setIsLiked] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
 
   useEffect(() => {
+    // get current user
+    const getCurrentUser = async () => {
+      const { data: { user }, error } = await supabase.auth.getUser();
+      if (error) {
+        console.error('Error fetching user:', error);
+        return;
+      }
+      setCurrentUser(user);
+      if (user) {
+        // check if user has liked the project
+        const { data, error: likeError } = await supabase
+          .from('project_likes')
+          .select('*')
+          .eq('project_id', id)
+          .eq('user_id', user.id)
+          .single();
+        
+        if (!likeError) {
+          setIsLiked(!!data);
+        }
+      }
+    };
+
+    // get total likes
+    const getTotalLikes = async () => {
+      const { data, error } = await supabase
+        .from('project_likes')
+        .select('id')
+        .eq('project_id', id);
+
+      if (!error && data) {
+        setLikes(data.length);
+      }
+    };
+
     if (id) {
+      getCurrentUser();
+      getTotalLikes();
+
       const fetchProject = async () => {
         const { data, error } = await supabase
           .from('project')
@@ -65,13 +106,57 @@ const ProjectDetails = () => {
     }
   }, [id]);
 
+  const handleLike = async () => {
+    if (!currentUser) return;
+
+    if (isLiked) {
+      // Unlike
+      const { error } = await supabase
+        .from('project_likes')
+        .delete()
+        .eq('project_id', id)
+        .eq('user_id', currentUser.id);
+
+      if (!error) {
+        setIsLiked(false);
+        setLikes(prev => prev - 1);
+      }
+    } else {
+      // Like
+      const { error } = await supabase
+        .from('project_likes')
+        .upsert([
+          { project_id: id, user_id: currentUser.id }
+        ], { onConflict: ['project_id', 'user_id'] });
+
+      if (!error) {
+        setIsLiked(true);
+        setLikes(prev => prev + 1);
+      }
+    }
+  };
+
   if (!project) {
     return <div>Loading...</div>;
   }
 
   return (
     <div className="p-4 max-w-2xl mx-auto bg-red-400 shadow-md rounded-lg">
-      <h1 className="text-2xl font-bold mb-4">{project.repo_name}</h1>
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-2xl font-bold">{project.repo_name}</h1>
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={handleLike}
+            className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
+              isLiked ? 'bg-blue-600' : 'bg-gray-600'
+            }`}
+            disabled={!currentUser}
+          >
+            <span>{isLiked ? '❤️' : '🤍'}</span>
+            <span>{likes}</span>
+          </button>
+        </div>
+      </div>
       <div className="grid grid-cols-2 gap-4">
         <div>
           <strong>Repository Owner:</strong> {project.repo_owner}
