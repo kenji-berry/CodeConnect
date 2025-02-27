@@ -154,7 +154,6 @@ export default function Home() {
           console.error('Error fetching projects:', projectsError);
           return;
         }
-
         // Fetch technologies and tags for each project
         const projectsWithData = await Promise.all(
           projects.map(async (project) => {
@@ -202,6 +201,7 @@ export default function Home() {
         );
 
         setRecentProjects(projectsWithData);
+        console.log(projectsWithData);
       } catch (error) {
         console.error('Failed to fetch recent projects:', error);
       }
@@ -376,6 +376,7 @@ export default function Home() {
           <div className="main-page-holder">
             {recentProjects.map((project) => (
               <ProjectPreview
+                id={project.id}
                 key={project.id}
                 name={project.repo_name}
                 date={new Date(project.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}

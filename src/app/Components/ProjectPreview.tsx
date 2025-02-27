@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useState } from "react";
 
 interface ProjectPreviewProps {
+  id: string;
   name: string;
   date: string;
   tags: string[];
@@ -11,6 +12,7 @@ interface ProjectPreviewProps {
 }
 
 const ProjectPreview: React.FC<ProjectPreviewProps> = ({
+  id, 
   name,
   date,
   tags,
@@ -19,6 +21,8 @@ const ProjectPreview: React.FC<ProjectPreviewProps> = ({
   issueCount,
   recommended = false,
 }) => {
+  const [isHovered, setIsHovered] = useState(false);
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString("en-GB", {
@@ -30,11 +34,13 @@ const ProjectPreview: React.FC<ProjectPreviewProps> = ({
 
   return (
     <div
-      className={` py-2 px-2.5 mb-2 w-[17.5rem] h-[13rem] transition-transform cursor-pointer ${
+      className={`relative py-2 px-2.5 mb-2 w-[17.5rem] h-[13rem] transition-transform cursor-pointer ${
         recommended ? "border-[var(--orange)]" : "border-[var(--off-white)]"
       } border-2 inter-bold`}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
-      <a target="_blank" href="project">
+      <a href={`/projects/${id}`}>
         <div className="flex justify-between items-center mb-1.5">
           <h2 className="text-sm inter-bold text-[var(--off-white)] underline decoration-1 underline-offset-2">
             {name}
@@ -74,6 +80,14 @@ const ProjectPreview: React.FC<ProjectPreviewProps> = ({
           border-b-[6px] border-b-transparent
           transition-colors"
           />
+        </div>
+
+        <div
+          className={`absolute inset-0 bg-black flex items-center justify-center text-white text-lg transition-opacity duration-300 ${
+            isHovered ? "opacity-75" : "opacity-0"
+          }`}
+        >
+          Click to view this project
         </div>
       </a>
     </div>
