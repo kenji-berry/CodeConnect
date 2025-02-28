@@ -9,6 +9,7 @@ import ActivityGraph from "../../Components/ActivityGraph";
 import LanguageBar from "../../Components/LanguageBar";
 import DifficultySelector from "../../Components/DifficultySelector";
 import HighlightableMultiSelector from "../../Components/HighlightableMultiSelector";
+import { getValidGitHubToken } from "../../../utils/tokenRefresh";
 
 const statusOptions = [
   {
@@ -188,62 +189,75 @@ const Page = () => {
         setTechnologies(techNames);
         console.log('Fetched technologies:', techNames);
   
-        // 3. Fetch GitHub repo data if we have repo name, owner, and token
-        if (repoName && owner && authSession?.provider_token) {
-          const [
-            repoResponse,
-            languagesResponse,
-            contributorsResponse,
-            issuesResponse,
-            commitsResponse
-          ] = await Promise.all([
-            fetch(`https://api.github.com/repos/${owner}/${repoName}`, {
-              headers: { Authorization: `Bearer ${authSession.provider_token}` },
-            }),
-            fetch(`https://api.github.com/repos/${owner}/${repoName}/languages`, {
-              headers: { Authorization: `Bearer ${authSession.provider_token}` },
-            }),
-            fetch(`https://api.github.com/repos/${owner}/${repoName}/contributors?per_page=1`, {
-              headers: { Authorization: `Bearer ${authSession.provider_token}` },
-            }),
-            fetch(`https://api.github.com/repos/${owner}/${repoName}/issues?state=open`, {
-              headers: { Authorization: `Bearer ${authSession.provider_token}` },
-            }),
-            fetch(`https://api.github.com/repos/${owner}/${repoName}/commits?per_page=1`, {
-              headers: { Authorization: `Bearer ${authSession.provider_token}` },
-            })
-          ]);
-  
-          const [repoData, languagesData, , issuesData, commitsData] = await Promise.all([
-            repoResponse.json(),
-            languagesResponse.json(),
-            null, // placeholder for contributorsResponse
-            issuesResponse.json(),
-            commitsResponse.json(),
-          ]);
-  
-          const contributorsCount = contributorsResponse.headers.get('link')
-            ? parseInt(contributorsResponse.headers.get('link')?.match(/page=(\d+)>; rel="last"/)?.[1] || '1')
-            : 1;
-  
-          setRepoInfo({
-            owner: repoData.owner.login,
-            license: repoData.license?.name || 'No license',
-            languages: languagesData,
-            size: repoData.size,
-            stars: repoData.stargazers_count,
-            forks: repoData.forks_count,
-            contributors: contributorsCount,
-            openIssues: repoData.open_issues_count,
-            goodFirstIssues: issuesData.filter(issue => 
-              issue.labels.some(label => label.name === 'good first issue')).length,
-            pullRequests: issuesData.filter(issue => 'pull_request' in issue).length,
-            latestCommit: commitsData[0]?.commit?.message || 'No commits',
-          });
-
-          const nonRemovableTechnologies = Object.keys(languagesData).map(lang => lang.toLowerCase());
-          console.log(nonRemovableTechnologies);
-          setSelectedTechnologies(nonRemovableTechnologies);
+        // 3. Fetch GitHub repo data if we have repo name and owner
+        if (repoName && owner) {
+          try {
+            // Get GitHub token from our storage system instead of session
+            const githubToken = await getValidGitHubToken();
+            
+            if (!githubToken) {
+              console.error("No valid GitHub token found");
+              throw new Error('GitHub authentication required');
+            }
+            
+            const [
+              repoResponse,
+              languagesResponse,
+              contributorsResponse,
+              issuesResponse,
+              commitsResponse
+            ] = await Promise.all([
+              fetch(`https://api.github.com/repos/${owner}/${repoName}`, {
+                headers: { Authorization: `Bearer ${githubToken}` },
+              }),
+              fetch(`https://api.github.com/repos/${owner}/${repoName}/languages`, {
+                headers: { Authorization: `Bearer ${githubToken}` },
+              }),
+              fetch(`https://api.github.com/repos/${owner}/${repoName}/contributors?per_page=1`, {
+                headers: { Authorization: `Bearer ${githubToken}` },
+              }),
+              fetch(`https://api.github.com/repos/${owner}/${repoName}/issues?state=open`, {
+                headers: { Authorization: `Bearer ${githubToken}` },
+              }),
+              fetch(`https://api.github.com/repos/${owner}/${repoName}/commits?per_page=1`, {
+                headers: { Authorization: `Bearer ${githubToken}` },
+              })
+            ]);
+        
+            const [repoData, languagesData, , issuesData, commitsData] = await Promise.all([
+              repoResponse.json(),
+              languagesResponse.json(),
+              null, // placeholder for contributorsResponse
+              issuesResponse.json(),
+              commitsResponse.json(),
+            ]);
+        
+            const contributorsCount = contributorsResponse.headers.get('link')
+              ? parseInt(contributorsResponse.headers.get('link')?.match(/page=(\d+)>; rel="last"/)?.[1] || '1')
+              : 1;
+        
+            setRepoInfo({
+              owner: repoData.owner.login,
+              license: repoData.license?.name || 'No license',
+              languages: languagesData,
+              size: repoData.size,
+              stars: repoData.stargazers_count,
+              forks: repoData.forks_count,
+              contributors: contributorsCount,
+              openIssues: repoData.open_issues_count,
+              goodFirstIssues: issuesData.filter(issue => 
+                issue.labels.some(label => label.name === 'good first issue')).length,
+              pullRequests: issuesData.filter(issue => 'pull_request' in issue).length,
+              latestCommit: commitsData[0]?.commit?.message || 'No commits',
+            });
+        
+            const nonRemovableTechnologies = Object.keys(languagesData).map(lang => lang.toLowerCase());
+            console.log(nonRemovableTechnologies);
+            setSelectedTechnologies(nonRemovableTechnologies);
+          } catch (error) {
+            console.error('Error fetching GitHub repository data:', error);
+            // Handle the error appropriately - perhaps set an error state
+          }
         }
       } catch (error) {
         console.error('Error in fetchAllData:', error);
