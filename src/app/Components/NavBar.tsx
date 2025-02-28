@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import Logo from './Logo';
 import Link from 'next/link';
 import LoginButton from './LoginButton';
@@ -12,32 +12,61 @@ const NavBar = () => {
   const [loggedIn, setLoggedIn] = useState(false);
   const [loading, setLoading] = useState(true);
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
-  const [notificationShown, setNotificationShown] = useState(false);
-
+  // Use a ref to track the previous auth state
+  const prevAuthStateRef = useRef<boolean | null>(null);
+  const isTabVisibleRef = useRef<boolean>(true);
+  
   useEffect(() => {
+    const lastAuthEventKey = 'last_auth_event';
+    const debounceTimeMs = 5000; 
+    
+    const handleVisibilityChange = () => {
+      isTabVisibleRef.current = document.visibilityState === 'visible';
+      console.log('Tab visibility changed:', isTabVisibleRef.current ? 'visible' : 'hidden');
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
     const checkUser = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      setLoggedIn(!!session);
+      const isLoggedIn = !!session;
+      setLoggedIn(isLoggedIn);
+      prevAuthStateRef.current = isLoggedIn;
       setLoading(false);
     };
 
     checkUser();
 
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-      setLoggedIn(!!session);
-      if (event === 'SIGNED_IN' && !notificationShown) {
-        setNotification({ message: 'Logged in successfully', type: 'success' });
-        setNotificationShown(true);
-      } else if (event === 'SIGNED_OUT') {
-        setNotification({ message: 'Logged out successfully', type: 'success' });
-        setNotificationShown(false);
+      const isCurrentlyLoggedIn = !!session;
+      
+      if (
+        (event === 'SIGNED_IN' || event === 'SIGNED_OUT') && 
+        prevAuthStateRef.current !== isCurrentlyLoggedIn &&
+        isTabVisibleRef.current // Only show notification if tab is visible
+      ) {
+        const now = Date.now();
+        const lastEvent = localStorage.getItem(lastAuthEventKey);
+        
+        if (!lastEvent || now - parseInt(lastEvent) > debounceTimeMs) {
+          localStorage.setItem(lastAuthEventKey, now.toString());
+          
+          setNotification({
+            message: isCurrentlyLoggedIn ? 'Logged in successfully' : 'Logged out successfully',
+            type: 'success'
+          });
+        }
       }
+      
+      setLoggedIn(isCurrentlyLoggedIn);
+      prevAuthStateRef.current = isCurrentlyLoggedIn;
     });
 
     return () => {
       authListener?.subscription.unsubscribe();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [notificationShown]);
+  }, []);
 
   return (
     <nav className='w-full bg-transparent flex justify-between px-3 pt-3'>
