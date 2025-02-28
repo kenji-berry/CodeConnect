@@ -2,9 +2,12 @@
 
 import React from 'react';
 import { supabase } from '@/supabaseClient';
+import { clearGitHubTokens } from '../../utils/tokenRefresh';
 
 const LogoutButton = () => {
   const handleLogout = async () => {
+    clearGitHubTokens();
+    
     const { error } = await supabase.auth.signOut();
     if (error) {
       console.error('Error logging out:', error.message);

@@ -1,14 +1,18 @@
 "use client";
 
 import React from 'react';
-import { supabase } from '@/supabaseClient';
+import { supabase } from '../../supabaseClient';
 
 const LoginButton = () => {
   const handleLogin = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
+    const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'github',
       options: {
-        scopes: 'repo read:user user:email', 
+        redirectTo: `${window.location.origin}`,
+        scopes: 'repo read:user user:email',
+        queryParams: {
+          access_type: 'offline'
+        }
       }
     });
 
@@ -20,7 +24,7 @@ const LoginButton = () => {
   return (
     <button 
       onClick={handleLogin}
-      className="bg-[--muted-red] hover:bg-red-700 px-3 py-2 rounded-full transition-colors duration-200 inria-sans-bold text-off-white text-sm"
+      className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
     >
       Log in with GitHub
     </button>

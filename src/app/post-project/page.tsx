@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { FaExternalLinkAlt } from "react-icons/fa";
 import Link from 'next/link';
+import { getValidGitHubToken } from "../../utils/tokenRefresh";
 
 const Page = () => {
   const { session, loading: authLoading, error: authError, refreshToken } = useAuth();
@@ -19,27 +20,21 @@ const Page = () => {
 
   const fetchRepositories = async () => {
     try {
-      if (!session?.provider_token) {
+      // Get GitHub token from our storage system
+      const githubToken = await getValidGitHubToken();
+      
+      if (!githubToken) {
         throw new Error('No GitHub access token found');
       }
 
       const repoResponse = await fetch("https://api.github.com/user/repos", {
         headers: {
           Accept: "application/vnd.github.v3+json",
-          Authorization: `Bearer ${session.provider_token}`,
+          Authorization: `Bearer ${githubToken}`,
         },
       });
 
       if (!repoResponse.ok) {
-        if (repoResponse.status === 401) {
-          // Token might be expired, try to refresh
-          const newSession = await refreshToken();
-          if (!newSession?.provider_token) {
-            throw new Error('Failed to refresh GitHub token');
-          }
-          // Retry the fetch with new token
-          return fetchRepositories();
-        }
         throw new Error(`GitHub API error: ${repoResponse.status}`);
       }
 
@@ -54,7 +49,7 @@ const Page = () => {
             {
               headers: {
                 Accept: "application/vnd.github.v3+json",
-                Authorization: `Bearer ${session.provider_token}`,
+                Authorization: `Bearer ${githubToken}`,
               },
             }
           );
