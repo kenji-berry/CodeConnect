@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import NavBar from "./Components/NavBar";
+import { AuthStateListener } from './Components/AuthStateListener';
 
 export const metadata: Metadata = {
   title: "CodeConnect",
@@ -16,6 +17,7 @@ export default function RootLayout({
     <html lang="en">
       <body className="antialiased">
         <NavBar />
+        <AuthStateListener />
         {children}
       </body>
     </html>

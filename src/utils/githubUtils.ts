@@ -2,41 +2,37 @@ import { supabase } from '../supabaseClient';
 import { getValidGitHubToken, storeGitHubToken } from './tokenRefresh';
 
 export async function fetchWithTokenRefresh(url: string, options: RequestInit = {}) {
-  // Get token from storage
-  const githubToken = await getValidGitHubToken();
-  
-  if (!githubToken) {
-    throw new Error('No GitHub access token found. Please log in again with GitHub to reconnect.');
+  try {
+    // Extract the GitHub API path from the full URL
+    const apiPath = url.replace('https://api.github.com/', '');
+    
+    // Make request through proxy API
+    const response = await fetch(`/api/github/${apiPath}`, {
+      method: options.method || 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+      credentials: 'include', // send cookies with request
+      body: options.body
+    });
+    
+    // Handle errors
+    if (response.status === 401) {
+      throw new Error('GitHub authentication required. Please log in again.');
+    }
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`GitHub API error (${response.status}):`, errorText);
+      throw new Error(`GitHub API error: ${response.status}`);
+    }
+    
+    return response.json();
+  } catch (error) {
+    console.error('Error in fetchWithTokenRefresh:', error);
+    throw error;
   }
-  
-  // Prepare headers with token
-  const headers = {
-    'Authorization': `Bearer ${githubToken}`,
-    'Accept': 'application/vnd.github.v3+json',
-    ...options.headers,
-  };
-  
-  // Make the request
-  const response = await fetch(url, {
-    ...options,
-    headers,
-  });
-  
-  // Handle 401 errors
-  if (response.status === 401) {
-    // Token is invalid or expired
-    localStorage.removeItem('github_token_data');
-    throw new Error('GitHub access token expired. Please log in again with GitHub.');
-  }
-  
-  // Handle other errors
-  if (!response.ok) {
-    const errorBody = await response.text();
-    console.error(`GitHub API error (${response.status}):`, errorBody);
-    throw new Error(`GitHub API error: ${response.status}`);
-  }
-  
-  return response.json();
 }
 
 export async function testGitHubAccess() {

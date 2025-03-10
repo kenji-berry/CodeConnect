@@ -4,10 +4,10 @@ import React, { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { FaExternalLinkAlt } from "react-icons/fa";
 import Link from 'next/link';
-import { getValidGitHubToken } from "../../utils/tokenRefresh";
+import { fetchUserRepositories } from "../../utils/githubUtils";
 
 const Page = () => {
-  const { session, loading: authLoading, error: authError, refreshToken } = useAuth();
+  const { session, loading: authLoading, error: authError } = useAuth();
   const [repositories, setRepositories] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [languages, setLanguages] = useState({});
@@ -20,45 +20,17 @@ const Page = () => {
 
   const fetchRepositories = async () => {
     try {
-      // Get GitHub token from our storage system
-      const githubToken = await getValidGitHubToken();
-      
-      if (!githubToken) {
-        throw new Error('No GitHub access token found');
-      }
-
-      const repoResponse = await fetch("https://api.github.com/user/repos", {
-        headers: {
-          Accept: "application/vnd.github.v3+json",
-          Authorization: `Bearer ${githubToken}`,
-        },
-      });
-
-      if (!repoResponse.ok) {
-        throw new Error(`GitHub API error: ${repoResponse.status}`);
-      }
-
-      const repos = await repoResponse.json();
+      const repos = await fetchUserRepositories();
       setRepositories(repos);
 
       // Fetch languages for each repository
       repos.forEach(async (repo) => {
         try {
-          const languagesResponse = await fetch(
-            `https://api.github.com/repos/${repo.owner.login}/${repo.name}/languages`,
-            {
-              headers: {
-                Accept: "application/vnd.github.v3+json",
-                Authorization: `Bearer ${githubToken}`,
-              },
-            }
-          );
+          const languagesData = await fetch(
+            `/api/github/repos/${repo.owner.login}/${repo.name}/languages`,
+            { credentials: 'include' }
+          ).then(res => res.json());
 
-          if (!languagesResponse.ok) {
-            throw new Error(`Error fetching languages: ${languagesResponse.status}`);
-          }
-
-          const languagesData = await languagesResponse.json();
           setLanguages((prev) => ({
             ...prev,
             [repo.id]: languagesData,
