@@ -6,6 +6,15 @@ import { FaExternalLinkAlt } from "react-icons/fa";
 import Link from 'next/link';
 import { fetchUserRepositories } from "../../utils/githubUtils";
 
+const formatDate = (dateString) => {
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', { 
+    year: 'numeric', 
+    month: 'short', 
+    day: 'numeric' 
+  });
+};
+
 const Page = () => {
   const { session, loading: authLoading, error: authError } = useAuth();
   const [repositories, setRepositories] = useState([]);
@@ -13,30 +22,41 @@ const Page = () => {
   const [languages, setLanguages] = useState({});
   const [isLoading, setIsLoading] = useState(true);
 
-  const formatDate = (dateString) => {
-    const options = { year: "numeric", month: "numeric", day: "numeric" };
-    return new Date(dateString).toLocaleDateString(undefined, options);
-  };
+  useEffect(() => {
+    if (!authLoading && !session) {
+      console.log("No authenticated session");
+      setIsLoading(false);
+      return;
+    }
+
+    if (!authLoading && session) {
+      fetchRepositories();
+    }
+  }, [session, authLoading]);
 
   const fetchRepositories = async () => {
     try {
       const repos = await fetchUserRepositories();
-      setRepositories(repos);
+      setRepositories(repos || []);
 
-      // Fetch languages for each repository
-      repos.forEach(async (repo) => {
-        try {
-          const languagesData = await fetch(
-            `/api/github/repos/${repo.owner.login}/${repo.name}/languages`,
-            { credentials: 'include' }
-          ).then(res => res.json());
+      repos?.forEach(async (repo) => {
+        if (repo?.owner?.login && repo?.name) {
+          try {
+            const languagesData = await fetch(
+              `/api/github/repos/${repo.owner.login}/${repo.name}/languages`,
+              { credentials: 'include' }
+            ).then(res => {
+              if (!res.ok) throw new Error(`API error: ${res.status}`);
+              return res.json();
+            });
 
-          setLanguages((prev) => ({
-            ...prev,
-            [repo.id]: languagesData,
-          }));
-        } catch (error) {
-          console.error(`Error fetching languages for ${repo.name}:`, error);
+            setLanguages((prev) => ({
+              ...prev,
+              [repo.id]: languagesData,
+            }));
+          } catch (error) {
+            console.error(`Error fetching languages for ${repo?.name}:`, error);
+          }
         }
       });
     } catch (error) {
@@ -45,12 +65,6 @@ const Page = () => {
       setIsLoading(false);
     }
   };
-
-  useEffect(() => {
-    if (!authLoading && session) {
-      fetchRepositories();
-    }
-  }, [session, authLoading]);
 
   if (isLoading) {
     return <div className="w-screen h-screen flex items-center justify-center">

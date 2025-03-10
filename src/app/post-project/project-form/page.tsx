@@ -192,14 +192,7 @@ const Page = () => {
         // 3. Fetch GitHub repo data if we have repo name and owner
         if (repoName && owner) {
           try {
-            // Get GitHub token from our storage system instead of session
-            const githubToken = await getValidGitHubToken();
-            
-            if (!githubToken) {
-              console.error("No valid GitHub token found");
-              throw new Error('GitHub authentication required');
-            }
-            
+            // Use proxy API instead of direct GitHub API calls
             const [
               repoResponse,
               languagesResponse,
@@ -207,56 +200,71 @@ const Page = () => {
               issuesResponse,
               commitsResponse
             ] = await Promise.all([
-              fetch(`https://api.github.com/repos/${owner}/${repoName}`, {
-                headers: { Authorization: `Bearer ${githubToken}` },
+              fetch(`/api/github/repos/${owner}/${repoName}`, {
+                credentials: 'include'
               }),
-              fetch(`https://api.github.com/repos/${owner}/${repoName}/languages`, {
-                headers: { Authorization: `Bearer ${githubToken}` },
+              fetch(`/api/github/repos/${owner}/${repoName}/languages`, {
+                credentials: 'include' 
               }),
-              fetch(`https://api.github.com/repos/${owner}/${repoName}/contributors?per_page=1`, {
-                headers: { Authorization: `Bearer ${githubToken}` },
+              fetch(`/api/github/repos/${owner}/${repoName}/contributors?per_page=1`, {
+                credentials: 'include'
               }),
-              fetch(`https://api.github.com/repos/${owner}/${repoName}/issues?state=open`, {
-                headers: { Authorization: `Bearer ${githubToken}` },
+              fetch(`/api/github/repos/${owner}/${repoName}/issues?state=open`, {
+                credentials: 'include'
               }),
-              fetch(`https://api.github.com/repos/${owner}/${repoName}/commits?per_page=1`, {
-                headers: { Authorization: `Bearer ${githubToken}` },
+              fetch(`/api/github/repos/${owner}/${repoName}/commits?per_page=1`, {
+                credentials: 'include'
               })
             ]);
         
+            // Check for response errors
+            if (!repoResponse.ok || !languagesResponse.ok) {
+              throw new Error(`GitHub API error: ${repoResponse.status}`);
+            }
+            
             const [repoData, languagesData, , issuesData, commitsData] = await Promise.all([
               repoResponse.json(),
               languagesResponse.json(),
               null, // placeholder for contributorsResponse
-              issuesResponse.json(),
-              commitsResponse.json(),
+              issuesResponse.ok ? issuesResponse.json() : [],
+              commitsResponse.ok ? commitsResponse.json() : [],
             ]);
         
             const contributorsCount = contributorsResponse.headers.get('link')
               ? parseInt(contributorsResponse.headers.get('link')?.match(/page=(\d+)>; rel="last"/)?.[1] || '1')
               : 1;
         
+            // Add null checks for all properties
             setRepoInfo({
-              owner: repoData.owner.login,
-              license: repoData.license?.name || 'No license',
-              languages: languagesData,
-              size: repoData.size,
-              stars: repoData.stargazers_count,
-              forks: repoData.forks_count,
-              contributors: contributorsCount,
-              openIssues: repoData.open_issues_count,
-              goodFirstIssues: issuesData.filter(issue => 
-                issue.labels.some(label => label.name === 'good first issue')).length,
-              pullRequests: issuesData.filter(issue => 'pull_request' in issue).length,
-              latestCommit: commitsData[0]?.commit?.message || 'No commits',
+              owner: repoData?.owner?.login || owner,
+              license: repoData?.license?.name || 'No license',
+              languages: languagesData || {},
+              size: repoData?.size || 0,
+              stars: repoData?.stargazers_count || 0,
+              forks: repoData?.forks_count || 0,
+              contributors: contributorsCount || 0,
+              openIssues: repoData?.open_issues_count || 0,
+              goodFirstIssues: Array.isArray(issuesData) 
+                ? issuesData.filter(issue => 
+                  issue.labels?.some(label => label.name === 'good first issue')).length
+                : 0,
+              pullRequests: Array.isArray(issuesData)
+                ? issuesData.filter(issue => issue.pull_request).length
+                : 0,
+              latestCommit: Array.isArray(commitsData) && commitsData[0]?.commit?.message 
+                ? commitsData[0].commit.message 
+                : 'No commits',
             });
         
-            const nonRemovableTechnologies = Object.keys(languagesData).map(lang => lang.toLowerCase());
-            console.log(nonRemovableTechnologies);
+            // Use language keys safely with null check
+            const nonRemovableTechnologies = Object.keys(languagesData || {}).map(lang => lang.toLowerCase());
             setSelectedTechnologies(nonRemovableTechnologies);
           } catch (error) {
             console.error('Error fetching GitHub repository data:', error);
-            // Handle the error appropriately - perhaps set an error state
+            // Show user-friendly error message
+            setSubmissionError(error instanceof Error 
+              ? `GitHub repository fetch failed: ${error.message}`
+              : 'Failed to retrieve repository data');
           }
         }
       } catch (error) {
@@ -342,7 +350,7 @@ const Page = () => {
           user_id: session.user.id,
           repo_name_owner: `${repoName}_${owner}`,
           links: resourceLinks.filter(link => link.name && link.url && link.isValid).map(link => link.url),
-          status: projectStatus // Add this line to store status directly
+          status: projectStatus,
         })
         .select('id')
         .single();
@@ -355,14 +363,12 @@ const Page = () => {
       if (!project?.id) {
         throw new Error('Project created but no ID returned');
       }
-  
-      // Log successful project creation
+
       console.log('Project created with ID:', project.id);
   
       // Technologies insertion with validation
       if (selectedTechnologies.length > 0) {
         try {
-          // First get technology IDs from the technologies table
           const techPromises = selectedTechnologies.map(async techName => {
             const { data: techData, error: techLookupError } = await supabase
               .from('technologies')
