@@ -1,5 +1,5 @@
 export default async function handler(req, res) {
-  const githubToken = req.cookies.github_token;
+  const githubToken = req.cookies.github_access_token;
   
   if (!githubToken) {
     return res.status(200).json({ authenticated: false });

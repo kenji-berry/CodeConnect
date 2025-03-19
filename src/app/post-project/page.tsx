@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { FaExternalLinkAlt } from "react-icons/fa";
 import Link from 'next/link';
-import { fetchUserRepositories } from "../../utils/githubUtils";
+import { fetchUserRepositories, fetchRepositoryLanguages } from "../../utils/githubUtils";
 
 const formatDate = (dateString) => {
   const date = new Date(dateString);
@@ -14,6 +14,9 @@ const formatDate = (dateString) => {
     day: 'numeric' 
   });
 };
+
+// Cache duration in milliseconds (e.g., 1 hour)
+const CACHE_DURATION = 60 * 60 * 1000;
 
 const Page = () => {
   const { session, loading: authLoading, error: authError } = useAuth();
@@ -30,35 +33,63 @@ const Page = () => {
     }
 
     if (!authLoading && session) {
-      fetchRepositories();
+      fetchRepositories(false); // Pass false to avoid force refresh
     }
   }, [session, authLoading]);
 
-  const fetchRepositories = async () => {
+  const fetchRepositories = async (forceRefresh = false) => {
     try {
+      // Check for cached data first
+      const cachedReposTime = localStorage.getItem('github_repos_time');
+      const cachedRepos = localStorage.getItem('github_repos');
+      const cachedLangs = localStorage.getItem('github_langs');
+      
+      const now = new Date().getTime();
+      const isCacheValid = cachedReposTime && cachedRepos && cachedLangs && 
+                          (now - parseInt(cachedReposTime) < CACHE_DURATION);
+      
+      // Use cache if valid and not forcing refresh
+      if (isCacheValid && !forceRefresh) {
+        console.log('Using cached repository data');
+        setRepositories(JSON.parse(cachedRepos));
+        setLanguages(JSON.parse(cachedLangs));
+        setIsLoading(false);
+        return;
+      }
+      
+      console.log('Fetching fresh repository data');
       const repos = await fetchUserRepositories();
       setRepositories(repos || []);
-
-      repos?.forEach(async (repo) => {
+      
+      // Create an object to store all language data
+      const languagesData = {};
+      
+      // Create an array of promises for fetching languages
+      const languagePromises = repos?.map(async (repo) => {
         if (repo?.owner?.login && repo?.name) {
           try {
-            const languagesData = await fetch(
-              `/api/github/repos/${repo.owner.login}/${repo.name}/languages`,
-              { credentials: 'include' }
-            ).then(res => {
-              if (!res.ok) throw new Error(`API error: ${res.status}`);
-              return res.json();
-            });
-
-            setLanguages((prev) => ({
-              ...prev,
-              [repo.id]: languagesData,
-            }));
+            const repoLanguages = await fetchRepositoryLanguages(
+              repo.owner.login, 
+              repo.name
+            );
+            languagesData[repo.id] = repoLanguages;
           } catch (error) {
             console.error(`Error fetching languages for ${repo?.name}:`, error);
           }
         }
       });
+      
+      // Wait for all language requests to complete
+      if (languagePromises?.length) {
+        await Promise.all(languagePromises);
+        setLanguages(languagesData);
+      }
+      
+      // Cache the results
+      localStorage.setItem('github_repos', JSON.stringify(repos));
+      localStorage.setItem('github_langs', JSON.stringify(languagesData));
+      localStorage.setItem('github_repos_time', now.toString());
+      
     } catch (error) {
       console.error("Error fetching repositories:", error);
     } finally {

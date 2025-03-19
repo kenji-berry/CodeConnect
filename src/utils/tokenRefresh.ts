@@ -11,9 +11,9 @@ const GITHUB_TOKEN_KEY = 'github_token_data';
 
 // Update the storeGitHubToken function first:
 
-export async function storeGitHubToken(token: string) {
-  try {
-    console.log('Storing GitHub token in HttpOnly cookie');
+export async function storeGitHubToken(token: string, refreshToken?: string, expiresIn: number = 2628000 ) {
+  try 
+  {
     // Store token in HttpOnly cookie via API endpoint
     const response = await fetch('/api/auth/session', {
       method: 'POST',
@@ -21,7 +21,7 @@ export async function storeGitHubToken(token: string) {
       credentials: 'include',
       body: JSON.stringify({
         access_token: token,
-        expires_in: 28800 // 8 hours in seconds
+        expires_in: expiresIn 
       })
     });
     
@@ -31,7 +31,7 @@ export async function storeGitHubToken(token: string) {
     
     return true;
   } catch (error) {
-    console.error('Failed to store GitHub token:', error);
+    console.error('Failed to store GitHub tokens:', error);
     return false;
   }
 }
@@ -45,15 +45,13 @@ export async function getValidGitHubToken(): Promise<string | null> {
     });
     
     if (response.ok) {
-      // If successful, we have a valid cookie
-      return 'valid-cookie'; // We don't need to return the actual token anymore
+      return 'valid-cookie';
     }
     
-    // If we have a Supabase session with a token, use that
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session?.provider_token) {
-      // Store it in the HttpOnly cookie
-      await storeGitHubToken(session.provider_token);
+    // Token is invalid, attempt to refresh
+    const refreshed = await refreshGitHubToken();
+    if (refreshed) {
+      // If refresh succeeded, we should now have a valid token
       return 'valid-cookie';
     }
     

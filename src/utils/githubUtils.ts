@@ -1,10 +1,11 @@
 import { supabase } from '../supabaseClient';
 import { getValidGitHubToken, storeGitHubToken } from './tokenRefresh';
 
-export async function fetchWithTokenRefresh(url: string, options: RequestInit = {}) {
+export async function fetchGitHubApi(url: string, options: RequestInit = {}): Promise<any> {
   try {
     // Extract the GitHub API path from the full URL
     const apiPath = url.replace('https://api.github.com/', '');
+    console.log(`Making GitHub API request to ${apiPath}`);
     
     // Make request through proxy API
     const response = await fetch(`/api/github/${apiPath}`, {
@@ -18,10 +19,6 @@ export async function fetchWithTokenRefresh(url: string, options: RequestInit = 
     });
     
     // Handle errors
-    if (response.status === 401) {
-      throw new Error('GitHub authentication required. Please log in again.');
-    }
-    
     if (!response.ok) {
       const errorText = await response.text();
       console.error(`GitHub API error (${response.status}):`, errorText);
@@ -30,14 +27,14 @@ export async function fetchWithTokenRefresh(url: string, options: RequestInit = 
     
     return response.json();
   } catch (error) {
-    console.error('Error in fetchWithTokenRefresh:', error);
+    console.error('Error in fetchGitHubApi:', error);
     throw error;
   }
 }
 
 export async function testGitHubAccess() {
   try {
-    const userData = await fetchWithTokenRefresh('https://api.github.com/user');
+    const userData = await fetchGitHubApi('https://api.github.com/user');
     return { 
       success: true, 
       username: userData.login 
@@ -50,11 +47,22 @@ export async function testGitHubAccess() {
   }
 }
 
-export async function fetchUserRepositories() {
-  return fetchWithTokenRefresh('https://api.github.com/user/repos?sort=updated&per_page=100');
+export async function fetchUserRepositories(): Promise<any[]> {
+  try {
+    const data = await fetchGitHubApi('https://api.github.com/user/repos', {
+      method: 'GET'
+    });
+    return data || [];
+  } catch (error) {
+    console.error("Error fetching user repositories:", error);
+    return [];
+  }
 }
 
-
 export async function fetchRepositoryContent(owner: string, repo: string, path: string = '') {
-  return fetchWithTokenRefresh(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`);
+  return fetchGitHubApi(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`);
+}
+
+export async function fetchRepositoryLanguages(owner: string, repo: string): Promise<any> {
+  return fetchGitHubApi(`https://api.github.com/repos/${owner}/${repo}/languages`);
 }

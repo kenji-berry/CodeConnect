@@ -5,16 +5,32 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { access_token, expires_in } = req.body;
-  
-  // Set HttpOnly cookie with the token
-  res.setHeader('Set-Cookie', serialize('github_token', access_token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    maxAge: expires_in || 28800, // Default to 8 hours if not provided
-    path: '/'
-  }));
+  try {
+    const { access_token, expires_in } = req.body;
+    
+    console.log('========== OAUTH RESPONSE DATA ==========');
+    console.log('Complete request body:', JSON.stringify(req.body, null, 2));
+    console.log('All request headers:', req.headers);
+    console.log('=======================================');
+    
+    console.log('Setting access token in cookie:', { 
+      hasAccessToken: !!access_token,
+      expiresIn: expires_in
+    });
 
-  return res.status(200).json({ success: true });
+    // Set access token cookie only
+    const cookie = serialize('github_access_token', access_token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: expires_in || 2628000 // 1 month
+    });
+
+    res.setHeader('Set-Cookie', cookie);
+    return res.status(200).json({ success: true });
+  } catch (error) {
+    console.error('Error setting session cookie:', error);
+    return res.status(500).json({ error: 'Failed to set session' });
+  }
 }
