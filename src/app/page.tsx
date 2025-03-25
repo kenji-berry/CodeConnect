@@ -6,6 +6,7 @@ import ProjectPreview from "./Components/ProjectPreview";
 import MultiSelector from "./Components/MultiSelector";
 import SingleSelector from "./Components/SingleSelector";
 import { supabase } from '@/supabaseClient';
+import { getRecommendedProjects, getPopularProjects } from '@/services/recommendation-service';
 
 interface GitHubData {
   repositories?: any[];
@@ -49,6 +50,7 @@ export default function Home() {
   const [user, setUser] = useState<{ email: string } | null>(null);
   const [githubData, setGithubData] = useState<GitHubData | null>(null);
   const [recentProjects, setRecentProjects] = useState<Project[]>([]);
+  const [recommendedProjects, setRecommendedProjects] = useState<Project[]>([]);
 
   useEffect(() => {
     const technologies = searchParams.get("technologies")?.split(",") || [];
@@ -210,6 +212,67 @@ export default function Home() {
     fetchRecentProjects();
   }, []);
 
+  useEffect(() => {
+    const fetchRecommendations = async () => {
+      try {
+        console.log("===== RECOMMENDATION DEBUGGING =====");
+        console.log("Fetching recommendations...");
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session?.user) {
+          console.log("User logged in:", session.user.id);
+          
+          // Check if there are any interactions first
+          const { data: interactions, error: interactionError } = await supabase
+            .from('user_interactions')
+            .select('*')
+            .eq('user_id', session.user.id);
+          
+          if (interactionError) {
+            console.error("Error fetching interactions:", interactionError);
+          }
+          
+          console.log(`Found ${interactions?.length || 0} interactions for user:`);
+          if (interactions?.length > 0) {
+            // Group by repo_id and interaction_type
+            const interactionsByRepo = {};
+            interactions.forEach(interaction => {
+              if (!interactionsByRepo[interaction.repo_id]) {
+                interactionsByRepo[interaction.repo_id] = [];
+              }
+              interactionsByRepo[interaction.repo_id].push(interaction.interaction_type);
+            });
+            
+            console.log("User interactions by repo:", interactionsByRepo);
+          }
+          
+          // Add debugging flag to see detailed recommendation process
+          console.log("Calling getRecommendedProjects with debug enabled...");
+          const recommendations = await getRecommendedProjects(session.user.id, 3, true);
+          
+          console.log("Recommendations received:", recommendations?.length || 0);
+          console.log("Recommended projects:", recommendations?.map(p => 
+            `${p.repo_name} (ID: ${p.id}, Tags: ${p.tags?.join(', ')}, Techs: ${p.technologies?.map(t => t.name).join(', ')})`
+          ));
+          
+          setRecommendedProjects(recommendations || []);
+        } else {
+          console.log("No user session, getting popular projects");
+          const popular = await getPopularProjects(3, true);
+          console.log("Popular projects received:", popular?.length || 0);
+          setRecommendedProjects(popular || []);
+        }
+        console.log("===== END RECOMMENDATION DEBUGGING =====");
+      } catch (error) {
+        console.error('Error fetching recommendations:', error);
+        // Fallback to empty array in case of error
+        setRecommendedProjects([]);
+      }
+    };
+    
+    fetchRecommendations();
+  }, []);
+
   const handleTagsChange = (type: string, tags: string[]) => {
     switch (type) {
       case "technologies":
@@ -272,36 +335,28 @@ export default function Home() {
       <CodeConnectTitle />
       <div className="flex justify-center w-full">
         <div className="main-page-contents">
-          <div className="w-full">
-            <h3 className="inter-bold main-subtitle">Recommended for you:</h3>
-            <div className="main-page-holder">
-              <ProjectPreview
-                name="My Project"
-                date="March 15, 2024"
-                tags={["Frontend", "Open Source"]}
-                description="A description of the project that takes up multiple lines and explains what the project does in detail."
-                techStack={["React", "TypeScript", "Tailwind"]}
-                issueCount={5}
-                recommended={true}
-              />
-              <ProjectPreview
-                name="My Project"
-                date="March 15, 2024"
-                tags={["Frontend", "Open Source"]}
-                description="A description of the project that takes up multiple lines and explains what the project does in detail."
-                techStack={["React", "TypeScript", "Tailwind"]}
-                issueCount={5}
-                recommended={true}
-              />
-              <ProjectPreview
-                name="My Project"
-                date="March 15, 2024"
-                tags={["Frontend", "Open Source"]}
-                description="A description of the project that takes up multiple lines and explains what the project does in detail."
-                techStack={["React", "TypeScript", "Tailwind"]}
-                issueCount={5}
-                recommended={true}
-              />
+          <div className="w-full py-2.5">
+            <h3 className="inter-bold main-subtitle">Recommended For You:</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {recommendedProjects.map(project => (
+                <ProjectPreview
+                  key={project.id}
+                  id={project.id}
+                  name={project.repo_name}
+                  date={project.created_at}
+                  tags={project.tags.slice(0, 3)}
+                  description={
+                    project.description_type === "Write your Own" 
+                      ? project.custom_description 
+                      : "GitHub project description"
+                  }
+                  techStack={project.technologies
+                    .filter(tech => tech.is_highlighted)
+                    .map(tech => tech.name)}
+                  issueCount={0}
+                  recommended={true}
+                />
+              ))}
             </div>
           </div>
 
