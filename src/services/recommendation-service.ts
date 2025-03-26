@@ -800,3 +800,257 @@ async function enrichProjectsWithTagsAndTech(projects) {
     })
   );
 }
+
+export async function getCollaborativeRecommendations(userId: string, limit = 5, debug = false) {
+  try {
+    if (debug) console.log("👥 Starting collaborative filtering for user:", userId);
+    
+    // 1. Get user interactions
+    const { data: userInteractions, error: userInteractionError } = await supabase
+      .from('user_interactions')
+      .select('repo_id, interaction_type, timestamp')
+      .eq('user_id', userId);
+    
+    if (userInteractionError || !userInteractions || userInteractions.length === 0) {
+      if (debug) console.log("👥 No interactions found for collaborative filtering");
+      return [];
+    }
+    
+    // 2. Get interacted project IDs
+    const userRepoIds = userInteractions.map(i => i.repo_id);
+    if (debug) console.log("👥 User has interacted with repos:", userRepoIds);
+    
+    // 3. Find other users who interacted with at least one of the same projects
+    const { data: similarUserInteractions, error: similarUserError } = await supabase
+      .from('user_interactions')
+      .select('user_id, repo_id, interaction_type')
+      .in('repo_id', userRepoIds)
+      .neq('user_id', userId);
+    
+    if (similarUserError || !similarUserInteractions || similarUserInteractions.length === 0) {
+      if (debug) console.log("👥 No similar users found");
+      return [];
+    }
+    
+    // 4. Calculate meaningful similarity scores
+    const userSimilarityMap = {};
+    
+    // Group interactions by user
+    similarUserInteractions.forEach(interaction => {
+      if (!userSimilarityMap[interaction.user_id]) {
+        userSimilarityMap[interaction.user_id] = {
+          commonProjects: new Set(),
+          interactionMap: {} // Store interaction types for each project
+        };
+      }
+      
+      userSimilarityMap[interaction.user_id].commonProjects.add(interaction.repo_id);
+      userSimilarityMap[interaction.user_id].interactionMap[interaction.repo_id] = interaction.interaction_type;
+    });
+    
+    // Create a set of the current user's interactions by type
+    const userLikes = new Set();
+    const userViews = new Set();
+    
+    userInteractions.forEach(interaction => {
+      if (interaction.interaction_type === 'like') {
+        userLikes.add(interaction.repo_id);
+      } else if (interaction.interaction_type === 'view') {
+        userViews.add(interaction.repo_id);
+      }
+    });
+    
+    // Calculate similarity scores that factor in interaction overlap quality
+    Object.keys(userSimilarityMap).forEach(simUserId => {
+      const commonProjects = userSimilarityMap[simUserId].commonProjects;
+      const interactionMap = userSimilarityMap[simUserId].interactionMap;
+      
+      // Minimum meaningful overlap requirement (30% or at least 2 projects)
+      const minOverlapThreshold = Math.max(2, Math.ceil(userRepoIds.length * 0.3));
+      
+      if (commonProjects.size < minOverlapThreshold) {
+        delete userSimilarityMap[simUserId];
+        return;
+      }
+      
+      // Calculate weighted Jaccard similarity
+      let intersectionWeight = 0;
+      
+      // Weight the intersection by interaction type match
+      commonProjects.forEach(repoId => {
+        // Higher weight if both users liked the same project
+        if (userLikes.has(repoId) && interactionMap[repoId] === 'like') {
+          intersectionWeight += 2.0;
+        }
+        // Lower weight if one liked and one viewed or both viewed
+        else if (userLikes.has(repoId) || interactionMap[repoId] === 'like') {
+          intersectionWeight += 1.0;
+        }
+        else {
+          intersectionWeight += 0.5;
+        }
+      });
+      
+      // Calculate total projects in the union
+      const totalUnique = new Set([...userRepoIds, ...Array.from(commonProjects)]).size;
+      
+      // Calculate similarity score
+      const similarityScore = intersectionWeight / totalUnique;
+      
+      // Only keep users with meaningful similarity
+      if (similarityScore >= 0.15) {
+        userSimilarityMap[simUserId].similarityScore = similarityScore;
+      } else {
+        delete userSimilarityMap[simUserId];
+      }
+    });
+    
+    // Get top similar users
+    const similarUsers = Object.entries(userSimilarityMap)
+      .sort((a, b) => b[1].similarityScore - a[1].similarityScore)
+      .slice(0, 5) // Limit to top 5 most similar users
+      .map(([userId]) => userId);
+    
+    if (debug) {
+      if (Object.keys(userSimilarityMap).length > 0) {
+        console.log("👥 Found similar users with similarity scores:", 
+          Object.entries(userSimilarityMap)
+            .map(([id, data]) => `${id}: ${data.similarityScore?.toFixed(2)}`)
+            .join(', ')
+        );
+      } else {
+        console.log("👥 No sufficiently similar users found after quality filtering");
+      }
+    }
+    
+    if (similarUsers.length === 0) {
+      if (debug) console.log("👥 No sufficiently similar users found");
+      return [];
+    }
+    
+    // 5. Find what projects these similar users interacted with that the current user hasn't
+    const { data: recommendations, error: recommendationError } = await supabase
+      .from('user_interactions')
+      .select('repo_id, interaction_type, user_id')
+      .in('user_id', similarUsers)
+      .not('repo_id', 'in', userRepoIds);
+    
+    if (recommendationError || !recommendations || recommendations.length === 0) {
+      if (debug) console.log("👥 No collaborative recommendations found");
+      return [];
+    }
+    
+    // 6. Score recommendations based on user similarity and interaction type
+    const scoreByRepo = {};
+    recommendations.forEach(item => {
+      if (!scoreByRepo[item.repo_id]) {
+        scoreByRepo[item.repo_id] = 0;
+      }
+      
+      // Weight by interaction type and user similarity
+      const interactionWeight = item.interaction_type === 'like' ? 2 : 0.5;
+      const similarityWeight = userSimilarityMap[item.user_id].similarityScore;
+      
+      scoreByRepo[item.repo_id] += interactionWeight * similarityWeight;
+    });
+    
+    // 7. Sort by score and get top repos
+    const topRepoIds = Object.entries(scoreByRepo)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, limit)
+      .map(([repoId]) => repoId);
+    
+    if (debug) {
+      console.log("👥 Top collaborative repo IDs with scores:", 
+        Object.entries(scoreByRepo)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, Math.min(5, Object.entries(scoreByRepo).length))
+          .map(([id, score]) => `${id}: ${score.toFixed(2)}`)
+          .join(', ')
+      );
+    }
+    
+    // 8. Get full project details
+    const { data: projects, error: projectsError } = await supabase
+      .from('project')
+      .select(`
+        id,
+        repo_name,
+        repo_owner,
+        description_type,
+        custom_description,
+        difficulty_level,
+        created_at,
+        status
+      `)
+      .in('repo_name', topRepoIds);
+    
+    if (projectsError || !projects || projects.length === 0) {
+      if (debug) console.log("👥 Error getting project details:", projectsError);
+      return [];
+    }
+    
+    // 9. Enrich with tags and technologies
+    const enrichedProjects = await enrichProjectsWithTagsAndTech(projects);
+    
+    // 10. Add collaborative reason
+    return enrichedProjects.map(project => ({
+      ...project,
+      recommendationReason: ["People with similar interests liked this project"]
+    }));
+    
+  } catch (error) {
+    console.error("Error in collaborative filtering:", error);
+    return [];
+  }
+}
+
+export async function getHybridRecommendations(userId: string, limit = 5, debug = false) {
+  try {
+    if (debug) console.log("🔄 Starting hybrid recommendation process");
+    
+    // Get both types of recommendations
+    const contentRecommendations = await getRecommendedProjects(userId, Math.ceil(limit * 0.6), debug);
+    const collabRecommendations = await getCollaborativeRecommendations(userId, Math.ceil(limit * 0.6), debug);
+    
+    if (debug) {
+      console.log(`🔄 Content recommendations: ${contentRecommendations.length}`);
+      console.log(`🔄 Collaborative recommendations: ${collabRecommendations.length}`);
+    }
+    
+    // If either method returns no recommendations, use the other
+    if (contentRecommendations.length === 0) {
+      return collabRecommendations.slice(0, limit);
+    }
+    if (collabRecommendations.length === 0) {
+      return contentRecommendations.slice(0, limit);
+    }
+    
+    // Combine recommendations with a smart merging strategy
+    const seenIds = new Set();
+    const result = [];
+    
+    // Prioritize content recommendations first (they're more personalized)
+    for (const rec of contentRecommendations) {
+      if (result.length >= limit) break;
+      result.push(rec);
+      seenIds.add(rec.id);
+    }
+    
+    // Then add collaborative recommendations that aren't duplicates
+    for (const rec of collabRecommendations) {
+      if (result.length >= limit) break;
+      if (!seenIds.has(rec.id)) {
+        result.push(rec);
+        seenIds.add(rec.id);
+      }
+    }
+    
+    if (debug) console.log(`🔄 Final hybrid recommendations: ${result.length}`);
+    return result.slice(0, limit);
+    
+  } catch (error) {
+    console.error("Error in hybrid recommendations:", error);
+    return getPopularProjects(limit, debug);
+  }
+}

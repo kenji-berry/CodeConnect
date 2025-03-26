@@ -6,7 +6,7 @@ import ProjectPreview from "./Components/ProjectPreview";
 import MultiSelector from "./Components/MultiSelector";
 import SingleSelector from "./Components/SingleSelector";
 import { supabase } from '@/supabaseClient';
-import { getRecommendedProjects, getPopularProjects } from '@/services/recommendation-service';
+import { getRecommendedProjects, getPopularProjects, getHybridRecommendations } from '@/services/recommendation-service';
 
 interface GitHubData {
   repositories?: any[];
@@ -233,22 +233,10 @@ export default function Home() {
           }
           
           console.log(`Found ${interactions?.length || 0} interactions for user:`);
-          if (interactions?.length > 0) {
-            // Group by repo_id and interaction_type
-            const interactionsByRepo = {};
-            interactions.forEach(interaction => {
-              if (!interactionsByRepo[interaction.repo_id]) {
-                interactionsByRepo[interaction.repo_id] = [];
-              }
-              interactionsByRepo[interaction.repo_id].push(interaction.interaction_type);
-            });
-            
-            console.log("User interactions by repo:", interactionsByRepo);
-          }
           
-          // Add debugging flag to see detailed recommendation process
-          console.log("Calling getRecommendedProjects with debug enabled...");
-          const recommendations = await getRecommendedProjects(session.user.id, 3, true);
+          // Use hybrid recommendations instead of just content-based
+          console.log("Calling getHybridRecommendations with debug enabled...");
+          const recommendations = await getHybridRecommendations(session.user.id, 3, true);
           
           console.log("Recommendations received:", recommendations?.length || 0);
           console.log("Recommended projects:", recommendations?.map(p => 
@@ -265,7 +253,6 @@ export default function Home() {
         console.log("===== END RECOMMENDATION DEBUGGING =====");
       } catch (error) {
         console.error('Error fetching recommendations:', error);
-        // Fallback to empty array in case of error
         setRecommendedProjects([]);
       }
     };
