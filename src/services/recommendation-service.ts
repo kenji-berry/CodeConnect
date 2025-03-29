@@ -929,11 +929,14 @@ export async function getCollaborativeRecommendations(userId: string, limit = 5,
     }
     
     // 5. Find what projects these similar users interacted with that the current user hasn't
-    const { data: recommendations, error: recommendationError } = await supabase
+    const excludedRepoIds = [5, 101, 5005]; // Replace with actual IDs of interacted projects
+    const query = supabase
       .from('user_interactions')
       .select('repo_id, interaction_type, user_id')
       .in('user_id', similarUsers)
-      .not('repo_id', 'in', userRepoIds);
+      .not('repo_id', 'in', `(${excludedRepoIds.join(',')})`); 
+    
+    const { data: recommendations, error: recommendationError } = await query;
     
     if (recommendationError || !recommendations || recommendations.length === 0) {
       if (debug) console.log("👥 No collaborative recommendations found");

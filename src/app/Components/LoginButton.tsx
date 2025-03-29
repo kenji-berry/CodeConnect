@@ -1,32 +1,46 @@
 "use client";
 
-import React from 'react';
+import React, { useState } from 'react';
 import { supabase } from '../../supabaseClient';
 
 const LoginButton = () => {
-  const handleLogin = async () => {
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'github',
-      options: {
-        redirectTo: `${window.location.origin}`,
-        scopes: 'repo read:user user:email',
-        queryParams: {
-          access_type: 'offline'
-        }
-      }
-    });
+  const [isLoading, setIsLoading] = useState(false);
 
-    if (error) {
-      console.error('Error logging in with GitHub:', error.message);
+  const handleLogin = async () => {
+    try {
+      setIsLoading(true);
+      console.log('Starting GitHub OAuth login...');
+      
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'github',
+        options: {
+          redirectTo: `${window.location.origin}`,
+          scopes: 'repo read:user user:email',
+          queryParams: {
+            access_type: 'offline'
+          }
+        }
+      });
+
+      if (error) {
+        console.error('Error logging in with GitHub:', error.message);
+      } else {
+        console.log('OAuth initiated successfully, redirecting...');
+      }
+    } catch (err) {
+      console.error('Unexpected error during login:', err);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
     <button 
       onClick={handleLogin}
-      className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+      disabled={isLoading}
+      className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
     >
-      Log in with GitHub
+      {isLoading ? 'Logging in...' : 'Log in with GitHub'}
     </button>
   );
 };
