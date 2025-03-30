@@ -324,27 +324,68 @@ export default function Home() {
         <div className="main-page-contents">
           <div className="w-full py-2.5">
             <h3 className="inter-bold main-subtitle">Recommended For You:</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {recommendedProjects.map(project => (
-                <ProjectPreview
-                  key={project.id}
-                  id={project.id}
-                  name={project.repo_name}
-                  date={project.created_at}
-                  tags={project.tags.slice(0, 3)}
-                  description={
-                    project.description_type === "Write your Own" 
-                      ? project.custom_description 
-                      : "GitHub project description"
-                  }
-                  techStack={project.technologies
-                    .filter(tech => tech.is_highlighted)
-                    .map(tech => tech.name)}
-                  issueCount={0}
-                  recommended={true}
-                />
-              ))}
-            </div>
+            
+            {!user ? (
+              // User is not logged in - show blurred recommendations with overlay
+              <div className="relative">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 blur-sm opacity-60">
+                  {recommendedProjects.map(project => (
+                    <ProjectPreview
+                      key={project.id}
+                      id={project.id}
+                      name={project.repo_name}
+                      date={project.created_at}
+                      tags={project.tags.slice(0, 3)}
+                      description={
+                        project.description_type === "Write your Own" 
+                          ? project.custom_description 
+                          : "GitHub project description"
+                      }
+                      techStack={project.technologies
+                        .filter(tech => tech.is_highlighted)
+                        .map(tech => tech.name)}
+                      issueCount={0}
+                      recommended={true}
+                    />
+                  ))}
+                </div>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className=" bg-opacity-70 p-6 text-center ">
+                    <h3 className="text-lg font-bold mb-2">Log in for personalized recommendations</h3>
+                    <p>See projects tailored to your interests and skills</p>
+                  </div>
+                </div>
+              </div>
+            ) : recommendedProjects.length === 0 ? (
+              // User is logged in but has no recommendations
+              <div className="bg-gray-900 rounded-lg p-8 text-center">
+                <h3 className="text-lg font-bold mb-2">Looking for recommendations?</h3>
+                <p className="mb-3 text-sm">Explore and interact with more projects to help us understand your interests!</p>
+              </div>
+            ) : (
+              // User is logged in and has recommendations - show normal view
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {recommendedProjects.map(project => (
+                  <ProjectPreview
+                    key={project.id}
+                    id={project.id}
+                    name={project.repo_name}
+                    date={project.created_at}
+                    tags={project.tags.slice(0, 3)}
+                    description={
+                      project.description_type === "Write your Own" 
+                        ? project.custom_description 
+                        : "GitHub project description"
+                    }
+                    techStack={project.technologies
+                      .filter(tech => tech.is_highlighted)
+                      .map(tech => tech.name)}
+                    issueCount={0}
+                    recommended={true}
+                  />
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="w-full py-2.5">

@@ -286,14 +286,14 @@ export async function getRecommendedProjects(userId: string, limit = 5, debug = 
     
     if (interactionError) {
       console.error("Error fetching user interactions:", interactionError);
-      return getPopularProjects(limit);
+      return [];
     }
     
     if (debug) console.log(`🔍 Found ${interactions?.length || 0} interactions for the user`);
     
     if (!interactions || interactions.length === 0) {
-      if (debug) console.log("🔍 No interactions found, falling back to popular projects");
-      return getPopularProjects(limit, debug);
+      if (debug) console.log("🔍 No interactions found");
+      return [];
     }
     
     // 2. Calculate scores for interacted projects
@@ -328,12 +328,12 @@ export async function getRecommendedProjects(userId: string, limit = 5, debug = 
     if (projectsError) {
       console.error("Error fetching projects from repo names:", projectsError);
       if (debug) console.log("🔍 Error getting project IDs:", projectsError);
-      return getPopularProjects(limit, debug);
+      return [];
     }
     
     if (!projectsData || projectsData.length === 0) {
       if (debug) console.log("🔍 No matching projects found in database");
-      return getPopularProjects(limit, debug);
+      return [];
     }
     
     const interactedProjectIds = projectsData.map(p => p.id);
@@ -380,7 +380,7 @@ export async function getRecommendedProjects(userId: string, limit = 5, debug = 
     if ((!tagAssociations || tagAssociations.length === 0) && 
         (!techAssociations || techAssociations.length === 0)) {
       if (debug) console.log("🔍 No tags or technologies found for user interactions");
-      return getPopularProjects(limit, debug);
+      return [];
     }
     
     // 7. Log the tags and technologies user has interacted with
@@ -532,8 +532,8 @@ export async function getRecommendedProjects(userId: string, limit = 5, debug = 
     }
     
     if (projectEntries.length === 0) {
-      if (debug) console.log("🔍 No matching projects found, falling back to popular projects");
-      return getPopularProjects(limit, debug);
+      if (debug) console.log("🔍 No matching projects found");
+      return [];
     }
     
     const rankedProjects = projectEntries
@@ -565,12 +565,12 @@ export async function getRecommendedProjects(userId: string, limit = 5, debug = 
     if (recommendedError) {
       console.error("Error fetching recommended project details:", recommendedError);
       if (debug) console.log("🔍 Error getting recommended project details:", recommendedError);
-      return getPopularProjects(limit, debug);
+      return [];
     }
     
     if (!recommendedProjects || recommendedProjects.length === 0) {
       if (debug) console.log("🔍 No recommended projects found after filtering");
-      return getPopularProjects(limit, debug);
+      return [];
     }
     
     // 13. Enrich with tags and technologies
@@ -654,8 +654,7 @@ export async function getRecommendedProjects(userId: string, limit = 5, debug = 
     return result;
   } catch (error) {
     console.error("Error in recommendation engine:", error);
-    // Fallback to popular projects in case of any error
-    return getPopularProjects(limit, debug);
+    return [];
   }
 }
 
@@ -1054,6 +1053,6 @@ export async function getHybridRecommendations(userId: string, limit = 5, debug 
     
   } catch (error) {
     console.error("Error in hybrid recommendations:", error);
-    return getPopularProjects(limit, debug);
+    return [];
   }
 }
