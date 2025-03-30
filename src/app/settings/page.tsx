@@ -90,7 +90,7 @@ export default function Settings() {
   async function fetchAllTags() {
     try {
       const { data, error } = await supabase
-        .from('project_tag')
+        .from('tags') 
         .select('id, name')
         .order('name');
 
@@ -158,25 +158,24 @@ export default function Settings() {
 
       // Get tags associated with these projects
       const { data: tagAssociations, error: tagError } = await supabase
-        .from('project_assoc')
+        .from('project_tags') 
         .select(`
           project_id,
-          project_tag (
+          tags (  
             id,
             name
           )
         `)
-        .in('project_id', projectIds)
-        .eq('type', 'tag');
+        .in('project_id', projectIds);
 
       if (tagError) throw tagError;
 
       // Extract tag objects and remove duplicates by id
       const tagObjects = tagAssociations
-        .filter(ta => ta.project_tag)
+        .filter(ta => ta.tags) 
         .map(ta => ({
-          id: ta.project_tag.id,
-          name: ta.project_tag.name
+          id: ta.tags.id, 
+          name: ta.tags.name  '
         }));
 
       // Remove duplicates
@@ -378,7 +377,7 @@ export default function Settings() {
   async function fetchTagsById(tagIds) {
     try {
       const { data, error } = await supabase
-        .from('project_tag')
+        .from('tags')  
         .select('id, name')
         .in('id', tagIds);
         

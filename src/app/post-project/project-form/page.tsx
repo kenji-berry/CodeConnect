@@ -167,7 +167,7 @@ const Page = () => {
   
         // 2. Parallel fetch for tags and technologies
         const [tagsResponse, technologiesResponse] = await Promise.all([
-          supabase.from('project_tag').select('name'),
+          supabase.from('tags').select('name'),
           supabase.from('technologies').select('name')
         ]);
   
@@ -415,7 +415,7 @@ const Page = () => {
         try {
           const tagPromises = selectedTags.map(async tag => {
             const { data: tagData, error: tagError } = await supabase
-              .from('project_tag')
+              .from('tags')
               .select('id')
               .eq('name', tag)
               .single();
@@ -435,7 +435,7 @@ const Page = () => {
           
           // Insert into project_assoc table
           const { error: tagAssocError } = await supabase
-            .from('project_assoc')
+            .from('project_tags')
             .insert(tagRows);
       
           if (tagAssocError) {

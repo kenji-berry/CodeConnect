@@ -170,15 +170,14 @@ export default function Home() {
 
             // Fetch tags
             const { data: tagData, error: tagError } = await supabase
-              .from('project_assoc')
+              .from('project_tags')  
               .select(`
-                association_id,
-                project_tag!inner (
+                tag_id, 
+                tags!inner (  
                   name
                 )
               `)
-              .eq('project_id', project.id)
-              .eq('type', 'tag');
+              .eq('project_id', project.id);
 
             if (techError) {
               console.error('Error fetching technologies:', techError);
@@ -197,7 +196,7 @@ export default function Home() {
                 name: tech.technologies.name,
                 is_highlighted: tech.is_highlighted
               })) || [],
-              tags: tagData?.map(tag => tag.project_tag.name) || []
+              tags: tagData?.map(tag => tag.tags.name) || [] 
             };
           })
         );
