@@ -3,13 +3,26 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../supabaseClient';
 import { useRouter } from 'next/navigation';
+import MultiSelector from '../Components/MultiSelector';
 
 export default function OnboardingPage() {
+  // Display name states
   const [displayName, setDisplayName] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
+  
+  // Onboarding step
+  const [currentStep, setCurrentStep] = useState(1);
+  
+  // Tag selection states
+  const [allTagObjects, setAllTagObjects] = useState<{ id: any; name: any }[]>([]);
+  const [allTagNames, setAllTagNames] = useState<string[]>([]);
+  const [selectedTagNames, setSelectedTagNames] = useState<string[]>([]);
+  const [selectedTagObjects, setSelectedTagObjects] = useState<{ id: any; name: any }[]>([]);
+  const [savingTags, setSavingTags] = useState(false);
+
   const router = useRouter();
 
   useEffect(() => {
@@ -30,8 +43,8 @@ export default function OnboardingPage() {
       // Check if user has already completed profile setup
       const { data, error: profileError } = await supabase
         .from('profiles')
-        .select('user_id, is_changed')  // Changed from id to user_id
-        .eq('user_id', userId)  // Changed from id to user_id
+        .select('user_id, is_changed')
+        .eq('user_id', userId)
         .maybeSingle();
         
       if (data && data.is_changed === true) {
@@ -39,12 +52,34 @@ export default function OnboardingPage() {
         router.push('/');
         return;
       }
+
+      // Fetch all available tags for selection
+      await fetchAllTags();
       
       setLoading(false);
     };
     
     checkUserProfile();
   }, [router]);
+
+  // Fetch all available tags from database
+  async function fetchAllTags() {
+    try {
+      const { data, error } = await supabase
+        .from('tags') 
+        .select('id, name')
+        .order('name');
+
+      if (error) throw error;
+
+      setAllTagObjects(data || []);
+      setAllTagNames((data || []).map(tag => tag.name));
+    } catch (error) {
+      console.error("Error fetching all tags:", error);
+      setAllTagObjects([]);
+      setAllTagNames([]);
+    }
+  }
 
   const validateAndSaveDisplayName = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -127,13 +162,85 @@ export default function OnboardingPage() {
         return;
       }
       
-      // Redirect to home/dashboard
-      router.push('/');
+      // Move to next step (tag selection)
+      setCurrentStep(2);
+      setIsSubmitting(false);
     } catch (e) {
       console.error('Exception during save:', e);
       setError('An unexpected error occurred');
       setIsSubmitting(false);
     }
+  };
+
+  const handleTagsChange = (names: string[]) => {
+    setSelectedTagNames(names);
+    // Map names back to objects
+    const objects = names.map(name => {
+      const obj = allTagObjects.find(t => t.name === name);
+      return obj || { name };
+    });
+    setSelectedTagObjects(objects);
+  };
+
+  const saveTagPreferences = async () => {
+    if (!userId) return;
+    
+    try {
+      setSavingTags(true);
+      
+      // Get the tag IDs from the selected objects
+      const tagIds = selectedTagObjects
+        .map(tag => tag.id)
+        .filter(Boolean);
+      
+      // Log what we're about to save
+      console.log("Selected tag IDs:", tagIds);
+      
+      // First, delete any existing tag preferences for this user
+      const { error: deleteError } = await supabase
+        .from('user_tag_preferences')
+        .delete()
+        .eq('user_id', userId);
+        
+      if (deleteError) {
+        console.error("Error deleting existing preferences:", deleteError);
+        throw deleteError;
+      }
+      
+      // If there are tags selected, insert them
+      if (tagIds.length > 0) {
+        // Create an array of objects for batch insert
+        const preferencesArray = tagIds.map(tagId => ({
+          user_id: userId,
+          tag_id: tagId,
+          created_at: new Date().toISOString()
+        }));
+        
+        console.log("Inserting preferences:", preferencesArray);
+        
+        // Insert all the preferences at once
+        const { error: insertError } = await supabase
+          .from('user_tag_preferences')
+          .insert(preferencesArray);
+          
+        if (insertError) {
+          console.error("Error inserting preferences:", insertError);
+          throw insertError;
+        }
+      }
+      
+      // Redirect to home/dashboard
+      router.push('/');
+    } catch (e) {
+      console.error('Error saving tag preferences:', e);
+      setError('Failed to save your tag preferences');
+      setSavingTags(false);
+    }
+  };
+
+  // Skip tag selection but still proceed to home
+  const skipTagSelection = () => {
+    router.push('/');
   };
 
   if (loading) {
@@ -146,33 +253,86 @@ export default function OnboardingPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="bg-white p-8 rounded-lg shadow-lg w-96 max-w-[90%]">
-        <h1 className="text-2xl font-bold mb-4">Welcome to CodeConnect!</h1>
-        <p className="mb-6">Please choose a display name to continue.</p>
-        
-        <form onSubmit={validateAndSaveDisplayName}>
-          <input
-            type="text"
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
-            className="w-full p-2 border border-gray-300 rounded mb-4"
-            placeholder="Enter display name (max 16 chars)"
-            maxLength={16}
-            autoFocus
-          />
-          
-          {error && <p className="text-red-500 mb-4">{error}</p>}
-          
-          <div className="flex justify-end">
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-            >
-              {isSubmitting ? 'Saving...' : 'Continue'}
-            </button>
+      <div className="bg-white p-8 rounded-lg shadow-lg w-[500px] max-w-[90%]">
+        {/* Progress indicator */}
+        <div className="flex mb-6 items-center">
+          <div className={`rounded-full w-8 h-8 flex items-center justify-center 
+                         ${currentStep === 1 ? 'bg-blue-600 text-white' : 'bg-blue-100 text-blue-800'}`}>
+            1
           </div>
-        </form>
+          <div className="h-1 w-8 mx-2 bg-gray-300"></div>
+          <div className={`rounded-full w-8 h-8 flex items-center justify-center 
+                         ${currentStep === 2 ? 'bg-blue-600 text-white' : 'bg-blue-100 text-blue-800'}`}>
+            2
+          </div>
+        </div>
+        
+        {currentStep === 1 ? (
+          <>
+            <h1 className="text-2xl font-bold mb-4">Welcome to CodeConnect!</h1>
+            <p className="mb-6">Please choose a display name to continue.</p>
+            
+            <form onSubmit={validateAndSaveDisplayName}>
+              <input
+                type="text"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded mb-4"
+                placeholder="Enter display name (max 16 chars)"
+                maxLength={16}
+                autoFocus
+              />
+              
+              {error && <p className="text-red-500 mb-4">{error}</p>}
+              
+              <div className="flex justify-end">
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {isSubmitting ? 'Saving...' : 'Continue'}
+                </button>
+              </div>
+            </form>
+          </>
+        ) : (
+          <>
+            <h1 className="text-2xl font-bold mb-4">Select Your Interests</h1>
+            <p className="mb-6">Choose topics you're interested in to help us personalize your recommendations.</p>
+            
+            <div className="mb-6">
+              <MultiSelector
+                availableTags={allTagNames}
+                onTagsChange={handleTagsChange}
+                initialTags={selectedTagNames}  // Pass the current selection back to the component
+              />
+              
+              <div className="mt-3 text-sm text-gray-600">
+                <p>• Select tags that represent technologies or topics you're interested in</p>
+                <p>• You can always change these later in your settings</p>
+              </div>
+            </div>
+            
+            {error && <p className="text-red-500 mb-4">{error}</p>}
+            
+            <div className="flex justify-between">
+              <button
+                onClick={skipTagSelection}
+                className="px-4 py-2 text-gray-600 rounded hover:bg-gray-100"
+              >
+                Skip for now
+              </button>
+              <button
+                onClick={saveTagPreferences}
+                disabled={savingTags}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+              >
+                {savingTags ? 'Saving...' : 'Finish Setup'}
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

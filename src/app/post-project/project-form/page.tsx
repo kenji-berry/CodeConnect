@@ -116,7 +116,7 @@ const Page = () => {
   };
 
   const handleStatusChange = (status: string | null) => {
-    setProjectStatus(status);
+    setProjectStatus(status || "Active Development");
   };
 
   const handleDifficultyChange = (level: number) => {
@@ -140,8 +140,8 @@ const Page = () => {
   };
 
   const searchParams = useSearchParams();
-  const repoName = searchParams.get('repo');
-  const owner = searchParams.get('owner');
+  const repoName = searchParams ? searchParams.get('repo') : null;
+  const owner = searchParams ? searchParams.get('owner') : null;
   
   const [repoInfo, setRepoInfo] = useState({
     owner: '',
@@ -246,7 +246,7 @@ const Page = () => {
               openIssues: repoData?.open_issues_count || 0,
               goodFirstIssues: Array.isArray(issuesData) 
                 ? issuesData.filter(issue => 
-                  issue.labels?.some(label => label.name === 'good first issue')).length
+                  issue.labels?.some((label: { name: string; }) => label.name === 'good first issue')).length
                 : 0,
               pullRequests: Array.isArray(issuesData)
                 ? issuesData.filter(issue => issue.pull_request).length
@@ -443,7 +443,7 @@ const Page = () => {
           }
         } catch (tagError) {
           console.error('Tag association error:', tagError);
-          throw new Error(`Failed to process tags: ${tagError.message}`);
+          throw new Error(`Failed to process tags: ${tagError instanceof Error ? tagError.message : 'Unknown error'}`);
         }
       }
   

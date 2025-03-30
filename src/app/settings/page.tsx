@@ -4,9 +4,10 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/supabaseClient';
 import Link from 'next/link';
 import MultiSelector from '../Components/MultiSelector';
+import { User } from '@supabase/supabase-js';
 
 export default function Settings() {
-  const [currentUser, setCurrentUser] = useState(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [preferredTags, setPreferredTags] = useState([]);
@@ -14,7 +15,7 @@ export default function Settings() {
   const [interactionHistory, setInteractionHistory] = useState([]);
   const [allTags, setAllTags] = useState([]);
   const [allTechnologies, setAllTechnologies] = useState([]);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState(null);
 
   const [preferredTagNames, setPreferredTagNames] = useState<string[]>([]);
@@ -24,8 +25,8 @@ export default function Settings() {
 
   const [preferredTagObjects, setPreferredTagObjects] = useState([]);
   const [preferredTechObjects, setPreferredTechObjects] = useState([]);
-  const [allTagObjects, setAllTagObjects] = useState([]);
-  const [allTechObjects, setAllTechObjects] = useState([]);
+  const [allTagObjects, setAllTagObjects] = useState<{ id: any; name: any }[]>([]);
+  const [allTechObjects, setAllTechObjects] = useState<{ id: any; name: any }[]>([]);
 
   useEffect(() => {
     async function fetchUserData() {
@@ -175,7 +176,7 @@ export default function Settings() {
         .filter(ta => ta.tags) 
         .map(ta => ({
           id: ta.tags.id, 
-          name: ta.tags.name  '
+          name: ta.tags.name
         }));
 
       // Remove duplicates
