@@ -326,24 +326,19 @@ export default function Home() {
             <h3 className="inter-bold main-subtitle">Recommended For You:</h3>
             
             {!user ? (
-              // User is not logged in - show blurred recommendations with overlay
+              // User is not logged in - show blurred placeholder recommendations with overlay
               <div className="relative">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 blur-sm opacity-60">
-                  {recommendedProjects.map(project => (
+                  {/* Static placeholder projects instead of fetching data */}
+                  {[...Array(3)].map((_, index) => (
                     <ProjectPreview
-                      key={project.id}
-                      id={project.id}
-                      name={project.repo_name}
-                      date={project.created_at}
-                      tags={project.tags.slice(0, 3)}
-                      description={
-                        project.description_type === "Write your Own" 
-                          ? project.custom_description 
-                          : "GitHub project description"
-                      }
-                      techStack={project.technologies
-                        .filter(tech => tech.is_highlighted)
-                        .map(tech => tech.name)}
+                      key={`placeholder-${index}`}
+                      id={index}
+                      name={`Example Project ${index + 1}`}
+                      date={"2025-03-15"}
+                      tags={["React", "TypeScript", "UI/UX"]}
+                      description="This is a placeholder project description to show the recommendation feature"
+                      techStack={["React", "TypeScript", "Node.js"]}
                       issueCount={0}
                       recommended={true}
                     />
