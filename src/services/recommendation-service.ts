@@ -780,35 +780,43 @@ export async function getCollaborativeRecommendations(userId: string, limit = 5,
       return [];
     }
 
-    let query = supabase
-      .from('user_interactions')
-      .select('repo_id, interaction_type, user_id')
-      .in('user_id', similarUsers);
-      
-    // Only apply exclusion filter if we have repo IDs to exclude
-    if (interactedRepoIds && interactedRepoIds.length > 0) {
-      // Fix: Use array directly without string formatting for not-in filter
-      query = query.not('repo_id', 'eq', interactedRepoIds[0]);
-      
-      // Add additional exclusions one by one if there are more
-      for (let i = 1; i < interactedRepoIds.length; i++) {
-        query = query.not('repo_id', 'eq', interactedRepoIds[i]);
-      }
+    // 5. Find what projects these similar users interacted with that the current user hasn't
+    // FIX: Use a more compatible approach for filtering out the user's already interacted projects
+    let recommendationPromises = [];
+    
+    if (debug) console.log("👥 Looking for recommendations from similar users:", similarUsers);
+    
+    // Get recommendations from each similar user separately to avoid filter syntax issues
+    for (const simUserId of similarUsers) {
+      const promise = supabase
+        .from('user_interactions')
+        .select('repo_id, interaction_type, user_id')
+        .eq('user_id', simUserId)
+        .then(({ data, error }) => {
+          if (error) {
+            if (debug) console.log(`👥 Error getting interactions for user ${simUserId}:`, error);
+            return [];
+          }
+          
+          // Filter out projects the current user has already interacted with
+          return (data || []).filter(item => !interactedRepoIds.includes(item.repo_id));
+        });
+        
+      recommendationPromises.push(promise);
     }
-
-    const { data: recommendations, error: recommendationError } = await query;
-
-    if (recommendationError) {
-      console.error("Error getting collaborative recommendations:", recommendationError);
-      return [];
-    }
+    
+    // Combine all recommendations
+    const recommendationsArrays = await Promise.all(recommendationPromises);
+    const recommendations = recommendationsArrays.flat();
+    
+    if (debug) console.log(`👥 Found ${recommendations.length} potential recommendations from similar users`);
 
     if (!recommendations || recommendations.length === 0) {
       if (debug) console.log("👥 No collaborative recommendations found");
       return [];
     }
 
-    // Score recommendations based on user similarity and interaction type
+    // 6. Score recommendations based on user similarity and interaction type
     const scoreByRepo = {};
     recommendations.forEach(item => {
       if (!scoreByRepo[item.repo_id]) {
@@ -822,7 +830,7 @@ export async function getCollaborativeRecommendations(userId: string, limit = 5,
       scoreByRepo[item.repo_id] += interactionWeight * similarityWeight;
     });
 
-    // Sort by score and get top repos
+    // 7. Sort by score and get top repos
     const topRepoIds = Object.entries(scoreByRepo)
       .sort((a, b) => b[1] - a[1])
       .slice(0, limit)
@@ -836,7 +844,12 @@ export async function getCollaborativeRecommendations(userId: string, limit = 5,
         .join(', ')
     );
 
-    // Get full project details
+    if (topRepoIds.length === 0) {
+      if (debug) console.log("👥 No top recommendations found after scoring");
+      return [];
+    }
+
+    // 8. Get full project details
     const { data: projects, error: projectsError } = await supabase
       .from('project')
       .select(`
@@ -856,7 +869,7 @@ export async function getCollaborativeRecommendations(userId: string, limit = 5,
       return [];
     }
 
-    // Enrich with tags and technologies
+    // 9. Enrich with tags and technologies
     const enrichedProjects = await enrichProjectsWithTagsAndTech(projects);
 
     // Add collaborative reason
