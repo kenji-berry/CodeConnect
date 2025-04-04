@@ -930,8 +930,12 @@ export async function getCollaborativeRecommendations(userId: string, limit = 5,
     const query = supabase
       .from('user_interactions')
       .select('repo_id, interaction_type, user_id')
-      .in('user_id', similarUsers)
-      .not('repo_id', 'in', excludedRepoIds);
+      .in('user_id', similarUsers);
+    
+    // Only apply the not-in filter if we have repos to exclude
+    if (excludedRepoIds.length > 0) {
+      query.not('repo_id', 'in', `(${excludedRepoIds.join(',')})`);
+    }
 
     const { data: recommendations, error: recommendationError } = await query;
 
