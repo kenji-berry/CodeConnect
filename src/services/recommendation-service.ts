@@ -176,12 +176,18 @@ async function calculateInteractionScores(userId: string) {
   return scores;
 }
 
-async function getUserPreferredTags(userId: string) {
+async function getUserPreferredTags(userId: string, debug = false) {
   // Get user interactions
   const interactions = await getUserInteractions(userId);
+  
+  if (debug) console.log(`🏷️ [getUserPreferredTags] Found ${interactions.length} interactions for user ${userId}`);
+  
   const interactedRepoIds = [...new Set(interactions.map(i => i.repo_id))];
   
+  if (debug) console.log(`🏷️ [getUserPreferredTags] Extracted ${interactedRepoIds.length} unique repository IDs:`, interactedRepoIds);
+  
   if (interactedRepoIds.length === 0) {
+    if (debug) console.log(`🏷️ [getUserPreferredTags] No repositories to analyze for user ${userId}, returning empty array`);
     return [];
   }
   
@@ -193,7 +199,13 @@ async function getUserPreferredTags(userId: string) {
   
   if (projectError || !projects || projects.length === 0) {
     console.error('Error getting projects for tag preferences:', projectError);
+    if (debug) console.log(`🏷️ [getUserPreferredTags] Failed to retrieve projects or none found for the repositories`);
     return [];
+  }
+  
+  if (debug) {
+    console.log(`🏷️ [getUserPreferredTags] Found ${projects.length} projects:`, 
+      projects.map(p => `${p.id} (${p.repo_name})`).join(', '));
   }
   
   const projectIds = projects.map(p => p.id);
@@ -212,7 +224,26 @@ async function getUserPreferredTags(userId: string) {
   
   if (tagError || !tagAssociations) {
     console.error('Error getting tag preferences:', tagError);
+    if (debug) console.log(`🏷️ [getUserPreferredTags] Failed to retrieve tag associations`);
     return [];
+  }
+  
+  if (debug) {
+    const tagsByProject = {};
+    tagAssociations.forEach(ta => {
+      if (!tagsByProject[ta.project_id]) {
+        tagsByProject[ta.project_id] = [];
+      }
+      if (ta.tags?.name) {
+        tagsByProject[ta.project_id].push(ta.tags.name);
+      }
+    });
+    
+    console.log(`🏷️ [getUserPreferredTags] Found tag associations by project:`);
+    Object.entries(tagsByProject).forEach(([projectId, tags]) => {
+      const projectName = projects.find(p => p.id === parseInt(projectId))?.repo_name || 'unknown';
+      console.log(`  - Project ${projectId} (${projectName}): ${tags.join(', ')}`);
+    });
   }
   
   // Extract tag names and remove duplicates
@@ -220,7 +251,13 @@ async function getUserPreferredTags(userId: string) {
     .map(ta => ta.tags?.name)
     .filter(Boolean);
   
-  return [...new Set(tags)];
+  const uniqueTags = [...new Set(tags)];
+  
+  if (debug) {
+    console.log(`🏷️ [getUserPreferredTags] Inferred ${uniqueTags.length} unique preferred tags for user ${userId}:`, uniqueTags.join(', '));
+  }
+  
+  return uniqueTags;
 }
 
 async function getUserPreferredTechnologies(userId: string) {
@@ -274,6 +311,42 @@ async function getAlreadyInteractedProjects(userId: string) {
   return [...new Set(interactions.map(i => i.repo_id))];
 }
 
+// Fix the getUserTagPreferences function to be more robust
+async function getUserTagPreferences(userId: string, debug = false) {
+  try {
+    // Validate input
+    if (!userId) {
+      console.warn("getUserTagPreferences called with no userId");
+      return [];
+    }
+
+    // Get user tag preferences
+    const { data, error } = await supabase
+      .from('user_tag_preferences')
+      .select('tag_id')
+      .eq('user_id', userId);
+    
+    if (error) {
+      console.error('Error fetching user tag preferences:', error);
+      return [];
+    }
+    
+    // Safely extract tag IDs, with better type checking
+    const tagIds = (data || [])
+      .filter(item => item && typeof item === 'object')
+      .map(item => item.tag_id)
+      .filter(id => id !== undefined && id !== null);
+    
+    if (debug) console.log(`🏷️ Found ${tagIds.length} explicit tag preferences for user ${userId}`);
+    
+    return tagIds;
+  } catch (error) {
+    console.error('Exception in getUserTagPreferences:', error);
+    return [];
+  }
+}
+
+// Add additional detailed debugging to getRecommendedProjects
 export async function getRecommendedProjects(userId: string, limit = 5, debug = false) {
   try {
     if (debug) console.log("🔍 Starting recommendation process for user:", userId);
@@ -289,375 +362,357 @@ export async function getRecommendedProjects(userId: string, limit = 5, debug = 
       return [];
     }
     
-    if (debug) console.log(`🔍 Found ${interactions?.length || 0} interactions for the user`);
+    const hasLimitedInteractions = !interactions || interactions.length < 3;
+    if (debug) console.log(`🔍 Found ${interactions?.length || 0} interactions for the user. Limited interactions: ${hasLimitedInteractions}`);
     
-    if (!interactions || interactions.length === 0) {
-      if (debug) console.log("🔍 No interactions found");
-      return [];
-    }
-    
-    // 2. Calculate scores for interacted projects
-    const interactionScores = {};
-    interactions.forEach(interaction => {
-      if (!interactionScores[interaction.repo_id]) {
-        interactionScores[interaction.repo_id] = 0;
-      }
-      
-      // Like = 1 point, View = 0.5 points
-      if (interaction.interaction_type === 'like') {
-        interactionScores[interaction.repo_id] += 1;
-      } else if (interaction.interaction_type === 'view') {
-        interactionScores[interaction.repo_id] += 0.5;
-      }
-    });
-    
-    if (debug) {
-      console.log("🔍 User interaction scores by repo:", interactionScores);
-      console.log("🔍 User has interacted with these repos:", Object.keys(interactionScores));
-    }
-    
-    // 3. Get interacted repo names
-    const interactedRepoNames = Object.keys(interactionScores);
-    
-    // 4. Get project IDs from repo names
-    const { data: projectsData, error: projectsError } = await supabase
-      .from('project')
-      .select('id, repo_name')
-      .in('repo_name', interactedRepoNames);
-    
-    if (projectsError) {
-      console.error("Error fetching projects from repo names:", projectsError);
-      if (debug) console.log("🔍 Error getting project IDs:", projectsError);
-      return [];
-    }
-    
-    if (!projectsData || projectsData.length === 0) {
-      if (debug) console.log("🔍 No matching projects found in database");
-      return [];
-    }
-    
-    const interactedProjectIds = projectsData.map(p => p.id);
-    if (debug) console.log("🔍 Project IDs from repo names:", interactedProjectIds);
-    
-    // 5. Get tags associated with these projects
-    const { data: tagAssociations, error: tagError } = await supabase
-      .from('project_tags')
-      .select(`
-        project_id,
-        tags (
-          id,
-          name
-        )
-      `)
-      .in('project_id', interactedProjectIds);
-    
-    if (tagError) {
-      console.error("Error fetching tags for interacted projects:", tagError);
-      if (debug) console.log("🔍 Error getting tags:", tagError);
-    }
-    
-    // 6. Get technologies associated with these projects
-    const { data: techAssociations, error: techError } = await supabase
-      .from('project_technologies')
-      .select(`
-        project_id,
-        technology_id,
-        technologies!inner (
-          id,
-          name
-        )
-      `)
-      .in('project_id', interactedProjectIds);
-    
-    if (techError) {
-      console.error("Error fetching technologies for interacted projects:", techError);
-      if (debug) console.log("🔍 Error getting technologies:", techError);
-    }
-    
-    // Check if we have any preferences to base recommendations on
-    if ((!tagAssociations || tagAssociations.length === 0) && 
-        (!techAssociations || techAssociations.length === 0)) {
-      if (debug) console.log("🔍 No tags or technologies found for user interactions");
-      return [];
-    }
-    
-    // 7. Log the tags and technologies user has interacted with
-    if (debug) {
-      const tagsByProject = {};
-      tagAssociations?.forEach(tag => {
-        if (!tagsByProject[tag.project_id]) {
-          tagsByProject[tag.project_id] = [];
-        }
-        tagsByProject[tag.project_id].push(tag.tags.name);
+    // Calculate interaction scores by repo
+    if (debug && interactions && interactions.length > 0) {
+      const scores = {};
+      interactions.forEach(interaction => {
+        const { repo_id, interaction_type } = interaction;
+        if (!scores[repo_id]) scores[repo_id] = 0;
+        if (interaction_type === 'like') scores[repo_id] += 1;
+        else if (interaction_type === 'view') scores[repo_id] += 0.5;
       });
-      
-      const techsByProject = {};
-      techAssociations?.forEach(tech => {
-        if (!techsByProject[tech.project_id]) {
-          techsByProject[tech.project_id] = [];
-        }
-        techsByProject[tech.project_id].push(tech.technologies.name);
-      });
-      
-      console.log("🔍 Tags by interacted project:", tagsByProject);
-      console.log("🔍 Technologies by interacted project:", techsByProject);
+      console.log("🔍 User interaction scores by repo:", scores);
     }
     
-    // 8. Extract unique tag and technology IDs with their names for logging
-    const tagMap = {};
-    tagAssociations?.forEach(t => {
-      if (t.tag_id && t.tags?.name) { 
-        tagMap[t.tag_id] = t.tags.name;
-      }
-    });
-
-    const techMap = {};
-    techAssociations?.forEach(t => {
-      if (t.technology_id && t.technologies?.name) { 
-        techMap[t.technology_id] = t.technologies.name;
-      }
-    });
-
-    const tagIds = Object.keys(tagMap)
-      .map(Number)
-      .filter(id => !isNaN(id));
-
-    const techIds = Object.keys(techMap)
-      .map(Number)
-      .filter(id => !isNaN(id)); 
-
-    if (debug) {
-      console.log("🔍 User's preferred tags:", Object.values(tagMap));
-      console.log("🔍 User's preferred technologies:", Object.values(techMap));
-      console.log("🔍 Valid tag IDs:", tagIds);
-      console.log("🔍 Valid technology IDs:", techIds);
-    }
-    
-    // 9. Find projects with matching tags
+    // Track which projects the user has already interacted with
+    const interactedRepoNames = interactions ? [...new Set(interactions.map(i => i.repo_id))] : [];
+    let interactedProjectIds = [];
     let projectScores = {};
     let projectReasons = {};
-
-    if (tagIds.length > 0) {
-      if (debug) console.log("🔍 Finding projects with tag IDs:", tagIds);
-
-      let query = supabase
+    
+    // Get project IDs from repo names if we have any interactions
+    if (interactedRepoNames.length > 0) {
+      const { data: projectsData, error: projectsError } = await supabase
+        .from('project')
+        .select('id, repo_name')
+        .in('repo_name', interactedRepoNames);
+      
+      if (!projectsError && projectsData) {
+        interactedProjectIds = projectsData.map(p => p.id);
+        if (debug) console.log("🔍 Project IDs from repo names:", interactedProjectIds);
+      }
+    }
+    
+    // 2. Get BOTH explicit and inferred tag preferences
+    // Get explicit tag preferences (from user_tag_preferences table)
+    const explicitTagIds = await getUserTagPreferences(userId, debug);
+    
+    // Get inferred tag preferences (from user interactions)
+    const inferredTagNames = await getUserPreferredTags(userId, debug);
+    
+    if (debug) {
+      console.log(`🏷️ Combined tag preferences approach: ${explicitTagIds.length} explicit, ${inferredTagNames.length} inferred`);
+    }
+    
+    // If we have either type of preferences, proceed with recommendation
+    if (explicitTagIds.length > 0 || inferredTagNames.length > 0) {
+      // 3. Get tag IDs for the inferred tag names
+      let inferredTagIds = [];
+      if (inferredTagNames.length > 0) {
+        const { data: tagData, error: tagError } = await supabase
+          .from('tags')
+          .select('id, name')
+          .in('name', inferredTagNames);
+          
+        if (!tagError && tagData) {
+          inferredTagIds = tagData.map(tag => tag.id);
+          if (debug) console.log(`🏷️ Mapped inferred tag names to IDs:`, 
+            tagData.map(tag => `${tag.name} (ID: ${tag.id})`).join(', '));
+        }
+      }
+      
+      // 4. Combine both sets of tag IDs (removing duplicates)
+      const allTagIds = [...new Set([...explicitTagIds, ...inferredTagIds])];
+      
+      if (debug) {
+        console.log(`🏷️ Combined tag IDs for recommendations: ${allTagIds.length} unique tags`, allTagIds);
+      }
+      
+      // 5. Find projects with any of these tags
+      const { data: tagProjects, error: tagProjectsError } = await supabase
         .from('project_tags')
-        .select('project_id, tag_id')
-        .in('tag_id', tagIds);
-
-      if (interactedProjectIds.length > 0) {
-        query = query.not('project_id', 'in', `(${interactedProjectIds.join(',')})`);
-      }
-
-      const { data: tagProjects, error: tagProjectsError } = await query;
-
+        .select('project_id, tag_id, tags:tag_id(name)')
+        .in('tag_id', allTagIds);
+      
       if (tagProjectsError) {
-        console.error("Error finding projects with matching tags:", tagProjectsError);
-        if (debug) console.log("🔍 Error finding tag matches:", tagProjectsError);
+        console.error("Error finding projects with combined tag preferences:", tagProjectsError);
       } else if (tagProjects && tagProjects.length > 0) {
-        if (debug) console.log("🔍 Found tagProjects:", tagProjects);
-
+        if (debug) console.log(`🏷️ Found ${tagProjects.length} projects matching user's combined tag preferences`);
+        
+        // Show matching projects and tags
+        if (debug) {
+          const projectTagMatches = {};
+          tagProjects.forEach(item => {
+            if (!projectTagMatches[item.project_id]) {
+              projectTagMatches[item.project_id] = [];
+            }
+            projectTagMatches[item.project_id].push(item.tags?.name || 'unknown');
+          });
+          console.log("🏷️ Projects with matching tags:", projectTagMatches);
+        }
+        
+        // 6. Score projects based on tag matches
+        // - Higher weight for explicit tag matches
+        // - Lower weight for inferred tag matches
+        // - Boost if a project matches both explicit and inferred tags
+        const explicitTagMatchWeight = hasLimitedInteractions ? 1.2 : 0.9;
+        const inferredTagMatchWeight = hasLimitedInteractions ? 0.8 : 0.5;
+        const tagMatchBoost = 0.3; // Bonus for matching multiple tag types
+        
+        // Group projects by their ID so we can count tags per project
+        const projectTagCounts = {};
         tagProjects.forEach(item => {
-          if (!projectScores[item.project_id]) {
-            projectScores[item.project_id] = 0;
-            projectReasons[item.project_id] = [];
+          if (!projectTagCounts[item.project_id]) {
+            projectTagCounts[item.project_id] = {
+              explicitMatches: 0,
+              inferredMatches: 0,
+              matchedTags: {} // Keep track of which tags were matched
+            };
           }
-          projectScores[item.project_id] += 1;
-          projectReasons[item.project_id].push(`Matches tag ID: ${item.tag_id}`);
-        });
-
-        if (debug) {
-          const projWithTags = {};
-          tagProjects.forEach(p => {
-            if (!projWithTags[p.project_id]) {
-              projWithTags[p.project_id] = [];
-            }
-            const tagName = tagMap[p.tag_id]; 
-            if (tagName) {
-              projWithTags[p.project_id].push(tagName);
-            }
-          });
-          console.log("🔍 Projects with matching tags:", projWithTags);
-        }
-      } else {
-        if (debug) console.log("🔍 No projects found with matching tags");
-      }
-    }
-    
-    // 10. Find projects with matching technologies
-    if (techIds.length > 0) {
-      // Create a properly formatted filter for excluding interacted projects
-      const query = supabase
-        .from('project_technologies')
-        .select('project_id, technology_id, technologies!inner(name)')
-        .in('technology_id', techIds);
-      
-      // Only apply the not-in filter if we have interacted projects
-      if (interactedProjectIds.length > 0) {
-        query.not('project_id', 'in', `(${interactedProjectIds.join(',')})`);
-      }
-      
-      const { data: techProjects, error: techProjectsError } = await query;
-      
-      if (techProjectsError) {
-        console.error("Error finding projects with matching technologies:", techProjectsError);
-        if (debug) console.log("🔍 Error finding technology matches:", techProjectsError);
-      } else if (techProjects && techProjects.length > 0) {
-        if (debug) console.log(`🔍 Found ${techProjects.length} potential projects with matching technologies`);
-        
-        // Score projects by technology matches
-        techProjects.forEach(item => {
-          if (!projectScores[item.project_id]) {
-            projectScores[item.project_id] = 0;
-            projectReasons[item.project_id] = [];
+          
+          if (explicitTagIds.includes(item.tag_id)) {
+            projectTagCounts[item.project_id].explicitMatches++;
+            projectTagCounts[item.project_id].matchedTags[item.tag_id] = {
+              name: item.tags?.name,
+              type: 'explicit'
+            };
           }
-          projectScores[item.project_id] += 1;
-          projectReasons[item.project_id].push(`Matches technology: ${item.technologies.name}`);
+          
+          if (inferredTagIds.includes(item.tag_id)) {
+            projectTagCounts[item.project_id].inferredMatches++;
+            projectTagCounts[item.project_id].matchedTags[item.tag_id] = {
+              name: item.tags?.name,
+              type: 'inferred'
+            };
+          }
         });
         
-        if (debug) {
-          const projWithTechs = {};
-          techProjects.forEach(p => {
-            if (!projWithTechs[p.project_id]) {
-              projWithTechs[p.project_id] = [];
+        // 7. Calculate final scores and reasons
+        Object.entries(projectTagCounts).forEach(([projectId, counts]) => {
+          const numId = parseInt(projectId);
+          
+          // Skip projects user has already interacted with
+          if (interactedProjectIds.includes(numId)) {
+            return;
+          }
+          
+          if (!projectScores[numId]) {
+            projectScores[numId] = 0;
+            projectReasons[numId] = [];
+          }
+          
+          // Calculate the score for this project
+          const explicitScore = counts.explicitMatches * explicitTagMatchWeight;
+          const inferredScore = counts.inferredMatches * inferredTagMatchWeight;
+          
+          // Apply boost if project matches both explicit and inferred tags
+          const diversityBoost = 
+            counts.explicitMatches > 0 && counts.inferredMatches > 0 ? tagMatchBoost : 0;
+          
+          const totalScore = explicitScore + inferredScore + diversityBoost;
+          projectScores[numId] += totalScore;
+          
+          // Add reasons for recommendation
+          Object.entries(counts.matchedTags).forEach(([tagId, tag]) => {
+            // Check if it's actually in the explicit tag preferences
+            if (explicitTagIds.includes(parseInt(tagId))) {
+              projectReasons[numId].push(`Matches your selected tag: ${tag.name || 'unknown'}`);
+            } else {
+              projectReasons[numId].push(`Similar to tags you like: ${tag.name || 'unknown'}`);
             }
-            projWithTechs[p.project_id].push(p.technologies.name);
           });
-          console.log("🔍 Projects with matching technologies:", projWithTechs);
+          
+          if (diversityBoost > 0) {
+            projectReasons[numId].push(`Matches both your selected and inferred preferences`);
+          }
+        });
+        
+        if (debug) {
+          console.log("🏷️ Project scores after incorporating combined tag preferences:", projectScores);
+          const rankedProjects = Object.entries(projectScores)
+            .sort((a, b) => b[1] - a[1])
+            .map(([id, score]) => `Project ${id}: Score ${score.toFixed(2)}, Reasons: ${projectReasons[id].join(', ')}`);
+          console.log("🔍 Ranked projects with scores:", rankedProjects);
         }
-      } else {
-        if (debug) console.log("🔍 No projects found with matching technologies");
+        
+        // 8. Get the top scored projects
+        if (Object.keys(projectScores).length > 0) {
+          // Get project IDs sorted by score
+          const topProjectIds = Object.entries(projectScores)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, limit)
+            .map(([id]) => parseInt(id));
+          
+          if (debug) console.log("🏷️ Top project IDs by score:", topProjectIds);
+          
+          // Get full project details
+          const { data: projects, error } = await supabase
+            .from('project')
+            .select(`
+              id,
+              repo_name,
+              repo_owner,
+              description_type,
+              custom_description,
+              difficulty_level,
+              created_at,
+              status
+            `)
+            .in('id', topProjectIds);
+          
+          if (error) {
+            console.error('Error getting project details:', error);
+            return [];
+          }
+          
+          // Get associated tags and technologies for each project
+          const enrichedProjects = await enrichProjectsWithTagsAndTech(projects || []);
+          
+          // Add recommendation reasons and sort by original score
+          const recommendedProjects = enrichedProjects.map(project => ({
+            ...project,
+            recommendationReason: projectReasons[project.id] || ["Recommended based on your preferences"]
+          }));
+          
+          // Sort according to original score order
+          const sortedProjects = topProjectIds
+            .map(id => recommendedProjects.find(p => p.id === id))
+            .filter(Boolean);
+          
+          // Add detailed result logging
+          if (debug) {
+            console.log(`🔍 Final recommendations with combined tag approach:`);
+            sortedProjects.forEach((project, i) => {
+              console.log(`Recommendation #${i+1}: ${project.repo_name} (ID: ${project.id})`);
+              console.log(`- Tags: ${project.tags?.join(', ') || 'none'}`);
+              console.log(`- Technologies: ${project.technologies?.map(t => t.name).join(', ') || 'none'}`);
+              console.log(`- Reasons: ${project.recommendationReason.join(', ')}`);
+              console.log(`- Score: ${projectScores[project.id].toFixed(2)}`);
+            });
+          }
+          
+          if (debug) console.log(`🏷️ Returning ${sortedProjects.length} recommendations using combined tag approach`);
+          return sortedProjects;
+        }
       }
     }
     
-    // 11. Get top scoring projects
-    const projectEntries = Object.entries(projectScores);
+    if (debug) console.log("🔍 No tag-based recommendations found with combined approach");
+    return [];
     
-    if (debug) {
-      console.log("🔍 Project scores:", projectScores);
-      console.log("🔍 Project recommendation reasons:", projectReasons);
-    }
-    
-    if (projectEntries.length === 0) {
-      if (debug) console.log("🔍 No matching projects found");
-      return [];
-    }
-    
-    const rankedProjects = projectEntries
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, limit);
-    
-    const projectIds = rankedProjects.map(([id]) => parseInt(id));
-    
-    if (debug) {
-      console.log("🔍 Ranked projects with scores:", 
-        rankedProjects.map(([id, score]) => `Project ${id}: Score ${score}, Reasons: ${projectReasons[id]?.join(', ')}`));
-    }
-    
-    // 12. Get full project details
-    const { data: recommendedProjects, error: recommendedError } = await supabase
-      .from('project')
-      .select(`
-        id,
-        repo_name,
-        repo_owner,
-        description_type,
-        custom_description,
-        difficulty_level,
-        created_at,
-        status
-      `)
-      .in('id', projectIds);
-    
-    if (recommendedError) {
-      console.error("Error fetching recommended project details:", recommendedError);
-      if (debug) console.log("🔍 Error getting recommended project details:", recommendedError);
-      return [];
-    }
-    
-    if (!recommendedProjects || recommendedProjects.length === 0) {
-      if (debug) console.log("🔍 No recommended projects found after filtering");
-      return [];
-    }
-    
-    // 13. Enrich with tags and technologies
-    const enrichedProjects = await Promise.all(
-      recommendedProjects.map(async project => {
-        try {
-          // Get tags
-          const { data: tagData } = await supabase
-            .from('project_tags')
-            .select(`
-              tag_id,
-              tags:tag_id(name)
-            `)
-            .eq('project_id', project.id);
-          
-          if (tagData) {
-            console.log(`Tags fetched for project ${project.id}:`, tagData);
-          }
-          
-          // Get technologies
-          const { data: projectTechs, error: projectTechsError } = await supabase
-            .from('project_technologies')
-            .select(`
-              is_highlighted,
-              technologies (
-                name
-              )
-            `)
-            .eq('project_id', project.id);
-          
-          if (projectTechsError) {
-            console.error(`Error fetching technologies for project ${project.id}:`, projectTechsError);
-            if (debug) console.log(`🔍 Error getting technologies for project ${project.id}:`, projectTechsError);
-          }
-          
-          const result = {
-            ...project,
-            tags: tagData ? tagData.map(tag => tag.tags.name) : [],
-            technologies: projectTechs ? projectTechs.map(tech => ({
-              name: tech.technologies.name,
-              is_highlighted: tech.is_highlighted
-            })) : [],
-            recommendationReason: projectReasons[project.id] || ["Based on your interests"]
-          };
-          
-          if (debug) console.log(`🔍 Enriched project ${project.id} (${project.repo_name}) with tags and techs`);
-          
-          return result;
-        } catch (enrichError) {
-          console.error(`Error enriching project ${project.id}:`, enrichError);
-          if (debug) console.log(`🔍 Error enriching project ${project.id}:`, enrichError);
-          return {
-            ...project,
-            tags: [],
-            technologies: [],
-            recommendationReason: ["Error retrieving details"]
-          };
-        }
-      })
-    );
-    
-    // 14. Sort by score and return
-    const result = projectIds
-      .map(id => enrichedProjects.find(p => p.id === id))
-      .filter(Boolean);
-    
-    if (debug) {
-      console.log("🔍 Final recommendations:");
-      result.forEach((project, index) => {
-        console.log(`Recommendation #${index + 1}: ${project.repo_name} (ID: ${project.id})`);
-        console.log(`- Tags: ${project.tags.join(', ')}`);
-        console.log(`- Technologies: ${project.technologies.map(t => t.name).join(', ')}`);
-        console.log(`- Reasons: ${project.recommendationReason.join(', ')}`);
-        console.log(`- Score: ${projectScores[project.id]}`);
-      });
-    }
-    
-    return result;
   } catch (error) {
     console.error("Error in recommendation engine:", error);
+    return [];
+  }
+}
+
+export async function getHybridRecommendations(userId: string, limit = 5, debug = false) {
+  try {
+    if (debug) console.log("🔄 Starting hybrid recommendation process");
+
+    // Check if user is new (has few interactions)
+    const { data: interactions, error: interactionError } = await supabase
+      .from('user_interactions')
+      .select('repo_id')
+      .eq('user_id', userId);
+
+    if (interactionError) {
+      console.error("Error fetching user interactions:", interactionError);
+      return [];
+    }
+
+    const interactionCount = interactions?.length || 0;
+    const isNewUser = interactionCount < 5;
+
+    if (debug) console.log(`🔄 User interaction count: ${interactionCount}, isNewUser: ${isNewUser}`);
+
+    // Force debug mode for getUserPreferredTags to see inferred tags
+    if (debug) {
+      // Explicitly call getUserPreferredTags with debug enabled to see inferred tags
+      console.log("🔄 Explicitly checking inferred tags from user interactions:");
+      const inferredTags = await getUserPreferredTags(userId, true);
+      console.log(`🔄 Summary of inferred tags: ${inferredTags.join(', ')}`);
+    }
+
+    // Check for tag preferences before falling back to popular projects
+    if (interactionCount === 0) {
+      // Get user tag preferences
+      const userTagIds = await getUserTagPreferences(userId, debug);
+      
+      if (debug) console.log(`🏷️ Found ${userTagIds.length} tag preferences for user with no interactions`);
+      
+      // If user has tag preferences, use them for recommendations
+      if (userTagIds.length > 0) {
+        if (debug) console.log("🏷️ Using tag preferences to recommend projects for new user");
+        
+        // Use content-based recommendations which will incorporate tag preferences
+        const contentRecommendations = await getRecommendedProjects(userId, limit, debug);
+        if (contentRecommendations && contentRecommendations.length > 0) {
+          return contentRecommendations;
+        }
+      }
+      
+      console.warn("No interactions or useful tag preferences found. Returning popular projects as fallback.");
+      return await getPopularProjects(limit, debug);
+    }
+
+    // Fetch content-based and collaborative recommendations
+    const contentRecommendations = await getRecommendedProjects(userId, limit, debug) || [];
+    const collabRecommendations = await getCollaborativeRecommendations(userId, limit, debug) || [];
+
+    if (debug) {
+      console.log(`🔄 Content recommendations count: ${contentRecommendations.length}`);
+      console.log(`🔄 Content recommendations details:`); 
+      contentRecommendations.forEach((p, i) => {
+        console.log(`  ${i+1}. ${p.repo_name} (ID: ${p.id}, Tags: ${p.tags?.join(', ') || 'none'})`);
+      });
+      console.log(`🔄 Collaborative recommendations count: ${collabRecommendations.length}`);
+    }
+
+    if (!contentRecommendations.length && !collabRecommendations.length) {
+      console.warn("No recommendations found. Returning recent projects as fallback.");
+      return await getRecentProjects(limit);
+    }
+
+    // Combine recommendations with weighted logic
+    const contentRatio = isNewUser ? 0.8 : 0.6;
+    let contentCount = Math.max(1, Math.round(limit * contentRatio));
+    let collabCount = limit - contentCount;
+
+    // IMPORTANT FIX: If we don't have enough collaborative recommendations, 
+    // use more content-based ones to reach the limit
+    if (collabRecommendations.length < collabCount) {
+      const availableCollab = collabRecommendations.length;
+      contentCount = Math.min(contentRecommendations.length, limit - availableCollab);
+      collabCount = availableCollab;
+    }
+
+    if (debug) {
+      console.log(`🔄 Content ratio: ${contentRatio}, taking ${contentCount} content recommendations`);
+      console.log(`🔄 Taking ${collabCount} collaborative recommendations`);
+    }
+
+    const combinedRecommendations = [
+      ...(contentRecommendations || []).slice(0, contentCount),
+      ...(collabRecommendations || []).slice(0, collabCount),
+    ];
+
+    if (debug) {
+      console.log(`🔄 Final recommendations count: ${combinedRecommendations.length}`);
+      console.log(`🔄 Final recommendations:`);
+      combinedRecommendations.forEach((p, i) => {
+        console.log(`  ${i+1}. ${p.repo_name} (ID: ${p.id}, Tags: ${p.tags?.join(', ') || 'none'}, Reason: ${p.recommendationReason?.[0] || 'Not specified'})`);
+      });
+    }
+
+    return combinedRecommendations.slice(0, limit);
+  } catch (error) {
+    // Use a safer error logging approach
+    console.error("Error in hybrid recommendations:", 
+      error instanceof Error ? error.message : "Unknown error");
     return [];
   }
 }
@@ -801,9 +856,10 @@ async function enrichProjectsWithTagsAndTech(projects) {
   );
 }
 
+// Fix the not.in filter syntax in the collaborative recommendations function
 export async function getCollaborativeRecommendations(userId: string, limit = 5, debug = false) {
   try {
-    console.log("👥 Starting collaborative filtering for user:", userId);
+    if (debug) console.log("👥 Starting collaborative filtering for user:", userId);
 
     // 1. Get user interactions
     const { data: userInteractions, error: userInteractionError } = await supabase
@@ -812,13 +868,13 @@ export async function getCollaborativeRecommendations(userId: string, limit = 5,
       .eq('user_id', userId);
 
     if (userInteractionError || !userInteractions || userInteractions.length === 0) {
-      console.log("👥 No interactions found for collaborative filtering");
+      if (debug) console.log("👥 No interactions found for collaborative filtering");
       return [];
     }
 
     // 2. Get interacted project IDs
     const interactedRepoIds = userInteractions.map(i => i.repo_id);
-    console.log("👥 User has interacted with repos:", interactedRepoIds);
+    if (debug) console.log("👥 User has interacted with repos:", interactedRepoIds);
 
     // 3. Find other users who interacted with at least one of the same projects
     const { data: similarUserInteractions, error: similarUserError } = await supabase
@@ -828,11 +884,11 @@ export async function getCollaborativeRecommendations(userId: string, limit = 5,
       .neq('user_id', userId);
 
     if (similarUserError || !similarUserInteractions || similarUserInteractions.length === 0) {
-      console.log("👥 No similar users found");
+      if (debug) console.log("👥 No similar users found");
       return [];
     }
 
-    // 4. Calculate meaningful similarity scores
+    // Calculate meaningful similarity scores
     const userSimilarityMap = {};
 
     // Group interactions by user
@@ -911,36 +967,52 @@ export async function getCollaborativeRecommendations(userId: string, limit = 5,
       .map(([userId]) => userId);
 
     if (Object.keys(userSimilarityMap).length > 0) {
-      console.log("👥 Found similar users with similarity scores:",
+      if (debug) console.log("👥 Found similar users with similarity scores:",
         Object.entries(userSimilarityMap)
           .map(([id, data]) => `${id}: ${data.similarityScore?.toFixed(2)}`)
           .join(', ')
       );
     } else {
-      console.log("👥 No sufficiently similar users found after quality filtering");
+      if (debug) console.log("👥 No sufficiently similar users found after quality filtering");
     }
 
     if (similarUsers.length === 0) {
-      console.log("👥 No sufficiently similar users found");
+      if (debug) console.log("👥 No sufficiently similar users found");
       return [];
     }
 
     // 5. Find what projects these similar users interacted with that the current user hasn't
-    const excludedRepoIds = interactedRepoIds; // Dynamically exclude already interacted projects
-    const query = supabase
-      .from('user_interactions')
-      .select('repo_id, interaction_type, user_id')
-      .in('user_id', similarUsers);
+    let recommendationPromises = [];
     
-    // Only apply the not-in filter if we have repos to exclude
-    if (excludedRepoIds.length > 0) {
-      query.not('repo_id', 'in', `(${excludedRepoIds.join(',')})`);
+    if (debug) console.log("👥 Looking for recommendations from similar users:", similarUsers);
+    
+    // Get recommendations from each similar user separately to avoid filter syntax issues
+    for (const simUserId of similarUsers) {
+      const promise = supabase
+        .from('user_interactions')
+        .select('repo_id, interaction_type, user_id')
+        .eq('user_id', simUserId)
+        .then(({ data, error }) => {
+          if (error) {
+            if (debug) console.log(`👥 Error getting interactions for user ${simUserId}:`, error);
+            return [];
+          }
+          
+          // Filter out projects the current user has already interacted with
+          return (data || []).filter(item => !interactedRepoIds.includes(item.repo_id));
+        });
+        
+      recommendationPromises.push(promise);
     }
+    
+    // Combine all recommendations
+    const recommendationsArrays = await Promise.all(recommendationPromises);
+    const recommendations = recommendationsArrays.flat();
+    
+    if (debug) console.log(`👥 Found ${recommendations.length} potential recommendations from similar users`);
 
-    const { data: recommendations, error: recommendationError } = await query;
-
-    if (recommendationError || !recommendations || recommendations.length === 0) {
-      console.log("👥 No collaborative recommendations found");
+    if (!recommendations || recommendations.length === 0) {
+      if (debug) console.log("👥 No collaborative recommendations found");
       return [];
     }
 
@@ -964,13 +1036,18 @@ export async function getCollaborativeRecommendations(userId: string, limit = 5,
       .slice(0, limit)
       .map(([repoId]) => repoId);
 
-    console.log("👥 Top collaborative repo IDs with scores:",
+    if (debug) console.log("👥 Top collaborative repo IDs with scores:",
       Object.entries(scoreByRepo)
         .sort((a, b) => b[1] - a[1])
         .slice(0, Math.min(5, Object.entries(scoreByRepo).length))
         .map(([id, score]) => `${id}: ${score.toFixed(2)}`)
         .join(', ')
     );
+
+    if (topRepoIds.length === 0) {
+      if (debug) console.log("👥 No top recommendations found after scoring");
+      return [];
+    }
 
     // 8. Get full project details
     const { data: projects, error: projectsError } = await supabase
@@ -988,14 +1065,14 @@ export async function getCollaborativeRecommendations(userId: string, limit = 5,
       .in('repo_name', topRepoIds);
 
     if (projectsError || !projects || projects.length === 0) {
-      console.log("👥 Error getting project details:", projectsError);
+      if (debug) console.log("👥 Error getting project details:", projectsError);
       return [];
     }
 
     // 9. Enrich with tags and technologies
     const enrichedProjects = await enrichProjectsWithTagsAndTech(projects);
 
-    // 10. Add collaborative reason
+    // Add collaborative reason
     return enrichedProjects.map(project => ({
       ...project,
       recommendationReason: ["People with similar interests liked this project"]
@@ -1003,56 +1080,6 @@ export async function getCollaborativeRecommendations(userId: string, limit = 5,
 
   } catch (error) {
     console.error("Error in collaborative filtering:", error);
-    return [];
-  }
-}
-
-export async function getHybridRecommendations(userId: string, limit = 5, debug = false) {
-  try {
-    if (debug) console.log("🔄 Starting hybrid recommendation process");
-    
-    // Get both types of recommendations
-    const contentRecommendations = await getRecommendedProjects(userId, Math.ceil(limit * 0.6), debug);
-    const collabRecommendations = await getCollaborativeRecommendations(userId, Math.ceil(limit * 0.6), debug);
-    
-    if (debug) {
-      console.log(`🔄 Content recommendations: ${contentRecommendations.length}`);
-      console.log(`🔄 Collaborative recommendations: ${collabRecommendations.length}`);
-    }
-    
-    // If either method returns no recommendations, use the other
-    if (contentRecommendations.length === 0) {
-      return collabRecommendations.slice(0, limit);
-    }
-    if (collabRecommendations.length === 0) {
-      return contentRecommendations.slice(0, limit);
-    }
-    
-    // Combine recommendations with a smart merging strategy
-    const seenIds = new Set();
-    const result = [];
-    
-    // Prioritize content recommendations first (they're more personalized)
-    for (const rec of contentRecommendations) {
-      if (result.length >= limit) break;
-      result.push(rec);
-      seenIds.add(rec.id);
-    }
-    
-    // Then add collaborative recommendations that aren't duplicates
-    for (const rec of collabRecommendations) {
-      if (result.length >= limit) break;
-      if (!seenIds.has(rec.id)) {
-        result.push(rec);
-        seenIds.add(rec.id);
-      }
-    }
-    
-    if (debug) console.log(`🔄 Final hybrid recommendations: ${result.length}`);
-    return result.slice(0, limit);
-    
-  } catch (error) {
-    console.error("Error in hybrid recommendations:", error);
     return [];
   }
 }
