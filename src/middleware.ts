@@ -10,12 +10,14 @@ export async function middleware(req: NextRequest) {
   const { data: { session } } = await supabase.auth.getSession();
   
   // Public paths that don't require authentication checks
-  const publicPaths = ['/', '/login', '/about', '/onboarding'];
+  const publicPaths = ['/', '/login', '/about', '/onboarding', '/auth-required'];
   const path = req.nextUrl.pathname;
   
   if (!session && !publicPaths.includes(path)) {
-    // No session, redirect to home
-    return NextResponse.redirect(new URL('/', req.url));
+    // No session, redirect to auth-required page with returnTo parameter
+    const returnUrl = new URL('/auth-required', req.url);
+    returnUrl.searchParams.set('returnTo', path);
+    return NextResponse.redirect(returnUrl);
   }
   
   if (session) {

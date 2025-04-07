@@ -7,15 +7,24 @@ import LoginButton from './LoginButton';
 import LogoutButton from './LogoutButton';
 import Notification from './Notification';
 import { supabase } from '@/supabaseClient';
+import { useRouter } from 'next/navigation';
 
 const NavBar = () => {
   const [loggedIn, setLoggedIn] = useState(false);
   const [loading, setLoading] = useState(true);
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
-  // Use a ref to track the previous auth state
   const prevAuthStateRef = useRef<boolean | null>(null);
   const isTabVisibleRef = useRef<boolean>(true);
-  
+  const router = useRouter();
+
+  const handleProtectedLink = (e: React.MouseEvent, path: string) => {
+    if (!loggedIn) {
+      e.preventDefault();
+      localStorage.setItem('redirectAfterLogin', path);
+      router.push('/login');
+    }
+  };
+
   useEffect(() => {
     const lastAuthEventKey = 'last_auth_event';
     const debounceTimeMs = 5000; 
@@ -43,7 +52,7 @@ const NavBar = () => {
       if (
         (event === 'SIGNED_IN' || event === 'SIGNED_OUT') && 
         prevAuthStateRef.current !== isCurrentlyLoggedIn &&
-        isTabVisibleRef.current // Only show notification if tab is visible
+        isTabVisibleRef.current
       ) {
         const now = Date.now();
         const lastEvent = localStorage.getItem(lastAuthEventKey);
@@ -76,18 +85,41 @@ const NavBar = () => {
         </Link>
         <ul className='flex gap-5 ml-6 inria-sans-bold mt-1 text-sm'>
           <li>
-            <Link href="/contributions" className='text-off-white hover:text-orange transition-colors cursor-pointer'>
+            <Link href="/about" className='text-off-white hover:text-orange transition-colors cursor-pointer'>
+              About Us
+            </Link>
+          </li>
+          <li>
+            <Link 
+              href={loggedIn ? "/contributions" : "#"} 
+              onClick={(e) => !loggedIn && handleProtectedLink(e, "/contributions")}
+              className={`transition-colors cursor-pointer ${loggedIn 
+                ? 'text-off-white hover:text-orange' 
+                : 'text-gray-500 hover:text-gray-400'}`}
+            >
               Your Contributions
             </Link>
           </li>
           <li>
-            <Link href="/post-project" className='text-off-white hover:text-orange transition-colors cursor-pointer'>
+            <Link 
+              href={loggedIn ? "/post-project" : "#"} 
+              onClick={(e) => !loggedIn && handleProtectedLink(e, "/post-project")}
+              className={`transition-colors cursor-pointer ${loggedIn 
+                ? 'text-off-white hover:text-orange' 
+                : 'text-gray-500 hover:text-gray-400'}`}
+            >
               Post A Project
             </Link>
           </li>
           <li>
-            <Link href="/about" className='text-off-white hover:text-orange transition-colors cursor-pointer'>
-              About Us
+            <Link 
+              href={loggedIn ? "/settings" : "#"} 
+              onClick={(e) => !loggedIn && handleProtectedLink(e, "/settings")}
+              className={`transition-colors cursor-pointer ${loggedIn 
+                ? 'text-off-white hover:text-orange' 
+                : 'text-gray-500 hover:text-gray-400'}`}
+            >
+              Settings
             </Link>
           </li>
         </ul>

@@ -245,31 +245,31 @@ export default function OnboardingPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p>Loading...</p>
+      <div className="w-screen min-h-screen flex items-center justify-center bg-gray-900">
+        <div className="loading-spinner"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="bg-white p-8 rounded-lg shadow-lg w-[500px] max-w-[90%]">
+    <div className="w-screen min-h-screen flex items-center justify-center radial-background">
+      <div className="max-w-[500px] w-full mx-4 radial-background rounded-lg shadow-lg p-8">
         {/* Progress indicator */}
         <div className="flex mb-6 items-center">
           <div className={`rounded-full w-8 h-8 flex items-center justify-center 
-                         ${currentStep === 1 ? 'bg-blue-600 text-white' : 'bg-blue-100 text-blue-800'}`}>
+                     ${currentStep === 1 ? 'bg-blue-600 text-white' : 'bg-blue-900 text-blue-300'}`}>
             1
           </div>
-          <div className="h-1 w-8 mx-2 bg-gray-300"></div>
+          <div className="h-1 w-8 mx-2 bg-gray-700"></div>
           <div className={`rounded-full w-8 h-8 flex items-center justify-center 
-                         ${currentStep === 2 ? 'bg-blue-600 text-white' : 'bg-blue-100 text-blue-800'}`}>
+                     ${currentStep === 2 ? 'bg-blue-600 text-white' : 'bg-blue-900 text-blue-300'}`}>
             2
           </div>
         </div>
         
         {currentStep === 1 ? (
           <>
-            <h1 className="text-2xl font-bold mb-4">Welcome to CodeConnect!</h1>
+            <h1 className="text-2xl inter-bold main-subtitle mb-4">Welcome to CodeConnect!</h1>
             <p className="mb-6">Please choose a display name to continue.</p>
             
             <form onSubmit={validateAndSaveDisplayName}>
@@ -277,7 +277,7 @@ export default function OnboardingPage() {
                 type="text"
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
-                className="w-full p-2 border border-gray-300 rounded mb-4"
+                className="w-full p-2 border border-gray-600 bg-slate-900 rounded mb-4 focus:border-blue-500 focus:outline-none"
                 placeholder="Enter display name (max 16 chars)"
                 maxLength={16}
                 autoFocus
@@ -298,17 +298,19 @@ export default function OnboardingPage() {
           </>
         ) : (
           <>
-            <h1 className="text-2xl font-bold mb-4">Select Your Interests</h1>
+            <h1 className="text-2xl inter-bold main-subtitle mb-4">Select Your Interests</h1>
             <p className="mb-6">Choose topics you're interested in to help us personalize your recommendations.</p>
             
             <div className="mb-6">
-              <MultiSelector
-                availableTags={allTagNames}
-                onTagsChange={handleTagsChange}
-                initialTags={selectedTagNames}  // Pass the current selection back to the component
-              />
+              <div className="main-page-filter-box px-2 py-4 rounded">
+                <MultiSelector
+                  availableTags={allTagNames}
+                  onTagsChange={handleTagsChange}
+                  initialTags={selectedTagNames}
+                />
+              </div>
               
-              <div className="mt-3 text-sm text-gray-600">
+              <div className="mt-3 text-sm text-gray-400">
                 <p>• Select tags that represent technologies or topics you're interested in</p>
                 <p>• You can always change these later in your settings</p>
               </div>
@@ -319,7 +321,7 @@ export default function OnboardingPage() {
             <div className="flex justify-between">
               <button
                 onClick={skipTagSelection}
-                className="px-4 py-2 text-gray-600 rounded hover:bg-gray-100"
+                className="px-4 py-2 text-gray-400 rounded hover:bg-gray-800"
               >
                 Skip for now
               </button>
