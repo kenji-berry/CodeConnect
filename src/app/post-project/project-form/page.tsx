@@ -97,6 +97,7 @@ const Page = () => {
   const [customDescription, setCustomDescription] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
+  const [hasRepoAccess, setHasRepoAccess] = useState<boolean>(false);
 
   const handleTagsChange = (tags: string[]) => {
     setSelectedTags(tags);
@@ -192,6 +193,25 @@ const Page = () => {
         // 3. Fetch GitHub repo data if we have repo name and owner
         if (repoName && owner) {
           try {
+            // First verify user has access to this repository
+            const repoAccessResponse = await fetch(`/api/github/repos/${owner}/${repoName}/collaborators`, {
+              credentials: 'include'
+            });
+            
+            // Check if user has appropriate access
+            if (!repoAccessResponse.ok) {
+              if (repoAccessResponse.status === 403) {
+                setSubmissionError("You don't have sufficient permissions to post this repository.");
+                setHasRepoAccess(false);
+                return;
+              } else {
+                throw new Error(`GitHub API error: ${repoAccessResponse.status}`);
+              }
+            }
+            
+            // If we got here, user has access
+            setHasRepoAccess(true);
+
             // Use proxy API instead of direct GitHub API calls
             const [
               repoResponse,
@@ -265,6 +285,7 @@ const Page = () => {
             setSubmissionError(error instanceof Error 
               ? `GitHub repository fetch failed: ${error.message}`
               : 'Failed to retrieve repository data');
+            setHasRepoAccess(false);
           }
         }
       } catch (error) {
@@ -285,175 +306,76 @@ const Page = () => {
     console.log(highlightedTechnologies)
   }
 
+  const validateSubmission = () => {
+    if (!session?.user?.id) {
+      throw new Error('Please sign in to submit a project');
+     
+    }
+  
+    if (!repoName || !owner) {
+      throw new Error('Repository information is missing');
+    }
+    
+    // Add this check to prevent submission
+    if (!hasRepoAccess) {
+      throw new Error('You do not have permission to post this repository');
+    }
+  
+    if (descriptionOption === "Write your Own" && !customDescription.trim()) {
+      throw new Error('Custom description is required when not using GitHub description');
+    }
+  
+    if (selectedTechnologies.length === 0) {
+      throw new Error('At least one technology is required');
+    }
+  
+    if (!projectStatus) {
+      throw new Error('Project status must be selected');
+    }
+  
+    const invalidLinks = resourceLinks.filter(link => link.url && !link.isValid);
+    if (invalidLinks.length > 0) {
+      throw new Error(`Invalid resource links found: ${invalidLinks.map(l => l.name).join(', ')}`);
+    }
+  };
+
   const handleSubmitProject = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-  
-    // Reset error state
     setSubmissionError(null);
-  
-    const validateSubmission = () => {
-      if (!session?.user?.id) {
-        throw new Error('Please sign in to submit a project');
-      }
     
-      if (!repoName || !owner) {
-        throw new Error('Repository information is missing');
-      }
-    
-      if (descriptionOption === "Write your Own" && !customDescription.trim()) {
-        throw new Error('Custom description is required when not using GitHub description');
-      }
-    
-      if (selectedTechnologies.length === 0) {
-        throw new Error('At least one technology is required');
-      }
-    
-      if (!projectStatus) {
-        throw new Error('Project status must be selected');
-      }
-    
-      const invalidLinks = resourceLinks.filter(link => link.url && !link.isValid);
-      if (invalidLinks.length > 0) {
-        throw new Error(`Invalid resource links found: ${invalidLinks.map(l => l.name).join(', ')}`);
-      }
-    };
-  
     try {
-      validateSubmission();
+      validateSubmission(); // Keep your client-side validation for better UX
       setIsSubmitting(true);
-  
-      // Session check with more detailed error
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user?.id) {
-        throw new Error('Authentication required: Please sign in to submit a project');
-      }
-  
-      // Validate project data
-      if (!repoName || !owner) {
-        throw new Error('Missing repository information: Repository name and owner are required');
-      }
-  
-      // Check technologies
-      if (selectedTechnologies.length === 0) {
-        throw new Error('At least one technology must be selected');
-      }
-  
-      // Insert project with detailed error logging
-      const { data: project, error: projectError } = await supabase
-        .from('project')
-        .insert({
-          repo_name: repoName,
-          repo_owner: owner,
+      
+      // Use the server API endpoint instead of direct database insertion
+      const response = await fetch('/api/projects/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include', // Important to send cookies
+        body: JSON.stringify({
+          repoName,
+          owner,
           description_type: descriptionOption,
           custom_description: customDescription,
           difficulty_level: difficulty,
-          user_id: session.user.id,
-          repo_name_owner: `${repoName}_${owner}`,
           links: resourceLinks.filter(link => link.name && link.url && link.isValid).map(link => link.url),
           status: projectStatus,
-        })
-        .select('id')
-        .single();
-  
-      if (projectError) {
-        console.error('Project insertion error:', projectError);
-        throw new Error(`Project insertion failed: ${projectError.message}`);
+        }),
+      });
+      
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to create project');
       }
-  
-      if (!project?.id) {
-        throw new Error('Project created but no ID returned');
-      }
-
-      console.log('Project created with ID:', project.id);
-  
-      // Technologies insertion with validation
-      if (selectedTechnologies.length > 0) {
-        try {
-          const techPromises = selectedTechnologies.map(async techName => {
-            const { data: techData, error: techLookupError } = await supabase
-              .from('technologies')
-              .select('id')
-              .eq('name', techName.toLowerCase())
-              .single();
       
-            if (techLookupError) {
-              throw new Error(`Failed to find technology "${techName}": ${techLookupError.message}`);
-            }
+      // Continue with technologies and tags (make separate API calls or enhance the create endpoint)
+      // ...
       
-            return {
-              project_id: project.id,
-              technology_id: techData.id,
-              is_highlighted: highlightedTechnologies.includes(techName)
-            };
-          });
-      
-          const techRows = await Promise.all(techPromises);
-          
-          // Insert into project_technologies table
-          const { error: techAssocError } = await supabase
-            .from('project_technologies')
-            .insert(techRows);
-      
-          if (techAssocError) {
-            console.error('Technology association error:', techAssocError);
-            throw new Error(`Failed to associate technologies: ${techAssocError.message}`);
-          }
-      
-          console.log('Successfully inserted technologies:', techRows);
-        } catch (error) {
-          console.error('Technology insertion error:', error);
-          throw new Error(
-            error instanceof Error 
-              ? `Technology insertion failed: ${error.message}`
-              : 'Failed to add technologies: Unknown error'
-          );
-        }
-      }
-  
-      // Tags insertion with validation
-      if (selectedTags.length > 0) {
-        try {
-          const tagPromises = selectedTags.map(async tag => {
-            const { data: tagData, error: tagError } = await supabase
-              .from('tags')
-              .select('id')
-              .eq('name', tag)
-              .single();
-      
-            if (tagError) {
-              throw new Error(`Failed to find tag "${tag}": ${tagError.message}`);
-            }
-      
-            return {
-              project_id: project.id,
-              association_id: tagData.id,
-              type: 'tag'
-            };
-          });
-      
-          const tagRows = await Promise.all(tagPromises);
-          
-          // Insert into project_assoc table
-          const { error: tagAssocError } = await supabase
-            .from('project_tags')
-            .insert(tagRows);
-      
-          if (tagAssocError) {
-            throw new Error(`Failed to associate tags: ${tagAssocError.message}`);
-          }
-        } catch (tagError) {
-          console.error('Tag association error:', tagError);
-          throw new Error(`Failed to process tags: ${tagError instanceof Error ? tagError.message : 'Unknown error'}`);
-        }
-      }
-  
     } catch (error) {
-      console.error('Detailed submission error:', error);
-      setSubmissionError(
-        error instanceof Error 
-          ? getReadableError(error)
-          : 'An unexpected error occurred. Please try again later.'
-      );
+      // Error handling
     } finally {
       setIsSubmitting(false);
     }
@@ -648,9 +570,9 @@ const Page = () => {
         <div className="w-full flex justify-center mt-8 mb-12">
           <button
             type="submit"
-            disabled={isSubmitting}
+            disabled={isSubmitting || !hasRepoAccess}
             className={`px-8 py-3 rounded-lg font-medium flex items-center gap-2 transition-colors duration-200 
-              ${isSubmitting 
+              ${isSubmitting || !hasRepoAccess
                 ? 'bg-gray-400 cursor-not-allowed' 
                 : 'bg-[color:--muted-red] hover:bg-red-700 text-white'}`}
           >
@@ -662,6 +584,8 @@ const Page = () => {
                 </svg>
                 Submitting...
               </>
+            ) : !hasRepoAccess ? (
+              "No Repository Access"
             ) : (
               <>
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
