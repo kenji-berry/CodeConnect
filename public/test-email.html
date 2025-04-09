@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Email Test</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 500px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .form-group {
+      margin-bottom: 15px;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+    }
+    input {
+      width: 100%;
+      padding: 8px;
+      box-sizing: border-box;
+    }
+    button {
+      padding: 10px 15px;
+      background: #0066cc;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .result {
+      margin-top: 20px;
+      padding: 15px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      background: #f9f9f9;
+      min-height: 100px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Test Email Recommendations</h1>
+  <div class="form-group">
+    <label for="userId">User ID:</label>
+    <input type="text" id="userId" placeholder="Enter user ID">
+  </div>
+  <div class="form-group">
+    <label for="email">Email Address:</label>
+    <input type="email" id="email" placeholder="Enter email address">
+  </div>
+  <button id="sendButton">Send Test Email</button>
+  
+  <div class="result" id="result">Results will appear here...</div>
+
+  <script>
+    document.getElementById('sendButton').addEventListener('click', async () => {
+      const userId = document.getElementById('userId').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const resultDiv = document.getElementById('result');
+      
+      if (!userId || !email) {
+        resultDiv.innerHTML = 'Please enter both User ID and Email Address';
+        return;
+      }
+      
+      resultDiv.innerHTML = 'Sending request...';
+      
+      try {
+        const response = await fetch('/api/test-email', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ userId, email }),
+        });
+        
+        const data = await response.json();
+        resultDiv.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+      } catch (error) {
+        resultDiv.innerHTML = `Error: ${error.message}`;
+      }
+    });
+  </script>
+</body>
+</html>
