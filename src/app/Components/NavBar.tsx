@@ -99,18 +99,6 @@ const NavBar = () => {
           </li>
           <li>
             <Link 
-              href="/about" 
-              className={`transition-all duration-200 cursor-pointer ${
-                pathname === '/about'
-                ? 'text-orange border-b-2 border-orange pb-1 font-bold' 
-                : 'text-off-white opacity-60 hover:opacity-90 hover:text-orange'
-              }`}
-            >
-              About Us
-            </Link>
-          </li>
-          <li>
-            <Link 
               href={loggedIn ? "/contributions" : "#"} 
               onClick={(e) => !loggedIn && handleProtectedLink(e, "/contributions")}
               className={`transition-all duration-200 cursor-pointer ${
@@ -152,6 +140,18 @@ const NavBar = () => {
               }`}
             >
               Settings
+            </Link>
+          </li>
+          <li>
+            <Link 
+              href="/about" 
+              className={`transition-all duration-200 cursor-pointer ${
+                pathname === '/about'
+                ? 'text-orange border-b-2 border-orange pb-1 font-bold' 
+                : 'text-off-white opacity-60 hover:opacity-90 hover:text-orange'
+              }`}
+            >
+              About Us
             </Link>
           </li>
         </ul>
