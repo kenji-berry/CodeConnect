@@ -7,7 +7,7 @@ import LoginButton from './LoginButton';
 import LogoutButton from './LogoutButton';
 import Notification from './Notification';
 import { supabase } from '@/supabaseClient';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 
 const NavBar = () => {
   const [loggedIn, setLoggedIn] = useState(false);
@@ -16,6 +16,7 @@ const NavBar = () => {
   const prevAuthStateRef = useRef<boolean | null>(null);
   const isTabVisibleRef = useRef<boolean>(true);
   const router = useRouter();
+  const pathname = usePathname();
 
   const handleProtectedLink = (e: React.MouseEvent, path: string) => {
     if (!loggedIn) {
@@ -85,7 +86,26 @@ const NavBar = () => {
         </Link>
         <ul className='flex gap-5 ml-6 inria-sans-bold mt-1 text-sm'>
           <li>
-            <Link href="/about" className='text-off-white hover:text-orange transition-colors cursor-pointer'>
+            <Link 
+              href="/" 
+              className={`transition-all duration-200 cursor-pointer ${
+                pathname === '/'
+                ? 'text-orange border-b-2 border-orange pb-1 font-bold' 
+                : 'text-off-white opacity-60 hover:opacity-90 hover:text-orange'
+              }`}
+            >
+              Home
+            </Link>
+          </li>
+          <li>
+            <Link 
+              href="/about" 
+              className={`transition-all duration-200 cursor-pointer ${
+                pathname === '/about'
+                ? 'text-orange border-b-2 border-orange pb-1 font-bold' 
+                : 'text-off-white opacity-60 hover:opacity-90 hover:text-orange'
+              }`}
+            >
               About Us
             </Link>
           </li>
@@ -93,9 +113,13 @@ const NavBar = () => {
             <Link 
               href={loggedIn ? "/contributions" : "#"} 
               onClick={(e) => !loggedIn && handleProtectedLink(e, "/contributions")}
-              className={`transition-colors cursor-pointer ${loggedIn 
-                ? 'text-off-white hover:text-orange' 
-                : 'text-gray-500 hover:text-gray-400'}`}
+              className={`transition-all duration-200 cursor-pointer ${
+                pathname === '/contributions'
+                ? loggedIn ? 'text-orange border-b-2 border-orange pb-1 font-bold' : 'text-gray-500 opacity-40'
+                : loggedIn 
+                  ? 'text-off-white opacity-60 hover:opacity-90 hover:text-orange' 
+                  : 'text-gray-500 opacity-40 hover:opacity-60'
+              }`}
             >
               Your Contributions
             </Link>
@@ -104,9 +128,13 @@ const NavBar = () => {
             <Link 
               href={loggedIn ? "/post-project" : "#"} 
               onClick={(e) => !loggedIn && handleProtectedLink(e, "/post-project")}
-              className={`transition-colors cursor-pointer ${loggedIn 
-                ? 'text-off-white hover:text-orange' 
-                : 'text-gray-500 hover:text-gray-400'}`}
+              className={`transition-all duration-200 cursor-pointer ${
+                pathname === '/post-project'
+                ? loggedIn ? 'text-orange border-b-2 border-orange pb-1 font-bold' : 'text-gray-500 opacity-40'
+                : loggedIn 
+                  ? 'text-off-white opacity-60 hover:opacity-90 hover:text-orange' 
+                  : 'text-gray-500 opacity-40 hover:opacity-60'
+              }`}
             >
               Post A Project
             </Link>
@@ -115,9 +143,13 @@ const NavBar = () => {
             <Link 
               href={loggedIn ? "/settings" : "#"} 
               onClick={(e) => !loggedIn && handleProtectedLink(e, "/settings")}
-              className={`transition-colors cursor-pointer ${loggedIn 
-                ? 'text-off-white hover:text-orange' 
-                : 'text-gray-500 hover:text-gray-400'}`}
+              className={`transition-all duration-200 cursor-pointer ${
+                pathname === '/settings'
+                ? loggedIn ? 'text-orange border-b-2 border-orange pb-1 font-bold' : 'text-gray-500 opacity-40'
+                : loggedIn 
+                  ? 'text-off-white opacity-60 hover:opacity-90 hover:text-orange' 
+                  : 'text-gray-500 opacity-40 hover:opacity-60'
+              }`}
             >
               Settings
             </Link>
