@@ -5,28 +5,26 @@ import { supabase } from '@/supabaseClient';
 import Link from 'next/link';
 import MultiSelector from '../Components/MultiSelector';
 import { User } from '@supabase/supabase-js';
+import Notification, { NotificationItem } from '../Components/Notification';
 
 export default function Settings() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [preferredTags, setPreferredTags] = useState([]);
-  const [preferredTechnologies, setPreferredTechnologies] = useState([]);
   const [interactionHistory, setInteractionHistory] = useState([]);
   const [allTags, setAllTags] = useState([]);
-  const [allTechnologies, setAllTechnologies] = useState([]);
   const [error, setError] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState(null);
 
   const [preferredTagNames, setPreferredTagNames] = useState<string[]>([]);
-  const [preferredTechNames, setPreferredTechNames] = useState<string[]>([]);
   const [allTagNames, setAllTagNames] = useState<string[]>([]);
-  const [allTechNames, setAllTechNames] = useState<string[]>([]);
 
   const [preferredTagObjects, setPreferredTagObjects] = useState([]);
-  const [preferredTechObjects, setPreferredTechObjects] = useState([]);
   const [allTagObjects, setAllTagObjects] = useState<{ id: any; name: any }[]>([]);
-  const [allTechObjects, setAllTechObjects] = useState<{ id: any; name: any }[]>([]);
+  const [emailFrequency, setEmailFrequency] = useState<string>('never');
+  
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
 
   useEffect(() => {
     async function fetchUserData() {
@@ -44,34 +42,35 @@ export default function Settings() {
 
         setCurrentUser(user);
 
-        // Fetch all available tags and technologies for the selector
-        await Promise.all([
-          fetchAllTags(),
-          fetchAllTechnologies()
-        ]);
+        // Fetch all available tags for the selector
+        await fetchAllTags();
 
         // First check for explicit user preferences
         const { data: userPrefs, error: prefsError } = await supabase
           .from('user_preferences')
-          .select('preferred_tags, preferred_technologies')
+          .select('preferred_tags')
           .eq('user_id', user.id)
           .single();
+
+        // Add this code to fetch email preferences
+        const { data: emailPrefs, error: emailPrefsError } = await supabase
+          .from('user_email_preferences')
+          .select('email_frequency')
+          .eq('user_id', user.id)
+          .single();
+
+        if (!emailPrefsError && emailPrefs && emailPrefs.email_frequency) {
+          setEmailFrequency(emailPrefs.email_frequency);
+        }
 
         if (!prefsError && userPrefs) {
           // User has explicit preferences, fetch the full objects
           if (userPrefs.preferred_tags && userPrefs.preferred_tags.length > 0) {
             await fetchTagsById(userPrefs.preferred_tags);
           }
-          
-          if (userPrefs.preferred_technologies && userPrefs.preferred_technologies.length > 0) {
-            await fetchTechnologiesById(userPrefs.preferred_technologies);
-          }
         } else {
           // No explicit preferences, derive from interactions
-          await Promise.all([
-            fetchPreferredTags(user.id),
-            fetchPreferredTechnologies(user.id)
-          ]);
+          await fetchPreferredTags(user.id);
         }
 
         // Always fetch interaction history
@@ -103,24 +102,6 @@ export default function Settings() {
       console.error("Error fetching all tags:", error);
       setAllTagObjects([]);
       setAllTagNames([]);
-    }
-  }
-
-  async function fetchAllTechnologies() {
-    try {
-      const { data, error } = await supabase
-        .from('technologies')
-        .select('id, name')
-        .order('name');
-
-      if (error) throw error;
-
-      setAllTechObjects(data || []);
-      setAllTechNames((data || []).map(tech => tech.name));
-    } catch (error) {
-      console.error("Error fetching all technologies:", error);
-      setAllTechObjects([]);
-      setAllTechNames([]);
     }
   }
 
@@ -193,75 +174,6 @@ export default function Settings() {
     }
   }
 
-  async function fetchPreferredTechnologies(userId) {
-    try {
-      // Get user interactions
-      const { data: interactions, error: interactionError } = await supabase
-        .from('user_interactions')
-        .select('repo_id')
-        .eq('user_id', userId);
-
-      if (interactionError) throw interactionError;
-
-      const interactedRepoIds = [...new Set(interactions.map(i => i.repo_id))];
-
-      if (interactedRepoIds.length === 0) {
-        setPreferredTechObjects([]);
-        setPreferredTechNames([]);
-        return;
-      }
-
-      // Get projects by repo_id
-      const { data: projects, error: projectError } = await supabase
-        .from('project')
-        .select('id, repo_name')
-        .in('repo_name', interactedRepoIds);
-
-      if (projectError) throw projectError;
-      if (!projects || projects.length === 0) {
-        setPreferredTechObjects([]);
-        setPreferredTechNames([]);
-        return;
-      }
-
-      const projectIds = projects.map(p => p.id);
-
-      // Get technologies associated with these projects
-      const { data: techAssociations, error: techError } = await supabase
-        .from('project_technologies')
-        .select(`
-          project_id,
-          technologies (
-            id,
-            name
-          )
-        `)
-        .in('project_id', projectIds);
-
-      if (techError) throw techError;
-
-      // Extract tech objects and remove duplicates by id
-      const techObjects = techAssociations
-        .filter(ta => ta.technologies)
-        .map(ta => ({
-          id: ta.technologies.id,
-          name: ta.technologies.name
-        }));
-
-      // Remove duplicates
-      const uniqueTechs = Array.from(
-        new Map(techObjects.map(tech => [tech.id, tech])).values()
-      );
-
-      setPreferredTechObjects(uniqueTechs);
-      setPreferredTechNames(uniqueTechs.map(tech => tech.name));
-    } catch (error) {
-      console.error("Error fetching preferred technologies:", error);
-      setPreferredTechObjects([]);
-      setPreferredTechNames([]);
-    }
-  }
-
   async function fetchInteractionHistory(userId) {
     try {
       const { data, error } = await supabase
@@ -310,66 +222,129 @@ export default function Settings() {
     }
   }
 
+  // Helper function to add a notification
+  const addNotification = (message: string, type: 'success' | 'error') => {
+    const newNotification: NotificationItem = {
+      id: Date.now().toString(), // Simple unique ID
+      message,
+      type,
+      timestamp: Date.now()
+    };
+
+    setNotifications(prev => [newNotification, ...prev].slice(0, 3)); // Keep max 3 notifications
+  };
+
+  // Function to remove a notification by ID
+  const removeNotification = (id: string) => {
+    setNotifications(prev => prev.filter(notif => notif.id !== id));
+  };
+
   async function saveUserPreferences() {
     if (!currentUser) return;
 
     try {
       setSaving(true);
 
-      // Store user preferences in a new table called user_preferences
-      // First check if the user already has preferences
-      const { data: existingPrefs, error: getError } = await supabase
-        .from('user_preferences')
-        .select('id')
-        .eq('user_id', currentUser.id)
-        .single();
-
+      // Get the tag IDs from selected preferences
       const tagIds = preferredTagObjects.map(tag => tag.id).filter(Boolean);
-      const techIds = preferredTechObjects.map(tech => tech.id).filter(Boolean);
 
-      if (getError && getError.code !== 'PGRST116') {
-        // Error other than "not found"
-        throw getError;
+      // First handle tag preferences - this is a many-to-many relationship table
+      try {
+        // First, delete all existing tag preferences for this user
+        const { error: deleteError } = await supabase
+          .from('user_tag_preferences')
+          .delete()
+          .eq('user_id', currentUser.id);
+
+        if (deleteError) throw new Error(`Error deleting existing tag preferences: ${deleteError.message}`);
+
+        // Then insert new preferences if there are any
+        if (tagIds.length > 0) {
+          // Prepare the rows for insertion
+          const tagRows = tagIds.map(tag_id => ({
+            user_id: currentUser.id,
+            tag_id
+          }));
+
+          const { error: insertError } = await supabase
+            .from('user_tag_preferences')
+            .insert(tagRows);
+
+          if (insertError) throw new Error(`Error inserting tag preferences: ${insertError.message}`);
+        }
+      } catch (prefError) {
+        console.error("Failed to save tag preferences:", prefError);
+        throw prefError;
       }
 
-      if (existingPrefs) {
-        // Update existing preferences
-        const { error: updateError } = await supabase
-          .from('user_preferences')
-          .update({
-            preferred_tags: tagIds,
-            preferred_technologies: techIds,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', existingPrefs.id);
+      // Now handle the email preferences
+      try {
+        // First check if the user already has email preferences
+        const { data: existingEmailPrefs, error: getEmailError } = await supabase
+          .from('user_email_preferences')
+          .select('*')  // Select all columns to ensure we have everything we need
+          .eq('user_id', currentUser.id)
+          .maybeSingle(); 
 
-        if (updateError) throw updateError;
-      } else {
-        // Insert new preferences
-        const { error: insertError } = await supabase
-          .from('user_preferences')
-          .insert({
-            user_id: currentUser.id,
-            preferred_tags: tagIds,
-            preferred_technologies: techIds
-          });
+        if (getEmailError) {
+          throw new Error(`Error fetching email preferences: ${getEmailError.message}`);
+        }
 
-        if (insertError) throw insertError;
+        // Validate email frequency value before saving
+        const validFrequencies = ['never', 'daily', 'weekly'];
+        if (!validFrequencies.includes(emailFrequency)) {
+          throw new Error(`Invalid email frequency: ${emailFrequency}`);
+        }
+
+        // Prepare the data object without updated_at to avoid schema mismatches
+        const emailPrefData = {
+          user_id: currentUser.id,
+          email_frequency: emailFrequency
+        };
+
+        if (existingEmailPrefs) {
+          // Update existing email preferences using user_id as the identifier
+          const { error: updateEmailError } = await supabase
+            .from('user_email_preferences')
+            .update(emailPrefData)
+            .eq('user_id', currentUser.id);
+
+          if (updateEmailError) throw new Error(`Error updating email preferences: ${updateEmailError.message}`);
+        } else {
+          // Insert new email preferences
+          const { error: insertEmailError } = await supabase
+            .from('user_email_preferences')
+            .insert(emailPrefData);
+
+          if (insertEmailError) throw new Error(`Error inserting email preferences: ${insertEmailError.message}`);
+        }
+      } catch (emailPrefError) {
+        console.error("Failed to save email preferences:", emailPrefError);
+        throw emailPrefError;
       }
 
       // Show success message
       setSaveMessage({ type: 'success', text: 'Preferences saved successfully!' });
-
+      
+      // Show success notification
+      addNotification('Your preferences have been saved successfully!', 'success');
+      
       // Clear message after a few seconds
       setTimeout(() => setSaveMessage(null), 3000);
     } catch (error) {
-      console.error('Error saving preferences:', error);
+      console.error('Error saving preferences:', error.message || error);
 
       // Show error message
-      setSaveMessage({ type: 'error', text: 'Failed to save preferences' });
-
+      setSaveMessage({ 
+        type: 'error', 
+        text: `Failed to save preferences: ${error.message || 'Unknown error'}` 
+      });
+      
+      // Show error notification
+      addNotification(`Failed to save preferences: ${error.message || 'Unknown error'}`, 'error');
+      
       // Clear message after a few seconds
-      setTimeout(() => setSaveMessage(null), 3000);
+      setTimeout(() => setSaveMessage(null), 5000);
     } finally {
       setSaving(false);
     }
@@ -392,23 +367,6 @@ export default function Settings() {
     }
   }
 
-  async function fetchTechnologiesById(techIds) {
-    try {
-      const { data, error } = await supabase
-        .from('technologies')
-        .select('id, name')
-        .in('id', techIds);
-        
-      if (error) throw error;
-      setPreferredTechObjects(data || []);
-      setPreferredTechNames((data || []).map(tech => tech.name));
-    } catch (error) {
-      console.error("Error fetching technologies by ID:", error);
-      setPreferredTechObjects([]);
-      setPreferredTechNames([]);
-    }
-  }
-
   const handleTagsChange = (type, names) => {
     if (type === "tags") {
       setPreferredTagNames(names);
@@ -418,14 +376,6 @@ export default function Settings() {
         return obj || { name };
       });
       setPreferredTagObjects(objects);
-    } else if (type === "technologies") {
-      setPreferredTechNames(names);
-      // Map names back to objects
-      const objects = names.map(name => {
-        const obj = allTechObjects.find(t => t.name === name);
-        return obj || { name };
-      });
-      setPreferredTechObjects(objects);
     }
   };
 
@@ -485,19 +435,49 @@ export default function Settings() {
 
       <div className="mb-8 p-6 bg-gray-800 rounded-lg">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold">Your Preferred Technologies</h2>
-          <p className="text-sm text-gray-400">Select the technologies you're interested in</p>
+          <h2 className="text-xl font-semibold">Email Notifications</h2>
+          <p className="text-sm text-gray-400">How often would you like to receive emails?</p>
         </div>
-
-        <MultiSelector
-          availableTags={allTechNames}
-          onTagsChange={(tags) => handleTagsChange("technologies", tags)}
-          initialTags={preferredTechNames}
-        />
+        
+        <div className="flex flex-col space-y-3">
+          <label className="inline-flex items-center">
+            <input 
+              type="radio" 
+              name="emailFrequency" 
+              value="never" 
+              checked={emailFrequency === 'never'}
+              onChange={(e) => setEmailFrequency(e.target.value)}
+              className="form-radio h-5 w-5 text-blue-600"
+            />
+            <span className="ml-2">Never</span>
+          </label>
+          <label className="inline-flex items-center">
+            <input 
+              type="radio" 
+              name="emailFrequency" 
+              value="daily" 
+              checked={emailFrequency === 'daily'}
+              onChange={(e) => setEmailFrequency(e.target.value)}
+              className="form-radio h-5 w-5 text-blue-600"
+            />
+            <span className="ml-2">Daily</span>
+          </label>
+          <label className="inline-flex items-center">
+            <input 
+              type="radio" 
+              name="emailFrequency" 
+              value="weekly" 
+              checked={emailFrequency === 'weekly'}
+              onChange={(e) => setEmailFrequency(e.target.value)}
+              className="form-radio h-5 w-5 text-blue-600"
+            />
+            <span className="ml-2">Weekly</span>
+          </label>
+        </div>
         
         <div className="mt-3 text-sm text-gray-400">
-          <p>• Select technologies to customize your project recommendations</p>
-          <p>• These technologies are derived from projects you've interacted with</p>
+          <p>• Select how frequently you want to receive recommendation emails</p>
+          <p>• Choose "Never" to opt out of all notification emails</p>
         </div>
       </div>
 
@@ -574,6 +554,12 @@ export default function Settings() {
           <li>The more you interact with projects, the better your recommendations become!</li>
         </ul>
       </div>
+      
+      {/* Updated Notification component */}
+      <Notification
+        notifications={notifications}
+        onClose={removeNotification}
+      />
     </div>
   );
 }
