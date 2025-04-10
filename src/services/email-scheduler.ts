@@ -1,4 +1,5 @@
 import { supabase } from '@/supabaseClient';
+import { supabaseAdmin } from '@/supabaseAdmin'; // Add this import
 import { getHybridRecommendations } from './recommendation-service';
 import { sendRecommendationEmail } from './email-service';
 
@@ -49,20 +50,16 @@ export async function processEmailSchedule(): Promise<EmailScheduleResult> {
     // Process each user
     for (const user of (usersToEmail || [])) {
       try {
-        // Get the user's email address
-        const { data: userData, error: userError } = await supabase
-          .from('profiles') // Make sure this matches your profiles table name
-          .select('email')
-          .eq('id', user.user_id)
-          .single();
+        const { data: userData, error: userError } = await supabaseAdmin.auth
+          .admin.getUserById(user.user_id);
+    
+        const userEmail = userData?.user?.email;
         
-        if (userError || !userData || !userData.email) {
+        if (!userEmail) {
           console.log(`📧 No email found for user ${user.user_id}, skipping`);
           skipCount++;
           continue;
         }
-        
-        const userEmail = userData.email;
         
         // Check if we already sent an email to this user today
         const { data: recentEmails } = await supabase
