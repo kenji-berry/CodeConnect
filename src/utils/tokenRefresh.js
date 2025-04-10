@@ -22,7 +22,7 @@ export async function storeGitHubToken(token, refreshToken, expiresIn = 2628000)
   }
 }
 
-export async function getValidGitHubToken() {
+export async function getValidGitHubToken(req, res) {
   try {
     // Test if we can access GitHub API with current cookie
     const response = await fetch('/api/github/user', {
