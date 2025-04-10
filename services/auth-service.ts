@@ -29,7 +29,7 @@ export async function handleGitHubCallback(code: string) {
 }
 
 // Helper function to fetch user profile directly (will be used during login only)
-async function fetchUserProfile(token) {
+async function fetchUserProfile(token: string) { 
   const response = await fetch('https://api.github.com/user', {
     headers: { 'Authorization': `Bearer ${token}` }
   });
