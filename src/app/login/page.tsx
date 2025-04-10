@@ -1,14 +1,14 @@
 "use client";
 
-import React, { useEffect } from 'react';
+import React, { useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import LoginButton from '../Components/LoginButton';
 
-export default function AuthRequiredPage() {
+function AuthRequiredContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const returnPath = searchParams?.get('returnTo') || '/';
-  
+
   // Store return path for after login
   useEffect(() => {
     localStorage.setItem('redirectAfterLogin', returnPath);
@@ -35,5 +35,13 @@ export default function AuthRequiredPage() {
         </button>
       </div>
     </div>
+  );
+}
+
+export default function AuthRequiredPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <AuthRequiredContent />
+    </Suspense>
   );
 }
