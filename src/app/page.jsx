@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import CodeConnectTitle from "./Components/CodeConnectTitle";
 import ProjectPreview from "./Components/ProjectPreview";
@@ -8,17 +8,17 @@ import SingleSelector from "./Components/SingleSelector";
 import { supabase } from '@/supabaseClient';
 import { getPopularProjects, getHybridRecommendations } from '@/services/recommendation-service';
 
-export default function Home() {
+function HomeContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
   const [availableTechnologies, setAvailableTechnologies] = useState([]);
   const [selectedTechnologies, setSelectedTechnologies] = useState([]);
-  const [selectedContributionTypes, setSelectedContributionTypes] = useState<Array<string>>([]);
-  const [selectedDifficulty, setSelectedDifficulty] = useState<string>("");
-  const [selectedLastUpdated, setSelectedLastUpdated] = useState<string>("");
-  const [filterMode, setFilterMode] = useState<string>('AND');
-  const [user, setUser] = useState<{ email: string } | null>(null);
+  const [selectedContributionTypes, setSelectedContributionTypes] = useState([]);
+  const [selectedDifficulty, setSelectedDifficulty] = useState("");
+  const [selectedLastUpdated, setSelectedLastUpdated] = useState("");
+  const [filterMode, setFilterMode] = useState('AND');
+  const [user, setUser] = useState(null);
   const [recentProjects, setRecentProjects] = useState([]);
   const [recommendedProjects, setRecommendedProjects] = useState([]);
 
@@ -403,5 +403,13 @@ export default function Home() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <HomeContent />
+    </Suspense>
   );
 }
