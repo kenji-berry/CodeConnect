@@ -2,21 +2,26 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/supabaseClient';
 
-export default function AuthCallback() {
+export default function AuthCallbackPage() {
   const router = useRouter();
   
   useEffect(() => {
-    // Handle the hash fragment
-    supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN' && session) {
-        // Redirect to onboarding or wherever needed
-        router.push('/onboarding');
-      }
-    });
+    const redirectTimer = setTimeout(() => {
+      router.push('/');
+    }, 2000);
+    
+    return () => clearTimeout(redirectTimer);
   }, [router]);
-  
-  return <div>Completing login...</div>;
-}
 
+  return (
+    <div className="flex items-center justify-center min-h-screen w-full radial-background">
+      <div className="text-center">
+        <div className="mb-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[--title-red] mx-auto"></div>
+        </div>
+        <h1 className="inria-sans-bold text-xl text-off-white">Completing Login</h1>
+      </div>
+    </div>
+  );
+}
