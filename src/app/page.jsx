@@ -317,68 +317,72 @@ function HomeContent() {
         <div className="main-page-contents">
           <div className="w-full py-2.5">
             <h3 className="inter-bold main-subtitle">Recommended For You:</h3>
-            
-            {loadingRecommendations ? (
-              <div className="flex items-center justify-center p-8">
-                <div className="text-center">
-                  <div className="mb-4">
-                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[--title-red] mx-auto"></div>
+          
+            <div className="min-h-[400px]">
+              {loadingRecommendations ? (
+                <div className="flex items-center justify-center h-full p-8">
+                  <div className="text-center">
+                    <div className="mb-4">
+                      <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[--title-red] mx-auto"></div>
+                    </div>
+                    <p className="text-sm text-off-white">Loading recommendations...</p>
                   </div>
-                  <p className="text-sm text-off-white">Loading recommendations...</p>
                 </div>
-              </div>
-            ) : !user ? (
-              <div className="relative">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 blur-sm opacity-60">
-                  {[...Array(3)].map((_, index) => (
+              ) : !user ? (
+                <div className="relative h-full">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 blur-sm opacity-60">
+                    {[...Array(3)].map((_, index) => (
+                      <ProjectPreview
+                        key={`placeholder-${index}`}
+                        id={index}
+                        name={`Example Project ${index + 1}`}
+                        date={"2025-03-15"}
+                        tags={["React", "TypeScript", "UI/UX"]}
+                        description="This is a placeholder project description to show the recommendation feature"
+                        techStack={["React", "TypeScript", "Node.js"]}
+                        issueCount={0}
+                        recommended={true}
+                      />
+                    ))}
+                  </div>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="bg-opacity-70 p-6 text-center ">
+                      <h3 className="text-lg font-bold mb-2">Log in for personalized recommendations</h3>
+                      <p>See projects tailored to your interests and skills</p>
+                    </div>
+                  </div>
+                </div>
+              ) : recommendedProjects.length === 0 ? (
+                <div className="bg-gray-900 rounded-lg p-8 text-center h-full flex items-center justify-center">
+                  <div>
+                    <h3 className="text-lg font-bold mb-2">Looking for recommendations?</h3>
+                    <p className="mb-3 text-sm">Explore and interact with more projects to help us understand your interests!</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {recommendedProjects.map(project => (
                     <ProjectPreview
-                      key={`placeholder-${index}`}
-                      id={index}
-                      name={`Example Project ${index + 1}`}
-                      date={"2025-03-15"}
-                      tags={["React", "TypeScript", "UI/UX"]}
-                      description="This is a placeholder project description to show the recommendation feature"
-                      techStack={["React", "TypeScript", "Node.js"]}
+                      key={project.id}
+                      id={project.id}
+                      name={project.repo_name}
+                      date={project.created_at}
+                      tags={project.tags.slice(0, 3)}
+                      description={
+                        project.description_type === "Write your Own" 
+                          ? project.custom_description 
+                          : "GitHub project description"
+                      }
+                      techStack={project.technologies
+                        .filter(tech => tech.is_highlighted)
+                        .map(tech => tech.name)}
                       issueCount={0}
                       recommended={true}
                     />
                   ))}
                 </div>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className=" bg-opacity-70 p-6 text-center ">
-                    <h3 className="text-lg font-bold mb-2">Log in for personalized recommendations</h3>
-                    <p>See projects tailored to your interests and skills</p>
-                  </div>
-                </div>
-              </div>
-            ) : recommendedProjects.length === 0 ? (
-              <div className="bg-gray-900 rounded-lg p-8 text-center">
-                <h3 className="text-lg font-bold mb-2">Looking for recommendations?</h3>
-                <p className="mb-3 text-sm">Explore and interact with more projects to help us understand your interests!</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {recommendedProjects.map(project => (
-                  <ProjectPreview
-                    key={project.id}
-                    id={project.id}
-                    name={project.repo_name}
-                    date={project.created_at}
-                    tags={project.tags.slice(0, 3)}
-                    description={
-                      project.description_type === "Write your Own" 
-                        ? project.custom_description 
-                        : "GitHub project description"
-                    }
-                    techStack={project.technologies
-                      .filter(tech => tech.is_highlighted)
-                      .map(tech => tech.name)}
-                    issueCount={0}
-                    recommended={true}
-                  />
-                ))}
-              </div>
-            )}
+              )}
+            </div>
           </div>
 
           <div className="w-full py-2.5">
