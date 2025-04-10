@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from 'next/navigation';
 import { supabase } from "@/supabaseClient";
 import "../../post-project/style.css";
@@ -15,7 +15,11 @@ interface ResourceLink {
   isValid: boolean;
 }
 
-const Page = () => {
+function ProjectFormContent() {
+  const searchParams = useSearchParams();
+  const repoName = searchParams ? searchParams.get('repo') : null;
+  const owner = searchParams ? searchParams.get('owner') : null;
+
   const [tags, setTags] = useState<string[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [technologies, setTechnologies] = useState<string[]>([]);
@@ -30,6 +34,19 @@ const Page = () => {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   const [hasRepoAccess, setHasRepoAccess] = useState<boolean>(false);
+  const [repoInfo, setRepoInfo] = useState({
+    owner: '',
+    license: '',
+    languages: {},
+    size: 0,
+    stars: 0,
+    forks: 0,
+    contributors: 0,
+    openIssues: 0,
+    goodFirstIssues: 0,
+    pullRequests: 0,
+    latestCommit: '',
+  });
 
   const handleTagsChange = (tags: string[]) => {
     setSelectedTags(tags);
@@ -70,24 +87,6 @@ const Page = () => {
       return false;
     }
   };
-
-  const searchParams = useSearchParams();
-  const repoName = searchParams ? searchParams.get('repo') : null;
-  const owner = searchParams ? searchParams.get('owner') : null;
-  
-  const [repoInfo, setRepoInfo] = useState({
-    owner: '',
-    license: '',
-    languages: {},
-    size: 0,
-    stars: 0,
-    forks: 0,
-    contributors: 0,
-    openIssues: 0,
-    goodFirstIssues: 0,
-    pullRequests: 0,
-    latestCommit: '',
-  });
 
   useEffect(() => {
     const fetchAllData = async () => {
@@ -500,8 +499,16 @@ const Page = () => {
           </button>
         </div>
       </form>
-      {/* Form content */}
     </div>
+  );
+}
+
+// Main page component that provides Suspense boundary
+const Page = () => {
+  return (
+    <Suspense fallback={<div className="w-screen h-screen flex items-center justify-center">Loading project form...</div>}>
+      <ProjectFormContent />
+    </Suspense>
   );
 };
 
