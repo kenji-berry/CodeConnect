@@ -5,7 +5,7 @@ const Logo = ({ rem }: { rem: number }) => {
   return (
     <div>
       <img
-        src="CodeConnectLogo.svg"
+        src="/CodeConnectLogo.svg"
         alt="CodeConnect Logo"
         style={{ width: size, height: size }}
       />
