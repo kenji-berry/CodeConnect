@@ -21,6 +21,8 @@ function HomeContent() {
   const [user, setUser] = useState(null);
   const [recentProjects, setRecentProjects] = useState([]);
   const [recommendedProjects, setRecommendedProjects] = useState([]);
+  const [loadingRecommendations, setLoadingRecommendations] = useState(true);
+  const [loadingRecentProjects, setLoadingRecentProjects] = useState(true);
 
   useEffect(() => {
     const technologies = searchParams.get("technologies")?.split(",") || [];
@@ -104,9 +106,50 @@ function HomeContent() {
     fetchTechnologies();
   }, []);
 
+  const CACHE_EXPIRATION = 5 * 60 * 1000; // 5 minutes
+
+  const getCachedData = (key) => {
+    try {
+      const item = localStorage.getItem(key);
+      if (!item) return null;
+      
+      const { data, timestamp } = JSON.parse(item);
+      if (Date.now() - timestamp > CACHE_EXPIRATION) {
+        localStorage.removeItem(key);
+        return null;
+      }
+      
+      return data;
+    } catch (error) {
+      console.error(`Error retrieving cached ${key}:`, error);
+      return null;
+    }
+  };
+
+  const setCachedData = (key, data) => {
+    try {
+      localStorage.setItem(key, JSON.stringify({
+        data,
+        timestamp: Date.now()
+      }));
+    } catch (error) {
+      console.error(`Error caching ${key}:`, error);
+    }
+  };
+
   useEffect(() => {
     const fetchRecentProjects = async () => {
+      setLoadingRecentProjects(true);
       try {
+        // Try to get cached data first
+        const cachedProjects = getCachedData('recent_projects');
+        if (cachedProjects) {
+          setRecentProjects(cachedProjects);
+          setLoadingRecentProjects(false);
+          return;
+        }
+
+        // No cache, fetch from database
         const { data: projects, error: projectsError } = await supabase
           .from('project')
           .select(`
@@ -165,9 +208,16 @@ function HomeContent() {
           })
         );
 
+        // Cache the projects
+        if (projectsWithData?.length > 0) {
+          setCachedData('recent_projects', projectsWithData);
+        }
+        
         setRecentProjects(projectsWithData);
       } catch (error) {
         console.error('Failed to fetch recent projects:', error);
+      } finally {
+        setLoadingRecentProjects(false);
       }
     };
 
@@ -176,19 +226,35 @@ function HomeContent() {
 
   useEffect(() => {
     const fetchRecommendations = async () => {
+      setLoadingRecommendations(true);
       try {
         const { data: { session } } = await supabase.auth.getSession();
+        const cacheKey = session?.user?.id ? `recommendations_${session.user.id}` : 'recommendations_guest';
         
-        if (session?.user) {
-          const recommendations = await getHybridRecommendations(session.user.id, 3, true);
-          setRecommendedProjects(recommendations || []);
-        } else {
-          const popular = await getPopularProjects(3, true);
-          setRecommendedProjects(popular || []);
+        const cachedRecommendations = getCachedData(cacheKey);
+        if (cachedRecommendations) {
+          setRecommendedProjects(cachedRecommendations);
+          setLoadingRecommendations(false);
+          return;
         }
+        
+        let recommendations;
+        if (session?.user) {
+          recommendations = await getHybridRecommendations(session.user.id, 3, true);
+        } else {
+          recommendations = await getPopularProjects(3, true);
+        }
+        
+        if (recommendations?.length > 0) {
+          setCachedData(cacheKey, recommendations);
+        }
+        
+        setRecommendedProjects(recommendations || []);
       } catch (error) {
         console.error('Error fetching recommendations:', error);
         setRecommendedProjects([]);
+      } finally {
+        setLoadingRecommendations(false);
       }
     };
     
@@ -252,7 +318,16 @@ function HomeContent() {
           <div className="w-full py-2.5">
             <h3 className="inter-bold main-subtitle">Recommended For You:</h3>
             
-            {!user ? (
+            {loadingRecommendations ? (
+              <div className="flex items-center justify-center p-8">
+                <div className="text-center">
+                  <div className="mb-4">
+                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[--title-red] mx-auto"></div>
+                  </div>
+                  <p className="text-sm text-off-white">Loading recommendations...</p>
+                </div>
+              </div>
+            ) : !user ? (
               <div className="relative">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 blur-sm opacity-60">
                   {[...Array(3)].map((_, index) => (
@@ -375,29 +450,39 @@ function HomeContent() {
           </div>
 
           <div className="main-page-holder">
-            {recentProjects.map((project) => (
-              <ProjectPreview
-                id={project.id}
-                key={project.id}
-                name={project.repo_name}
-                date={new Date(project.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
-                tags={project.tags.slice(0, 3)}
-                description={
-                  project.description_type === "Write your Own" 
-                    ? project.custom_description 
-                    : "Loading GitHub description..."
-                }
-                techStack={project.technologies
-                  .filter(tech => tech.is_highlighted)
-                  .map(tech => tech.name)}
-                issueCount={0}
-                recommended={false}
-              />
-            ))}
-            {recentProjects.length === 0 && (
+            {loadingRecentProjects ? (
+              <div className="flex items-center justify-center p-8 w-full">
+                <div className="text-center">
+                  <div className="mb-4">
+                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[--title-red] mx-auto"></div>
+                  </div>
+                  <p className="text-sm text-off-white">Loading projects...</p>
+                </div>
+              </div>
+            ) : recentProjects.length === 0 ? (
               <div className="text-center text-gray-400 py-4">
                 No projects found
               </div>
+            ) : (
+              recentProjects.map((project) => (
+                <ProjectPreview
+                  id={project.id}
+                  key={project.id}
+                  name={project.repo_name}
+                  date={new Date(project.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                  tags={project.tags.slice(0, 3)}
+                  description={
+                    project.description_type === "Write your Own" 
+                      ? project.custom_description 
+                      : "Loading GitHub description..."
+                  }
+                  techStack={project.technologies
+                    .filter(tech => tech.is_highlighted)
+                    .map(tech => tech.name)}
+                  issueCount={0}
+                  recommended={false}
+                />
+              ))
             )}
           </div>
         </div>
