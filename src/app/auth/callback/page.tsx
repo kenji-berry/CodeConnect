@@ -19,3 +19,4 @@ export default function AuthCallback() {
   
   return <div>Completing login...</div>;
 }
+
