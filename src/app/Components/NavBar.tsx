@@ -165,10 +165,9 @@ const NavBar = () => {
       </div>
       {notification && (
         <Notification
-          message={notification.message}
-          type={notification.type}
-          onClose={() => setNotification(null)}
-        />
+        notification={notification}
+        onClose={() => setNotification(null)}
+      />
       )}
     </nav>
   );
