@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { Auth } from '@supabase/auth-ui-react';
 
 export default async function handler(req, res) {
   const { code } = req.query;
@@ -39,3 +40,10 @@ export default async function handler(req, res) {
     return res.status(500).redirect('/auth/error');
   }
 }
+
+// Then in your component:
+<Auth
+  supabaseClient={supabase}
+  providers={['github']}
+  redirectTo={`${window.location.origin}/onboarding`}
+/>

@@ -14,7 +14,7 @@ const LoginButton = () => {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'github',
         options: {
-          redirectTo: `${window.location.origin}/onboarding`,
+          redirectTo: `${window.location.origin}/auth/callback`,
           scopes: 'repo read:user user:email',
           queryParams: {
             access_type: 'offline'
