@@ -8,15 +8,6 @@ import SingleSelector from "./Components/SingleSelector";
 import { supabase } from '@/supabaseClient';
 import { getPopularProjects, getHybridRecommendations } from '@/services/recommendation-service';
 
-interface GitHubData {
-  repositories?: unknown[];
-  user?: {
-    login: string;
-    name: string;
-    email: string;
-  };
-}
-
 interface Technology {
   id: number;
   name: string;

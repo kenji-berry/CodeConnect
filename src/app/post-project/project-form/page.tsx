@@ -3,30 +3,6 @@ import React, { useState, useEffect } from "react";
 import { useSearchParams } from 'next/navigation';
 import { supabase } from "@/supabaseClient";
 import "../../post-project/style.css";
-import MultiSelector from "../../Components/MultiSelector";
-import SingleSelector from "../../Components/SingleSelector";
-import LanguageBar from "../../Components/LanguageBar";
-import DifficultySelector from "../../Components/DifficultySelector";
-import HighlightableMultiSelector from "../../Components/HighlightableMultiSelector";
-
-const statusOptions = [
-  {
-    value: "Active Development",
-    tooltip: "Project is being actively developed with regular updates"
-  },
-  {
-    value: "Stable/Maintenance",
-    tooltip: "Project is complete and stable, receiving occasional updates"
-  },
-  {
-    value: "Seeking Contributors",
-    tooltip: "Project is actively looking for new contributors"
-  },
-  {
-    value: "Early Stage/Experimental",
-    tooltip: "Project is in its early phases with potential for significant changes"
-  }
-];
 
 interface ResourceLink {
   name: string;
