@@ -5,20 +5,14 @@ import { supabase } from '@/supabaseClient';
 import Link from 'next/link';
 import MultiSelector from '../Components/MultiSelector';
 import { User } from '@supabase/supabase-js';
-import Notification, { NotificationItem } from '../Components/Notification';
 
 export default function Settings() {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [preferredTagNames, setPreferredTagNames] = useState<string[]>([]);
   const [allTagNames, setAllTagNames] = useState<string[]>([]);
-  const [preferredTagObjects, setPreferredTagObjects] = useState<{ id: string; name: string }[]>([]);
   const [allTagObjects, setAllTagObjects] = useState<{ id: string; name: string }[]>([]);
   const [emailFrequency, setEmailFrequency] = useState<string>('never');
-  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
     async function fetchUserData() {
@@ -33,8 +27,6 @@ export default function Settings() {
           setLoading(false);
           return;
         }
-
-        setCurrentUser(user);
 
         // Fetch all available tags for the selector
         await fetchAllTags();
@@ -70,11 +62,6 @@ export default function Settings() {
 
   const handleTagsChange = (names: string[]) => {
     setPreferredTagNames(names);
-    const objects = names.map(name => {
-      const obj = allTagObjects.find(t => t.name === name);
-      return obj || { id: '', name };
-    });
-    setPreferredTagObjects(objects);
   };
 
   if (loading) {
@@ -102,16 +89,6 @@ export default function Settings() {
   return (
     <div className="max-w-4xl mx-auto p-8">
       <h1 className="text-2xl font-bold mb-6">Your Preferences</h1>
-      
-      {saveMessage && (
-        <div className={`p-4 mb-4 rounded-md ${
-          saveMessage.type === 'success' 
-            ? 'bg-green-500 bg-opacity-20 border border-green-500' 
-            : 'bg-red-500 bg-opacity-20 border border-red-500'
-        }`}>
-          {saveMessage.text}
-        </div>
-      )}
 
       <div className="mb-8 p-6 bg-gray-800 rounded-lg">
         <div className="flex justify-between items-center mb-4">

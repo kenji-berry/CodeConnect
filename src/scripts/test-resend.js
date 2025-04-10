@@ -1,10 +1,13 @@
-const { Resend } = require('resend');
-require('dotenv').config({ path: '.env.local' });
+import { Resend } from 'resend';
+import dotenv from 'dotenv';
+
+// Load environment variables
+dotenv.config({ path: '.env.local' });
 
 // Initialize Resend
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-//test email
+// Test email
 const yourEmail = 'kenjiberry321@gmail.com';
 
 async function testResendEmail() {

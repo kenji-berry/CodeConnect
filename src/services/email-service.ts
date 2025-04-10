@@ -1,5 +1,4 @@
 import { supabase } from '@/supabaseClient';
-import { getHybridRecommendations } from './recommendation-service';
 import { Resend } from 'resend';
 
 // Initialize Resend client

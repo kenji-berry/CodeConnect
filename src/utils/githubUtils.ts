@@ -1,6 +1,3 @@
-import { supabase } from '../supabaseClient';
-import { getValidGitHubToken, storeGitHubToken } from './tokenRefresh';
-
 export async function fetchGitHubApi(url: string, options: RequestInit = {}): Promise<unknown> {
   try {
     const apiPath = url.replace('https://api.github.com/', '');

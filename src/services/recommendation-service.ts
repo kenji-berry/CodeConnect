@@ -154,7 +154,7 @@ async function getUserInteractions(userId: string) {
 /**
  * Calculate interaction scores for projects
  * Like = 1 point, View = 0.5 points
- */
+
 async function calculateInteractionScores(userId: string) {
   const interactions = await getUserInteractions(userId);
   
@@ -175,7 +175,7 @@ async function calculateInteractionScores(userId: string) {
   
   return scores;
 }
-
+ */
 async function getUserPreferredTags(userId: string, debug = false) {
   // Get user interactions
   const interactions = await getUserInteractions(userId);
@@ -259,6 +259,8 @@ async function getUserPreferredTags(userId: string, debug = false) {
   
   return uniqueTags;
 }
+/**
+
 
 async function getUserPreferredTechnologies(userId: string) {
   // Get user interactions
@@ -310,6 +312,7 @@ async function getAlreadyInteractedProjects(userId: string) {
   const interactions = await getUserInteractions(userId);
   return [...new Set(interactions.map(i => i.repo_id))];
 }
+ */
 
 // Fix the getUserTagPreferences function to be more robust
 async function getUserTagPreferences(userId: string, debug = false) {

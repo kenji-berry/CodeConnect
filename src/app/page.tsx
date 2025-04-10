@@ -6,10 +6,10 @@ import ProjectPreview from "./Components/ProjectPreview";
 import MultiSelector from "./Components/MultiSelector";
 import SingleSelector from "./Components/SingleSelector";
 import { supabase } from '@/supabaseClient';
-import { getRecommendedProjects, getPopularProjects, getHybridRecommendations } from '@/services/recommendation-service';
+import { getPopularProjects, getHybridRecommendations } from '@/services/recommendation-service';
 
 interface GitHubData {
-  repositories?: any[];
+  repositories?: unknown[];
   user?: {
     login: string;
     name: string;
@@ -48,7 +48,6 @@ export default function Home() {
   const [selectedLastUpdated, setSelectedLastUpdated] = useState<string>("");
   const [filterMode, setFilterMode] = useState<string>('AND');
   const [user, setUser] = useState<{ email: string } | null>(null);
-  const [githubData, setGithubData] = useState<GitHubData | null>(null);
   const [recentProjects, setRecentProjects] = useState<Project[]>([]);
   const [recommendedProjects, setRecommendedProjects] = useState<Project[]>([]);
 
@@ -137,7 +136,6 @@ export default function Home() {
   useEffect(() => {
     const fetchRecentProjects = async () => {
       try {
-        // Fetch the 5 most recent projects with their basic info
         const { data: projects, error: projectsError } = await supabase
           .from('project')
           .select(`
@@ -156,10 +154,9 @@ export default function Home() {
           console.error('Error fetching projects:', projectsError);
           return;
         }
-        // Fetch technologies and tags for each project
+
         const projectsWithData = await Promise.all(
           projects.map(async (project) => {
-            // Fetch technologies
             const { data: techData, error: techError } = await supabase
               .from('project_technologies')
               .select(`
@@ -168,7 +165,6 @@ export default function Home() {
               `)
               .eq('project_id', project.id);
 
-            // Fetch tags
             const { data: tagData, error: tagError } = await supabase
               .from('project_tags')  
               .select(`
@@ -187,9 +183,6 @@ export default function Home() {
               console.error('Error fetching tags:', tagError.message || tagError);
             }
 
-            console.log('Fetched technologies:', techData);
-            console.log('Fetched tags:', tagData);
-
             return {
               ...project,
               technologies: techData?.map(tech => ({
@@ -202,7 +195,6 @@ export default function Home() {
         );
 
         setRecentProjects(projectsWithData);
-        console.log(projectsWithData);
       } catch (error) {
         console.error('Failed to fetch recent projects:', error);
       }
@@ -214,42 +206,15 @@ export default function Home() {
   useEffect(() => {
     const fetchRecommendations = async () => {
       try {
-        console.log("===== RECOMMENDATION DEBUGGING =====");
-        console.log("Fetching recommendations...");
         const { data: { session } } = await supabase.auth.getSession();
         
         if (session?.user) {
-          console.log("User logged in:", session.user.id);
-          
-          // Check if there are any interactions first
-          const { data: interactions, error: interactionError } = await supabase
-            .from('user_interactions')
-            .select('*')
-            .eq('user_id', session.user.id);
-          
-          if (interactionError) {
-            console.error("Error fetching interactions:", interactionError);
-          }
-          
-          console.log(`Found ${interactions?.length || 0} interactions for user:`);
-          
-          // Use hybrid recommendations instead of just content-based
-          console.log("Calling getHybridRecommendations with debug enabled...");
           const recommendations = await getHybridRecommendations(session.user.id, 3, true);
-          
-          console.log("Recommendations received:", recommendations?.length || 0);
-          console.log("Recommended projects:", recommendations?.map(p => 
-            `${p.repo_name} (ID: ${p.id}, Tags: ${p.tags?.join(', ')}, Techs: ${p.technologies?.map(t => t.name).join(', ')})`
-          ));
-          
           setRecommendedProjects(recommendations || []);
         } else {
-          console.log("No user session, getting popular projects");
           const popular = await getPopularProjects(3, true);
-          console.log("Popular projects received:", popular?.length || 0);
           setRecommendedProjects(popular || []);
         }
-        console.log("===== END RECOMMENDATION DEBUGGING =====");
       } catch (error) {
         console.error('Error fetching recommendations:', error);
         setRecommendedProjects([]);
@@ -308,14 +273,6 @@ export default function Home() {
   const difficulty = ["Beginner", "Intermediate", "Advanced", "Expert"];
   const lastUpdated = ["Last 24 hours", "Last 7 days", "Last 30 days"];
 
-  const printTags = () => {
-    console.log("selected stuff");
-    console.log(selectedTechnologies);
-    console.log(selectedContributionTypes);
-    console.log(selectedDifficulty);
-    console.log(selectedLastUpdated);
-  };
-
   return (
     <div className="w-screen min-h-screen justify-center flex flex-col items-center">
       <CodeConnectTitle />
@@ -325,10 +282,8 @@ export default function Home() {
             <h3 className="inter-bold main-subtitle">Recommended For You:</h3>
             
             {!user ? (
-              // User is not logged in - show blurred placeholder recommendations with overlay
               <div className="relative">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 blur-sm opacity-60">
-                  {/* Static placeholder projects instead of fetching data */}
                   {[...Array(3)].map((_, index) => (
                     <ProjectPreview
                       key={`placeholder-${index}`}
@@ -351,13 +306,11 @@ export default function Home() {
                 </div>
               </div>
             ) : recommendedProjects.length === 0 ? (
-              // User is logged in but has no recommendations
               <div className="bg-gray-900 rounded-lg p-8 text-center">
                 <h3 className="text-lg font-bold mb-2">Looking for recommendations?</h3>
                 <p className="mb-3 text-sm">Explore and interact with more projects to help us understand your interests!</p>
               </div>
             ) : (
-              // User is logged in and has recommendations - show normal view
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {recommendedProjects.map(project => (
                   <ProjectPreview
