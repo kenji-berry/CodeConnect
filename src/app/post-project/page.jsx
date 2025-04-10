@@ -98,9 +98,16 @@ const Page = () => {
   };
 
   if (isLoading) {
-    return <div className="w-screen h-screen flex items-center justify-center">
-      <div className="text-neutral-100">Loading...</div>
-    </div>;
+    return (
+      <div className="flex items-center justify-center min-h-screen w-full radial-background">
+        <div className="text-center">
+          <div className="mb-4">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[--title-red] mx-auto"></div>
+          </div>
+          <h1 className="inria-sans-bold text-xl text-off-white">Loading Your Repositories</h1>
+        </div>
+      </div>
+    );
   }
 
   if (authError) {

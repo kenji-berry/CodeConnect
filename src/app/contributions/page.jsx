@@ -84,8 +84,13 @@ const ContributionsPage = () => {
 
   if (authLoading || loading) {
     return (
-      <div className="w-full min-h-screen flex justify-center items-center inria-sans-regular">
-        <p className="text-xl text-white">Loading your contributions...</p>
+      <div className="flex items-center justify-center min-h-screen w-full radial-background">
+        <div className="text-center">
+          <div className="mb-4">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[--title-red] mx-auto"></div>
+          </div>
+          <h1 className="inria-sans-bold text-xl text-off-white">Loading Your Contributions</h1>
+        </div>
       </div>
     );
   }
