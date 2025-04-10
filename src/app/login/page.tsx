@@ -7,7 +7,7 @@ import LoginButton from '../Components/LoginButton';
 export default function AuthRequiredPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const returnPath = searchParams.get('returnTo') || '/';
+  const returnPath = searchParams?.get('returnTo') || '/';
   
   // Store return path for after login
   useEffect(() => {
