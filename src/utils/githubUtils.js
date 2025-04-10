@@ -1,4 +1,4 @@
-export async function fetchGitHubApi(url: string, options: RequestInit = {}): Promise<unknown> {
+export async function fetchGitHubApi(url, options = {}) {
   try {
     const apiPath = url.replace('https://api.github.com/', '');
     console.log(`Making GitHub API request to ${apiPath}`);
@@ -41,30 +41,22 @@ export async function testGitHubAccess() {
   }
 }
 
-interface Repository {
-  id: number;
-  name: string;
-  full_name: string;
-  private: boolean;
-  // Add other fields as needed
-}
-
-export async function fetchUserRepositories(): Promise<Repository[]> {
+export async function fetchUserRepositories() {
   try {
     const data = await fetchGitHubApi('https://api.github.com/user/repos', {
       method: 'GET'
     });
-    return data as Repository[]; // Type assertion
+    return data;
   } catch (error) {
     console.error("Error fetching user repositories:", error);
     return [];
   }
 }
 
-export async function fetchRepositoryContent(owner: string, repo: string, path: string = '') {
+export async function fetchRepositoryContent(owner, repo, path = '') {
   return fetchGitHubApi(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`);
 }
 
-export async function fetchRepositoryLanguages(owner: string, repo: string): Promise<Record<string, number>> {
-  return fetchGitHubApi(`https://api.github.com/repos/${owner}/${repo}/languages`) as Promise<Record<string, number>>;
+export async function fetchRepositoryLanguages(owner, repo) {
+  return fetchGitHubApi(`https://api.github.com/repos/${owner}/${repo}/languages`);
 }

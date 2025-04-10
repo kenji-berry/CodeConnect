@@ -1,6 +1,6 @@
 import { supabase } from '@/supabaseClient';
 
-export async function trackProjectView(userId: string, projectId: string | number) {
+export async function trackProjectView(userId, projectId) {
   try {
     console.log('Tracking view:', { userId, projectId });
     
@@ -48,7 +48,7 @@ export async function trackProjectView(userId: string, projectId: string | numbe
   }
 }
 
-export async function trackProjectLike(userId: string, projectId: string | number) {
+export async function trackProjectLike(userId, projectId) {
   try {
     // First get the repo_name from project ID if a number was passed
     let repoId = projectId;
@@ -94,7 +94,7 @@ export async function trackProjectLike(userId: string, projectId: string | numbe
   }
 }
 
-export async function removeProjectLike(userId: string, projectId: string | number) {
+export async function removeProjectLike(userId, projectId) {
   try {
     // First get the repo_name from project ID if a number was passed
     let repoId = projectId;
@@ -137,7 +137,7 @@ export async function removeProjectLike(userId: string, projectId: string | numb
   }
 }
 
-async function getUserInteractions(userId: string) {
+async function getUserInteractions(userId) {
   const { data, error } = await supabase
     .from('user_interactions')
     .select('repo_id, interaction_type')
@@ -158,7 +158,7 @@ async function getUserInteractions(userId: string) {
 async function calculateInteractionScores(userId: string) {
   const interactions = await getUserInteractions(userId);
   
-  const scores = {};
+  
   interactions.forEach(interaction => {
     const { repo_id, interaction_type } = interaction;
     
@@ -176,7 +176,9 @@ async function calculateInteractionScores(userId: string) {
   return scores;
 }
  */
-async function getUserPreferredTags(userId: string, debug = false) {
+
+const scores = {};
+async function getUserPreferredTags(userId, debug = false) {
   // Get user interactions
   const interactions = await getUserInteractions(userId);
   
@@ -315,7 +317,7 @@ async function getAlreadyInteractedProjects(userId: string) {
  */
 
 // Fix the getUserTagPreferences function to be more robust
-async function getUserTagPreferences(userId: string, debug = false) {
+async function getUserTagPreferences(userId, debug = false) {
   try {
     // Validate input
     if (!userId) {
@@ -350,7 +352,7 @@ async function getUserTagPreferences(userId: string, debug = false) {
 }
 
 // Add additional detailed debugging to getRecommendedProjects
-export async function getRecommendedProjects(userId: string, limit = 5, debug = false) {
+export async function getRecommendedProjects(userId, limit = 5, debug = false) {
   try {
     if (debug) console.log("🔍 Starting recommendation process for user:", userId);
     
@@ -612,7 +614,7 @@ export async function getRecommendedProjects(userId: string, limit = 5, debug = 
   }
 }
 
-export async function getHybridRecommendations(userId: string, limit = 5, debug = false) {
+export async function getHybridRecommendations(userId, limit = 5, debug = false) {
   try {
     if (debug) console.log("🔄 Starting hybrid recommendation process");
 
@@ -860,7 +862,7 @@ async function enrichProjectsWithTagsAndTech(projects) {
 }
 
 // Fix the not.in filter syntax in the collaborative recommendations function
-export async function getCollaborativeRecommendations(userId: string, limit = 5, debug = false) {
+export async function getCollaborativeRecommendations(userId, limit = 5, debug = false) {
   try {
     if (debug) console.log("👥 Starting collaborative filtering for user:", userId);
 

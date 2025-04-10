@@ -10,7 +10,7 @@ const ContributionsPage = () => {
   const { session, loading: authLoading } = useAuth();
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchUserProjects = async () => {
@@ -18,8 +18,7 @@ const ContributionsPage = () => {
 
       try {
         setLoading(true);
-        
-        // Fetch projects with all needed data
+
         const { data: projects, error } = await supabase
           .from('project')
           .select(`
@@ -35,12 +34,10 @@ const ContributionsPage = () => {
           .order('created_at', { ascending: false });
 
         if (error) throw error;
-        
-        // Fetch technologies and tags for each project
+
         const projectsWithData = await Promise.all(
           projects.map(async (project) => {
-            // Fetch technologies
-            const { data: techData, error: techError } = await supabase
+            const { data: techData } = await supabase
               .from('project_technologies')
               .select(`
                 technologies (name),
@@ -48,32 +45,23 @@ const ContributionsPage = () => {
               `)
               .eq('project_id', project.id);
 
-            // Fetch tags
-            const { data: tagData, error: tagError } = await supabase
-              .from('project_tags')  
+            const { data: tagData } = await supabase
+              .from('project_tags')
               .select(`
-                tag_id,  
-                tags!inner (  
+                tag_id,
+                tags!inner (
                   name
                 )
               `)
               .eq('project_id', project.id);
 
-            if (techError) {
-              console.error('Error fetching technologies:', techError);
-            }
-
-            if (tagError) {
-              console.error('Error fetching tags:', tagError.message || tagError);
-            }
-
             return {
               ...project,
               technologies: techData?.map(tech => ({
-                name: tech.technologies.name,
-                is_highlighted: tech.is_highlighted
+                name: tech.technologies?.name || '',
+                is_highlighted: tech.is_highlighted || false,
               })) || [],
-              tags: tagData?.map(tag => tag.tags.name) || []  
+              tags: tagData?.map(tag => tag.tags?.name || '') || [],
             };
           })
         );

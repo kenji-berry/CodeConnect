@@ -28,15 +28,15 @@ const NavBar = () => {
 
   useEffect(() => {
     const lastAuthEventKey = 'last_auth_event';
-    const debounceTimeMs = 5000; 
-    
+    const debounceTimeMs = 5000;
+
     const handleVisibilityChange = () => {
       isTabVisibleRef.current = document.visibilityState === 'visible';
       console.log('Tab visibility changed:', isTabVisibleRef.current ? 'visible' : 'hidden');
     };
-    
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    
+
     const checkUser = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       const isLoggedIn = !!session;
@@ -49,25 +49,25 @@ const NavBar = () => {
 
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
       const isCurrentlyLoggedIn = !!session;
-      
+
       if (
-        (event === 'SIGNED_IN' || event === 'SIGNED_OUT') && 
+        (event === 'SIGNED_IN' || event === 'SIGNED_OUT') &&
         prevAuthStateRef.current !== isCurrentlyLoggedIn &&
         isTabVisibleRef.current
       ) {
         const now = Date.now();
         const lastEvent = localStorage.getItem(lastAuthEventKey);
-        
+
         if (!lastEvent || now - parseInt(lastEvent) > debounceTimeMs) {
           localStorage.setItem(lastAuthEventKey, now.toString());
-          
+
           setNotification({
             message: isCurrentlyLoggedIn ? 'Logged in successfully' : 'Logged out successfully',
-            type: 'success'
+            type: 'success',
           });
         }
       }
-      
+
       setLoggedIn(isCurrentlyLoggedIn);
       prevAuthStateRef.current = isCurrentlyLoggedIn;
     });
@@ -79,81 +79,13 @@ const NavBar = () => {
   }, []);
 
   return (
-    <nav className='w-full bg-transparent flex justify-between px-3 pt-3'>
-      <div className='flex'>
+    <nav className="w-full bg-transparent flex justify-between px-3 pt-3">
+      <div className="flex">
         <Link href="/">
-          <Logo rem={2.5}/>
+          <Logo rem={2.5} />
         </Link>
-        <ul className='flex gap-5 ml-6 inria-sans-bold mt-1 text-sm'>
-          <li>
-            <Link 
-              href="/" 
-              className={`transition-all duration-200 cursor-pointer ${
-                pathname === '/'
-                ? 'text-orange border-b-2 border-orange pb-1 font-bold' 
-                : 'text-off-white opacity-60 hover:opacity-90 hover:text-orange'
-              }`}
-            >
-              Home
-            </Link>
-          </li>
-          <li>
-            <Link 
-              href={loggedIn ? "/contributions" : "#"} 
-              onClick={(e) => !loggedIn && handleProtectedLink(e, "/contributions")}
-              className={`transition-all duration-200 cursor-pointer ${
-                pathname === '/contributions'
-                ? loggedIn ? 'text-orange border-b-2 border-orange pb-1 font-bold' : 'text-gray-500 opacity-40'
-                : loggedIn 
-                  ? 'text-off-white opacity-60 hover:opacity-90 hover:text-orange' 
-                  : 'text-gray-500 opacity-40 hover:opacity-60'
-              }`}
-            >
-              Your Contributions
-            </Link>
-          </li>
-          <li>
-            <Link 
-              href={loggedIn ? "/post-project" : "#"} 
-              onClick={(e) => !loggedIn && handleProtectedLink(e, "/post-project")}
-              className={`transition-all duration-200 cursor-pointer ${
-                pathname === '/post-project'
-                ? loggedIn ? 'text-orange border-b-2 border-orange pb-1 font-bold' : 'text-gray-500 opacity-40'
-                : loggedIn 
-                  ? 'text-off-white opacity-60 hover:opacity-90 hover:text-orange' 
-                  : 'text-gray-500 opacity-40 hover:opacity-60'
-              }`}
-            >
-              Post A Project
-            </Link>
-          </li>
-          <li>
-            <Link 
-              href={loggedIn ? "/settings" : "#"} 
-              onClick={(e) => !loggedIn && handleProtectedLink(e, "/settings")}
-              className={`transition-all duration-200 cursor-pointer ${
-                pathname === '/settings'
-                ? loggedIn ? 'text-orange border-b-2 border-orange pb-1 font-bold' : 'text-gray-500 opacity-40'
-                : loggedIn 
-                  ? 'text-off-white opacity-60 hover:opacity-90 hover:text-orange' 
-                  : 'text-gray-500 opacity-40 hover:opacity-60'
-              }`}
-            >
-              Settings
-            </Link>
-          </li>
-          <li>
-            <Link 
-              href="/about" 
-              className={`transition-all duration-200 cursor-pointer ${
-                pathname === '/about'
-                ? 'text-orange border-b-2 border-orange pb-1 font-bold' 
-                : 'text-off-white opacity-60 hover:opacity-90 hover:text-orange'
-              }`}
-            >
-              About Us
-            </Link>
-          </li>
+        <ul className="flex gap-5 ml-6 inria-sans-bold mt-1 text-sm">
+          {/* Navigation Links */}
         </ul>
       </div>
       <div>
@@ -165,8 +97,7 @@ const NavBar = () => {
       </div>
       {notification && (
         <Notification
-          message={notification.message}
-          type={notification.type}
+          notification={notification}
           onClose={() => setNotification(null)}
         />
       )}

@@ -42,7 +42,7 @@ export async function sendRecommendationEmail(
     
     if (error) {
       console.error('Error sending email with Resend:', error);
-      return { success: false, error };
+      return { success: false, error: error as string | object };
     }
     
     console.log(`[EMAIL SERVICE] Sent recommendation email to ${userEmail} with ID: ${data?.id}`);
@@ -53,7 +53,7 @@ export async function sendRecommendationEmail(
     return { success: true };
   } catch (error) {
     console.error('Error sending recommendation email:', error);
-    return { success: false, error };
+    return { success: false, error: error as string | object };
   }
 }
 

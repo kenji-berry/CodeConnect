@@ -1,4 +1,4 @@
-export async function storeGitHubToken(token: string, refreshToken?: string, expiresIn: number = 2628000) {
+export async function storeGitHubToken(token, refreshToken, expiresIn = 2628000) {
   try {
     // Store token in HttpOnly cookie via API endpoint
     const response = await fetch('/api/auth/session', {
@@ -22,7 +22,7 @@ export async function storeGitHubToken(token: string, refreshToken?: string, exp
   }
 }
 
-export async function getValidGitHubToken(): Promise<string | null> {
+export async function getValidGitHubToken() {
   try {
     // Test if we can access GitHub API with current cookie
     const response = await fetch('/api/github/user', {

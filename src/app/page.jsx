@@ -8,39 +8,19 @@ import SingleSelector from "./Components/SingleSelector";
 import { supabase } from '@/supabaseClient';
 import { getPopularProjects, getHybridRecommendations } from '@/services/recommendation-service';
 
-interface Technology {
-  id: number;
-  name: string;
-}
-
-interface Project {
-  id: number;
-  repo_name: string;
-  repo_owner: string;
-  description_type: string;
-  custom_description: string | null;
-  difficulty_level: number;
-  created_at: string;
-  technologies: {
-    name: string;
-    is_highlighted: boolean;
-  }[];
-  tags: string[];
-}
-
 export default function Home() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  const [availableTechnologies, setAvailableTechnologies] = useState<Technology[]>([]);
-  const [selectedTechnologies, setSelectedTechnologies] = useState<string[]>([]);
-  const [selectedContributionTypes, setSelectedContributionTypes] = useState<string[]>([]);
+  const [availableTechnologies, setAvailableTechnologies] = useState([]);
+  const [selectedTechnologies, setSelectedTechnologies] = useState([]);
+  const [selectedContributionTypes, setSelectedContributionTypes] = useState<Array<string>>([]);
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>("");
   const [selectedLastUpdated, setSelectedLastUpdated] = useState<string>("");
   const [filterMode, setFilterMode] = useState<string>('AND');
   const [user, setUser] = useState<{ email: string } | null>(null);
-  const [recentProjects, setRecentProjects] = useState<Project[]>([]);
-  const [recommendedProjects, setRecommendedProjects] = useState<Project[]>([]);
+  const [recentProjects, setRecentProjects] = useState([]);
+  const [recommendedProjects, setRecommendedProjects] = useState([]);
 
   useEffect(() => {
     const technologies = searchParams.get("technologies")?.split(",") || [];
@@ -215,7 +195,7 @@ export default function Home() {
     fetchRecommendations();
   }, []);
 
-  const handleTagsChange = (type: string, tags: string[]) => {
+  const handleTagsChange = (type, tags) => {
     switch (type) {
       case "technologies":
         setSelectedTechnologies(tags);
@@ -228,7 +208,7 @@ export default function Home() {
     }
   };
 
-  const handleValueChange = (type: string, value: string) => {
+  const handleValueChange = (type, value) => {
     switch (type) {
       case "difficulty":
         setSelectedDifficulty(value);

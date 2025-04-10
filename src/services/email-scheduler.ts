@@ -110,6 +110,6 @@ export async function processEmailSchedule(): Promise<EmailScheduleResult> {
     
   } catch (error) {
     console.error('📧 Error in email scheduler:', error);
-    return { success: false, error };
+    return { success: false, error: error as string | object };
   }
 }
