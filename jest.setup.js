@@ -8,7 +8,7 @@ jest.mock('next/navigation', () => ({
     pathname: '/',
   }),
   useSearchParams: () => ({
-    get: jest.fn().mockImplementation(key => null),
+    get: jest.fn().mockImplementation(() => null),
   }),
   useParams: () => ({}),
 }))

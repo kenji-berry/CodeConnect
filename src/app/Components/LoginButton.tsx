@@ -11,7 +11,7 @@ const LoginButton = () => {
       setIsLoading(true);
       console.log('Starting GitHub OAuth login...');
       
-      const { data, error } = await supabase.auth.signInWithOAuth({
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: 'github',
         options: {
           redirectTo: `${window.location.origin}/onboarding`,

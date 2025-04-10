@@ -2,7 +2,12 @@ import { supabase } from '@/supabaseClient';
 import { getHybridRecommendations } from './recommendation-service';
 import { sendRecommendationEmail } from './email-service';
 
-export async function processEmailSchedule(): Promise<{ success: boolean; error?: any }> {
+interface EmailScheduleResult {
+  success: boolean;
+  error?: string | object; 
+}
+
+export async function processEmailSchedule(): Promise<EmailScheduleResult> {
   console.log('📧 Processing email schedule...');
   
   try {

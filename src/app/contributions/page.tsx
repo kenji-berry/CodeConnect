@@ -148,7 +148,7 @@ const ContributionsPage = () => {
       ) : (
         <div className="flex flex-col items-center justify-center py-20">
           <div className="bg-indigo-950 bg-opacity-30 rounded-lg p-8 shadow-lg max-w-md text-center">
-            <h2 className="text-2xl text-white mb-4">You haven't posted any projects yet</h2>
+            <h2 className="text-2xl text-white mb-4">You haven&apos;t posted any projects yet</h2>
             <p className="text-gray-300 mb-6">
               Share your open-source projects with the community to find collaborators and contributors.
             </p>

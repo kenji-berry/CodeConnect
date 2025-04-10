@@ -11,6 +11,11 @@ interface CommitData {
   count: number;
 }
 
+interface WeekData {
+  week: number;
+  total: number;
+}
+
 const ActivityGraph = ({ owner, repo, token }: ActivityGraphProps) => {
   const [commitData, setCommitData] = useState<CommitData[]>([]);
   const [maxCount, setMaxCount] = useState(0);
@@ -27,28 +32,28 @@ const ActivityGraph = ({ owner, repo, token }: ActivityGraphProps) => {
             },
           }
         );
-        const data = await response.json();
+        const data: WeekData[] = await response.json();
 
         // Check if data is valid and is an array
         if (!Array.isArray(data)) {
           if (response.status === 202) {
-            setError('GitHub is computing statistics. Please refresh in a moment.'); // Maybe adjust to just be loading in the future?
+            setError('GitHub is computing statistics. Please refresh in a moment.');
           } else {
             setError('Invalid data format received from GitHub');
           }
           return;
         }
-        
+
         // Process last 12 weeks of data
-        const last12Weeks = data.slice(-12).map((week: any) => ({
-          date: new Date(week.week * 1000).toLocaleDateString('en-US', { 
-            month: 'short', 
-            day: 'numeric' 
+        const last12Weeks = data.slice(-12).map((week: WeekData) => ({
+          date: new Date(week.week * 1000).toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
           }),
-          count: week.total
+          count: week.total,
         }));
-        
-        const max = Math.max(...last12Weeks.map(week => week.count));
+
+        const max = Math.max(...last12Weeks.map((week) => week.count));
         setMaxCount(max || 1); // Use 1 as minimum to avoid division by zero
         setCommitData(last12Weeks);
         setError(null);
@@ -66,15 +71,15 @@ const ActivityGraph = ({ owner, repo, token }: ActivityGraphProps) => {
   const width = 800;
   const height = 300;
   const padding = 40;
-  const graphWidth = width - (padding * 2);
-  const graphHeight = height - (padding * 2);
+  const graphWidth = width - padding * 2;
+  const graphHeight = height - padding * 2;
 
   const getPath = () => {
     if (commitData.length === 0) return '';
-    
+
     const points = commitData.map((data, i) => {
-      const x = (i * (graphWidth / (commitData.length - 1))) + padding;
-      const y = height - (padding + (data.count / maxCount * graphHeight));
+      const x = i * (graphWidth / (commitData.length - 1)) + padding;
+      const y = height - (padding + (data.count / maxCount) * graphHeight);
       return `${i === 0 ? 'M' : 'L'} ${x} ${y}`;
     });
 
@@ -101,7 +106,7 @@ const ActivityGraph = ({ owner, repo, token }: ActivityGraphProps) => {
     <svg width="100%" height="300" viewBox={`0 0 ${width} ${height}`}>
       {/* Grid lines */}
       {[...Array(5)].map((_, i) => {
-        const y = padding + (i * (graphHeight / 4));
+        const y = padding + i * (graphHeight / 4);
         return (
           <line
             key={i}
@@ -117,8 +122,8 @@ const ActivityGraph = ({ owner, repo, token }: ActivityGraphProps) => {
 
       {/* Y-axis labels */}
       {[...Array(5)].map((_, i) => {
-        const y = padding + (i * (graphHeight / 4));
-        const value = Math.round(maxCount - ((maxCount / 4) * i));
+        const y = padding + i * (graphHeight / 4);
+        const value = Math.round(maxCount - (maxCount / 4) * i);
         return (
           <text
             key={i}
@@ -135,12 +140,12 @@ const ActivityGraph = ({ owner, repo, token }: ActivityGraphProps) => {
 
       {/* X-axis labels */}
       {commitData.map((data, i) => {
-        const x = (i * (graphWidth / (commitData.length - 1))) + padding;
+        const x = i * (graphWidth / (commitData.length - 1)) + padding;
         return (
           <text
             key={i}
             x={x}
-            y={height - (padding / 2)}
+            y={height - padding / 2}
             textAnchor="middle"
             fontSize="12"
           >
@@ -150,26 +155,13 @@ const ActivityGraph = ({ owner, repo, token }: ActivityGraphProps) => {
       })}
 
       {/* Graph line */}
-      <path
-        d={getPath()}
-        fill="none"
-        stroke="#4CAF50"
-        strokeWidth="2"
-      />
+      <path d={getPath()} fill="none" stroke="#4CAF50" strokeWidth="2" />
 
       {/* Data points */}
       {commitData.map((data, i) => {
-        const x = (i * (graphWidth / (commitData.length - 1))) + padding;
-        const y = height - (padding + (data.count / maxCount * graphHeight));
-        return (
-          <circle
-            key={i}
-            cx={x}
-            cy={y}
-            r="4"
-            fill="#4CAF50"
-          />
-        );
+        const x = i * (graphWidth / (commitData.length - 1)) + padding;
+        const y = height - (padding + (data.count / maxCount) * graphHeight);
+        return <circle key={i} cx={x} cy={y} r="4" fill="#4CAF50" />;
       })}
 
       {/* Axes */}

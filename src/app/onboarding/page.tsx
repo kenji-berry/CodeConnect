@@ -6,21 +6,18 @@ import { useRouter } from 'next/navigation';
 import MultiSelector from '../Components/MultiSelector';
 
 export default function OnboardingPage() {
-  // Display name states
   const [displayName, setDisplayName] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
-  
-  // Onboarding step
+
   const [currentStep, setCurrentStep] = useState(1);
-  
-  // Tag selection states
-  const [allTagObjects, setAllTagObjects] = useState<{ id: any; name: any }[]>([]);
+
+  const [allTagObjects, setAllTagObjects] = useState<{ id: string; name: string }[]>([]);
   const [allTagNames, setAllTagNames] = useState<string[]>([]);
   const [selectedTagNames, setSelectedTagNames] = useState<string[]>([]);
-  const [selectedTagObjects, setSelectedTagObjects] = useState<{ id: any; name: any }[]>([]);
+  const [selectedTagObjects, setSelectedTagObjects] = useState<{ id: string; name: string }[]>([]);
   const [savingTags, setSavingTags] = useState(false);
 
   const router = useRouter();
@@ -28,45 +25,38 @@ export default function OnboardingPage() {
   useEffect(() => {
     const checkUserProfile = async () => {
       setLoading(true);
-      // Get current user session
       const { data: { session } } = await supabase.auth.getSession();
-      
+
       if (!session || !session.user) {
-        // No session, redirect to home
         router.push('/');
         return;
       }
-      
+
       const userId = session.user.id;
       setUserId(userId);
-      
-      // Check if user has already completed profile setup
-      const { data, error: profileError } = await supabase
+
+      const { data } = await supabase
         .from('profiles')
         .select('user_id, is_changed')
         .eq('user_id', userId)
         .maybeSingle();
-        
+
       if (data && data.is_changed === true) {
-        // Profile already set up, redirect to home/dashboard
         router.push('/');
         return;
       }
 
-      // Fetch all available tags for selection
       await fetchAllTags();
-      
       setLoading(false);
     };
-    
+
     checkUserProfile();
   }, [router]);
 
-  // Fetch all available tags from database
   async function fetchAllTags() {
     try {
       const { data, error } = await supabase
-        .from('tags') 
+        .from('tags')
         .select('id, name')
         .order('name');
 
@@ -84,85 +74,79 @@ export default function OnboardingPage() {
   const validateAndSaveDisplayName = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    
+
     try {
-      // Validation checks
       if (!displayName.trim()) {
         setError('Display name cannot be empty');
         setIsSubmitting(false);
         return;
       }
-      
+
       if (displayName.length > 16) {
         setError('Display name cannot exceed 16 characters');
         setIsSubmitting(false);
         return;
       }
-  
-      // Check if name already exists
+
       const { data: existingNames, error: nameCheckError } = await supabase
         .from('profiles')
-        .select('user_id') 
+        .select('user_id')
         .eq('display_name', displayName.trim());
-      
+
       if (nameCheckError) {
         console.error('Error checking display name:', nameCheckError);
         setError('Error checking if display name exists. Please try again.');
         setIsSubmitting(false);
         return;
       }
-        
+
       if (existingNames && existingNames.length > 0) {
         setError('This display name is already taken');
         setIsSubmitting(false);
         return;
       }
-      
-      // Check if profile already exists
+
       const { data: existingProfile, error: profileCheckError } = await supabase
         .from('profiles')
-        .select('user_id')  
-        .eq('user_id', userId)  
+        .select('user_id')
+        .eq('user_id', userId)
         .maybeSingle();
-      
+
       if (profileCheckError) {
         console.error('Error checking profile:', profileCheckError);
         setError('Error checking existing profile');
         setIsSubmitting(false);
         return;
       }
-      
+
       let saveResult;
-      
+
       if (existingProfile) {
-        // Update existing profile
         saveResult = await supabase
           .from('profiles')
-          .update({ 
+          .update({
             display_name: displayName.trim(),
             is_changed: true
           })
-          .eq('user_id', userId);  
+          .eq('user_id', userId);
       } else {
-        // Insert new profile
         saveResult = await supabase
           .from('profiles')
-          .insert({ 
+          .insert({
             user_id: userId,
             display_name: displayName.trim(),
             created_at: new Date().toISOString(),
             is_changed: true
           });
       }
-      
+
       if (saveResult.error) {
         console.error('Error saving display name:', saveResult.error);
         setError('Failed to save display name: ' + (saveResult.error.message || 'Unknown error'));
         setIsSubmitting(false);
         return;
       }
-      
-      // Move to next step (tag selection)
+
       setCurrentStep(2);
       setIsSubmitting(false);
     } catch (e) {
@@ -174,62 +158,50 @@ export default function OnboardingPage() {
 
   const handleTagsChange = (names: string[]) => {
     setSelectedTagNames(names);
-    // Map names back to objects
     const objects = names.map(name => {
       const obj = allTagObjects.find(t => t.name === name);
-      return obj || { name };
+      return obj || { id: '', name };
     });
     setSelectedTagObjects(objects);
   };
 
   const saveTagPreferences = async () => {
     if (!userId) return;
-    
+
     try {
       setSavingTags(true);
-      
-      // Get the tag IDs from the selected objects
+
       const tagIds = selectedTagObjects
         .map(tag => tag.id)
         .filter(Boolean);
-      
-      // Log what we're about to save
-      console.log("Selected tag IDs:", tagIds);
-      
-      // First, delete any existing tag preferences for this user
+
       const { error: deleteError } = await supabase
         .from('user_tag_preferences')
         .delete()
         .eq('user_id', userId);
-        
+
       if (deleteError) {
         console.error("Error deleting existing preferences:", deleteError);
         throw deleteError;
       }
-      
-      // If there are tags selected, insert them
+
       if (tagIds.length > 0) {
-        // Create an array of objects for batch insert
         const preferencesArray = tagIds.map(tagId => ({
           user_id: userId,
           tag_id: tagId,
           created_at: new Date().toISOString()
         }));
-        
-        console.log("Inserting preferences:", preferencesArray);
-        
-        // Insert all the preferences at once
+
         const { error: insertError } = await supabase
           .from('user_tag_preferences')
           .insert(preferencesArray);
-          
+
         if (insertError) {
           console.error("Error inserting preferences:", insertError);
           throw insertError;
         }
       }
-      
-      // Redirect to home/dashboard
+
       router.push('/');
     } catch (e) {
       console.error('Error saving tag preferences:', e);
@@ -238,7 +210,6 @@ export default function OnboardingPage() {
     }
   };
 
-  // Skip tag selection but still proceed to home
   const skipTagSelection = () => {
     router.push('/');
   };
@@ -299,7 +270,7 @@ export default function OnboardingPage() {
         ) : (
           <>
             <h1 className="text-2xl inter-bold main-subtitle mb-4">Select Your Interests</h1>
-            <p className="mb-6">Choose topics you're interested in to help us personalize your recommendations.</p>
+            <p className="mb-6">Choose topics you&apos;re interested in to help us personalize your recommendations.</p>
             
             <div className="mb-6">
               <div className="main-page-filter-box px-2 py-4 rounded">
@@ -311,7 +282,7 @@ export default function OnboardingPage() {
               </div>
               
               <div className="mt-3 text-sm text-gray-400">
-                <p>• Select tags that represent technologies or topics you're interested in</p>
+                <p>• Select tags that represent technologies or topics you&apos;re interested in</p>
                 <p>• You can always change these later in your settings</p>
               </div>
             </div>

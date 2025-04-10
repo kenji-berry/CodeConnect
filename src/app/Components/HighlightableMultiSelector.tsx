@@ -31,7 +31,7 @@ const HighlightableMultiSelector: React.FC<HighlightableMultiSelectorProps> = ({
     if (JSON.stringify(newSelectedTags) !== JSON.stringify(selectedTags)) {
       setSelectedTags(newSelectedTags);
     }
-  }, [initialTags, nonRemovableTags]);
+  }, [initialTags, nonRemovableTags, selectedTags]);
 
   // Filter available tags based on search term using useMemo with null checks
   const filteredTags = useMemo(() => {

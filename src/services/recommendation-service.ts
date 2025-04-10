@@ -380,8 +380,8 @@ export async function getRecommendedProjects(userId: string, limit = 5, debug = 
     // Track which projects the user has already interacted with
     const interactedRepoNames = interactions ? [...new Set(interactions.map(i => i.repo_id))] : [];
     let interactedProjectIds = [];
-    let projectScores = {};
-    let projectReasons = {};
+    const projectScores = {};
+    const projectReasons = {};
     
     // Get project IDs from repo names if we have any interactions
     if (interactedRepoNames.length > 0) {
@@ -982,7 +982,7 @@ export async function getCollaborativeRecommendations(userId: string, limit = 5,
     }
 
     // 5. Find what projects these similar users interacted with that the current user hasn't
-    let recommendationPromises = [];
+    const recommendationPromises = [];
     
     if (debug) console.log("👥 Looking for recommendations from similar users:", similarUsers);
     

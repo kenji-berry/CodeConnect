@@ -9,13 +9,22 @@ const emailFrom = process.env.EMAIL_FROM || 'CodeConnect <onboarding@resend.dev>
 
 interface EmailResult {
   success: boolean;
-  error?: any;
+  error?: string | object;
+}
+
+interface Recommendation {
+  repo_name: string;
+  repo_owner: string;
+  difficulty_level?: string;
+  custom_description?: string;
+  tags?: string[];
+  recommendationReason?: string[];
 }
 
 export async function sendRecommendationEmail(
   userId: string,
   userEmail: string,
-  recommendations: any[]
+  recommendations: Recommendation[]
 ): Promise<EmailResult> {
   try {
     console.log(`Preparing recommendation email for ${userEmail}`);
@@ -50,7 +59,7 @@ export async function sendRecommendationEmail(
 }
 
 // Format the email content with recommendations
-function formatRecommendationEmail(recommendations: any[]): string {
+function formatRecommendationEmail(recommendations: Recommendation[]): string {
   const domainUrl = process.env.NEXT_PUBLIC_DOMAIN_URL || 'https://codeconnect.open.site';
   
   // Use SVG logo from the public folder with correct path
