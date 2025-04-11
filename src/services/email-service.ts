@@ -209,7 +209,7 @@ function formatRecommendationEmail(recommendations: Recommendation[]): string {
           <img src="${logoUrl}" alt="CodeConnect" />
         </div>
         <div class="content">
-          <h1>Your Personalised Project Recommendations</h1>
+          <h1>Your Persdations</h1>
           <p class="intro">Here are some open source projects we think you'll be interested in based on your preferences and activity:</p>
           
           <div class="projects-container">
