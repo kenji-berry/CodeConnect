@@ -12,6 +12,7 @@ interface EmailResult {
 }
 
 interface Recommendation {
+  id: any;
   repo_name: string;
   repo_owner: string;
   difficulty_level?: string;
@@ -61,7 +62,7 @@ export async function sendRecommendationEmail(
 function formatRecommendationEmail(recommendations: Recommendation[]): string {
   const domainUrl = process.env.NEXT_PUBLIC_DOMAIN_URL || 'https://codeconnect.open.site';
   
-  const logoUrl = `${domainUrl}/CodeConnectTitle.png`;
+  const logoUrl = `https://i.imgur.com/0GT99ZB.png`;
   
   let emailContent = `
     <!DOCTYPE html>
@@ -94,14 +95,14 @@ function formatRecommendationEmail(recommendations: Recommendation[]): string {
           border-bottom: 1px solid rgba(255, 255, 255, 0.2);
         }
         .header img {
-          max-height: 45px;
+          max-height: 150px;
           width: auto;
         }
         .content {
           padding: 30px 20px;
         }
         h1 {
-          color: #F9B02F; 
+          color: #FE8A18; 
           font-size: 24px;
           margin-top: 0;
           margin-bottom: 20px;
@@ -148,14 +149,14 @@ function formatRecommendationEmail(recommendations: Recommendation[]): string {
         }
         .tag {
           display: inline-block;
-          background-color: rgba(249, 176, 47, 0.2); 
-          color: #F9B02F; 
+          background-color: rgba(255, 153, 0, 0.2); 
+          color: #FE8A18; 
           font-size: 12px;
           padding: 4px 10px;
           border-radius: 12px;
           margin-right: 6px;
           margin-bottom: 6px;
-          border: 1px solid rgba(249, 176, 47, 0.4);
+          border: 1px solid rgba(255, 153, 0, 0.4);
         }
         .tags-container {
           margin-bottom: 16px;
@@ -166,13 +167,13 @@ function formatRecommendationEmail(recommendations: Recommendation[]): string {
           font-style: italic;
           margin: 12px 0;
           padding-left: 10px;
-          border-left: 3px solid #F9B02F;
+          border-left: 3px solid #FE8A18;
           opacity: 0.9;
         }
         .button {
           display: inline-block;
           padding: 8px 16px;
-          background-color: #F9B02F; 
+          background-color: #FE8A18; 
           color: #2f2c34;
           text-decoration: none;
           border-radius: 4px;
@@ -182,7 +183,7 @@ function formatRecommendationEmail(recommendations: Recommendation[]): string {
           text-align: center;
         }
         .button:hover {
-          background-color: #ffc870; 
+          background-color: #FFB84D; 
         }
         .footer {
           padding: 20px;
@@ -194,7 +195,7 @@ function formatRecommendationEmail(recommendations: Recommendation[]): string {
           opacity: 0.8;
         }
         .footer a {
-          color: #F9B02F; 
+          color: #FF9900; 
           text-decoration: none;
         }
         .emoji {
@@ -230,22 +231,22 @@ function formatRecommendationEmail(recommendations: Recommendation[]): string {
       <div class="project-card">
         <h3 class="project-title" style="color: #EC7373;">${project.repo_name}</h3>
         
-        <div class="project-meta" style="color: #F9B02F; opacity: 1;">
+        <div class="project-meta" style="color: #FFFFF0;">
           <strong>👤 Owner:</strong> ${project.repo_owner} &nbsp;|&nbsp; 
           <strong>Difficulty:</strong> ${project.difficulty_level || 'Not specified'}
         </div>
         
-        <p class="project-desc" style="color: #ffffff;">${description}</p>
+        <p class="project-desc" style="color: #F9F9F9;">${description}</p>
         
         <div class="tags-container">
           ${tagsHtml}
         </div>
         
-        <p class="reason" style="color: #F9B02F; opacity: 1;">
+        <p class="reason" style="color: #FE8A18;">
           💬 ${project.recommendationReason?.[0] || 'Based on your preferences'}
         </p>
         
-        <a href="${domainUrl}/projects/${project.repo_name}" class="button" style="background-color: #F9B02F; color: #2f2c34;">👀 View Project</a>
+        <a href="${domainUrl}/projects/${project.id}" class="button" style="background-color: #FF8200; color: #2f2c34;">👀 View Project</a>
       </div>
     `;
   });
@@ -253,11 +254,11 @@ function formatRecommendationEmail(recommendations: Recommendation[]): string {
   emailContent += `
           </div>
         </div>
-        <div class="footer" style="color: #F9B02F; opacity: 1;">
-          <p>🌐 Visit <a href="${domainUrl}" style="color: #F9B02F;">CodeConnect</a> to discover more open source projects to contribute to!</p>
+        <div class="footer" style="color: #F9B02F;">
+          <p>🌐 Visit <a href="${domainUrl}" style="color: #FE8A18;">CodeConnect</a> to discover more open source projects to contribute to!</p>
           <p>
             📧 You received this email because you're subscribed to project recommendations.
-            <br>⚙️ You can change your email preferences in your <a href="${domainUrl}/settings" style="color: #F9B02F;">account settings</a>.
+            <br>⚙️ You can change your email preferences in your <a href="${domainUrl}/settings" style="color: #FE8A18;">account settings</a>.
           </p>
         </div>
       </div>
