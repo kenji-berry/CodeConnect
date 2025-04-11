@@ -61,8 +61,7 @@ export async function sendRecommendationEmail(
 function formatRecommendationEmail(recommendations: Recommendation[]): string {
   const domainUrl = process.env.NEXT_PUBLIC_DOMAIN_URL || 'https://codeconnect.open.site';
   
-  // Use SVG logo from the public folder with correct path
-  const logoUrl = `${domainUrl}/CodeConnectLogo.svg`;
+  const logoUrl = `${domainUrl}/CodeConnectTitle.png`;
   
   let emailContent = `
     <!DOCTYPE html>
@@ -111,8 +110,8 @@ function formatRecommendationEmail(recommendations: Recommendation[]): string {
         }
         .intro {
           margin-bottom: 30px;
-          color: #f5f5f5;
-          opacity: 0.9;
+          color: #ffffff;
+          opacity: 1;
         }
         .project-card {
           margin-bottom: 25px;
@@ -131,18 +130,18 @@ function formatRecommendationEmail(recommendations: Recommendation[]): string {
           font-weight: 600;
           margin-top: 0;
           margin-bottom: 10px;
-          color: #ec7373;
+          color: #ff8585;
           font-family: "Inria Sans", sans-serif;
         }
         .project-meta {
           font-size: 14px;
-          color: #f5f5f5;
+          color: #ffffff;
           margin-bottom: 14px;
-          opacity: 0.75;
+          opacity: 0.9;
         }
         .project-meta strong {
-          color: #f5f5f5;
-          opacity: 0.9;
+          color: #ffffff;
+          opacity: 1;
         }
         .project-desc {
           margin-bottom: 16px;
