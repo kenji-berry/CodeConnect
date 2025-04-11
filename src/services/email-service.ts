@@ -61,7 +61,7 @@ export async function sendRecommendationEmail(
 function formatRecommendationEmail(recommendations: Recommendation[]): string {
   const domainUrl = process.env.NEXT_PUBLIC_DOMAIN_URL || 'https://codeconnect.open.site';
   
-  const logoUrl = `${domainUrl}/CodeConnectTitle.png`;
+  const logoUrl = `/CodeConnectTitle.png`;
   
   let emailContent = `
     <!DOCTYPE html>
@@ -74,24 +74,24 @@ function formatRecommendationEmail(recommendations: Recommendation[]): string {
         body {
           font-family: "Inter", -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
           line-height: 1.6;
-          color: #f5f5f5;
+          color: #f5f5f5; 
           max-width: 600px;
           margin: 0 auto;
           padding: 0;
-          background-color: #2f2c34;
+          background-color: #3c353d;
         }
         .wrapper {
-          background: radial-gradient(#3c353d, #2f2c34);
+          background: radial-gradient(#4a404a, #3c353d); 
           border-radius: 8px;
           overflow: hidden;
           box-shadow: 0 4px 16px rgba(0,0,0,0.3);
           margin: 20px 0;
         }
         .header {
-          background-color: #222024;
+          background-color: #2f2c34;
           padding: 20px;
           text-align: center;
-          border-bottom: 1px solid rgba(245, 245, 245, 0.1);
+          border-bottom: 1px solid rgba(255, 255, 255, 0.2);
         }
         .header img {
           max-height: 45px;
@@ -101,7 +101,7 @@ function formatRecommendationEmail(recommendations: Recommendation[]): string {
           padding: 30px 20px;
         }
         h1 {
-          color: #f9b028;
+          color: #ffb347; 
           font-size: 24px;
           margin-top: 0;
           margin-bottom: 20px;
@@ -110,19 +110,18 @@ function formatRecommendationEmail(recommendations: Recommendation[]): string {
         }
         .intro {
           margin-bottom: 30px;
-          color: #ffffff;
-          opacity: 1;
+          color: #f5f5f5;
         }
         .project-card {
           margin-bottom: 25px;
-          border: 1px solid rgba(245, 245, 245, 0.2);
+          border: 1px solid rgba(255, 255, 255, 0.3);
           border-radius: 6px;
           padding: 18px;
           transition: all 0.2s;
-          background-color: rgba(60, 53, 61, 0.5);
+          background-color: rgba(74, 64, 74, 0.6); 
         }
         .project-card:hover {
-          border-color: rgba(249, 176, 40, 0.4);
+          border-color: rgba(255, 179, 71, 0.5);
           box-shadow: 0 2px 8px rgba(0,0,0,0.2);
         }
         .project-title {
@@ -135,45 +134,45 @@ function formatRecommendationEmail(recommendations: Recommendation[]): string {
         }
         .project-meta {
           font-size: 14px;
-          color: #ffffff;
+          color: #f5f5f5;
           margin-bottom: 14px;
           opacity: 0.9;
         }
         .project-meta strong {
-          color: #ffffff;
+          color: #f5f5f5;
           opacity: 1;
         }
         .project-desc {
           margin-bottom: 16px;
-          color: #f5f5f5;
+          color: #ffffff; 
         }
         .tag {
           display: inline-block;
-          background-color: rgba(249, 176, 40, 0.15);
-          color: #f9b028;
+          background-color: rgba(255, 179, 71, 0.2); 
+          color: #ffb347; 
           font-size: 12px;
           padding: 4px 10px;
           border-radius: 12px;
           margin-right: 6px;
           margin-bottom: 6px;
-          border: 1px solid rgba(249, 176, 40, 0.3);
+          border: 1px solid rgba(255, 179, 71, 0.4);
         }
         .tags-container {
           margin-bottom: 16px;
         }
         .reason {
           font-size: 13px;
-          color: #f5f5f5;
+          color: #ffffff; 
           font-style: italic;
           margin: 12px 0;
           padding-left: 10px;
-          border-left: 3px solid #f9b028;
-          opacity: 0.8;
+          border-left: 3px solid #ffb347;
+          opacity: 0.9;
         }
         .button {
           display: inline-block;
           padding: 8px 16px;
-          background-color: #f9b028;
+          background-color: #ffb347; 
           color: #2f2c34;
           text-decoration: none;
           border-radius: 4px;
@@ -183,19 +182,19 @@ function formatRecommendationEmail(recommendations: Recommendation[]): string {
           text-align: center;
         }
         .button:hover {
-          background-color: #fac052;
+          background-color: #ffc870; 
         }
         .footer {
           padding: 20px;
           text-align: center;
           font-size: 12px;
           color: #f5f5f5;
-          background-color: rgba(47, 44, 52, 0.8);
-          border-top: 1px solid rgba(245, 245, 245, 0.1);
-          opacity: 0.7;
+          background-color: rgba(60, 53, 61, 0.9);
+          border-top: 1px solid rgba(255, 255, 255, 0.2);
+          opacity: 0.8;
         }
         .footer a {
-          color: #f9b028;
+          color: #ffb347; 
           text-decoration: none;
         }
         .emoji {
@@ -210,20 +209,17 @@ function formatRecommendationEmail(recommendations: Recommendation[]): string {
           <img src="${logoUrl}" alt="CodeConnect" />
         </div>
         <div class="content">
-          <h1>Your Personalized Project Recommendations</h1>
+          <h1>Your Personalised Project Recommendations</h1>
           <p class="intro">Here are some open source projects we think you'll be interested in based on your preferences and activity:</p>
           
           <div class="projects-container">
   `;
   
-  // Add each recommended project to the email with improved card design
   recommendations.forEach(project => {
-    // Format tags for display
     const tagsHtml = project.tags && project.tags.length > 0
       ? project.tags.map(tag => `<span class="tag">${tag}</span>`).join('')
       : '<span class="tag">No tags</span>';
     
-    // Limit description length
     const description = project.custom_description 
       ? (project.custom_description.length > 150 
           ? project.custom_description.substring(0, 150) + '...' 
@@ -254,7 +250,6 @@ function formatRecommendationEmail(recommendations: Recommendation[]): string {
     `;
   });
   
-  // Close the email with footer and preference management link
   emailContent += `
           </div>
         </div>
