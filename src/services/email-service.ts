@@ -74,7 +74,7 @@ function formatRecommendationEmail(recommendations: Recommendation[]): string {
         body {
           font-family: "Inter", -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
           line-height: 1.6;
-          color: #f5f5f5; 
+          color: #ffffff; 
           max-width: 600px;
           margin: 0 auto;
           padding: 0;
@@ -101,7 +101,7 @@ function formatRecommendationEmail(recommendations: Recommendation[]): string {
           padding: 30px 20px;
         }
         h1 {
-          color: #ffb347; 
+          color: #F9B02F; 
           font-size: 24px;
           margin-top: 0;
           margin-bottom: 20px;
@@ -110,7 +110,7 @@ function formatRecommendationEmail(recommendations: Recommendation[]): string {
         }
         .intro {
           margin-bottom: 30px;
-          color: #f5f5f5;
+          color: #ffffff;
         }
         .project-card {
           margin-bottom: 25px;
@@ -121,7 +121,7 @@ function formatRecommendationEmail(recommendations: Recommendation[]): string {
           background-color: rgba(74, 64, 74, 0.6); 
         }
         .project-card:hover {
-          border-color: rgba(255, 179, 71, 0.5);
+          border-color: rgba(249, 176, 47, 0.5);
           box-shadow: 0 2px 8px rgba(0,0,0,0.2);
         }
         .project-title {
@@ -129,17 +129,17 @@ function formatRecommendationEmail(recommendations: Recommendation[]): string {
           font-weight: 600;
           margin-top: 0;
           margin-bottom: 10px;
-          color: #ff8585;
+          color: #EC7373;
           font-family: "Inria Sans", sans-serif;
         }
         .project-meta {
           font-size: 14px;
-          color: #f5f5f5;
+          color: #ffffff;
           margin-bottom: 14px;
           opacity: 0.9;
         }
         .project-meta strong {
-          color: #f5f5f5;
+          color: #ffffff;
           opacity: 1;
         }
         .project-desc {
@@ -148,14 +148,14 @@ function formatRecommendationEmail(recommendations: Recommendation[]): string {
         }
         .tag {
           display: inline-block;
-          background-color: rgba(255, 179, 71, 0.2); 
-          color: #ffb347; 
+          background-color: rgba(249, 176, 47, 0.2); 
+          color: #F9B02F; 
           font-size: 12px;
           padding: 4px 10px;
           border-radius: 12px;
           margin-right: 6px;
           margin-bottom: 6px;
-          border: 1px solid rgba(255, 179, 71, 0.4);
+          border: 1px solid rgba(249, 176, 47, 0.4);
         }
         .tags-container {
           margin-bottom: 16px;
@@ -166,13 +166,13 @@ function formatRecommendationEmail(recommendations: Recommendation[]): string {
           font-style: italic;
           margin: 12px 0;
           padding-left: 10px;
-          border-left: 3px solid #ffb347;
+          border-left: 3px solid #F9B02F;
           opacity: 0.9;
         }
         .button {
           display: inline-block;
           padding: 8px 16px;
-          background-color: #ffb347; 
+          background-color: #F9B02F; 
           color: #2f2c34;
           text-decoration: none;
           border-radius: 4px;
@@ -188,13 +188,13 @@ function formatRecommendationEmail(recommendations: Recommendation[]): string {
           padding: 20px;
           text-align: center;
           font-size: 12px;
-          color: #f5f5f5;
+          color: #ffffff;
           background-color: rgba(60, 53, 61, 0.9);
           border-top: 1px solid rgba(255, 255, 255, 0.2);
           opacity: 0.8;
         }
         .footer a {
-          color: #ffb347; 
+          color: #F9B02F; 
           text-decoration: none;
         }
         .emoji {
@@ -209,7 +209,7 @@ function formatRecommendationEmail(recommendations: Recommendation[]): string {
           <img src="${logoUrl}" alt="CodeConnect" />
         </div>
         <div class="content">
-          <h1>Your Persdations</h1>
+          <h1>Your Personalised Project Recommendations</h1>
           <p class="intro">Here are some open source projects we think you'll be interested in based on your preferences and activity:</p>
           
           <div class="projects-container">
