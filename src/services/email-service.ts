@@ -12,7 +12,7 @@ interface EmailResult {
 }
 
 interface Recommendation {
-  id: any;
+  id: number;
   repo_name: string;
   repo_owner: string;
   difficulty_level?: string;
