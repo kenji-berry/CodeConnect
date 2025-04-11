@@ -61,7 +61,7 @@ export async function sendRecommendationEmail(
 function formatRecommendationEmail(recommendations: Recommendation[]): string {
   const domainUrl = process.env.NEXT_PUBLIC_DOMAIN_URL || 'https://codeconnect.open.site';
   
-  const logoUrl = `/CodeConnectTitle.png`;
+  const logoUrl = `${domainUrl}/CodeConnectTitle.png`;
   
   let emailContent = `
     <!DOCTYPE html>
@@ -228,24 +228,24 @@ function formatRecommendationEmail(recommendations: Recommendation[]): string {
     
     emailContent += `
       <div class="project-card">
-        <h3 class="project-title">${project.repo_name}</h3>
+        <h3 class="project-title" style="color: #EC7373;">${project.repo_name}</h3>
         
-        <div class="project-meta">
+        <div class="project-meta" style="color: #F9B02F; opacity: 1;">
           <strong>👤 Owner:</strong> ${project.repo_owner} &nbsp;|&nbsp; 
           <strong>Difficulty:</strong> ${project.difficulty_level || 'Not specified'}
         </div>
         
-        <p class="project-desc">${description}</p>
+        <p class="project-desc" style="color: #ffffff;">${description}</p>
         
         <div class="tags-container">
           ${tagsHtml}
         </div>
         
-        <p class="reason">
+        <p class="reason" style="color: #F9B02F; opacity: 1;">
           💬 ${project.recommendationReason?.[0] || 'Based on your preferences'}
         </p>
         
-        <a href="${domainUrl}/projects/${project.repo_name}" class="button">👀 View Project</a>
+        <a href="${domainUrl}/projects/${project.repo_name}" class="button" style="background-color: #F9B02F; color: #2f2c34;">👀 View Project</a>
       </div>
     `;
   });
@@ -253,11 +253,11 @@ function formatRecommendationEmail(recommendations: Recommendation[]): string {
   emailContent += `
           </div>
         </div>
-        <div class="footer">
-          <p>🌐 Visit <a href="${domainUrl}">CodeConnect</a> to discover more open source projects to contribute to!</p>
+        <div class="footer" style="color: #F9B02F; opacity: 1;">
+          <p>🌐 Visit <a href="${domainUrl}" style="color: #F9B02F;">CodeConnect</a> to discover more open source projects to contribute to!</p>
           <p>
             📧 You received this email because you're subscribed to project recommendations.
-            <br>⚙️ You can change your email preferences in your <a href="${domainUrl}/settings">account settings</a>.
+            <br>⚙️ You can change your email preferences in your <a href="${domainUrl}/settings" style="color: #F9B02F;">account settings</a>.
           </p>
         </div>
       </div>
