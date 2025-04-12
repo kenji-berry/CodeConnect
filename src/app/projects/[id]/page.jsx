@@ -21,6 +21,8 @@ const ProjectDetails = () => {
   const [reportSubmitting, setReportSubmitting] = useState(false);
   const [reportSuccess, setReportSuccess] = useState(false);
 
+  const [commentVotes, setCommentVotes] = useState({});
+
   // First effect to get user info
   useEffect(() => {
     const getCurrentUser = async () => {
@@ -34,32 +36,37 @@ const ProjectDetails = () => {
 
     getCurrentUser();
   }, []);
-  
+
   // Second effect to check if the project is liked
   useEffect(() => {
+    // Only run this effect if user is logged in
     if (!currentUser || !id) return;
-    
+
     const checkIfLiked = async () => {
       // check if user has liked the project
-      const { data, error: likeError } = await supabase
-        .from('project_likes')
-        .select('*')
-        .eq('project_id', id)
-        .eq('user_id', currentUser.id)
-        .single();
-      
-      if (!likeError) {
-        setIsLiked(!!data);
+      try {
+        const { data, error: likeError } = await supabase
+          .from('project_likes')
+          .select('*')
+          .eq('project_id', id)
+          .eq('user_id', currentUser.id)
+          .single();
+
+        if (!likeError) {
+          setIsLiked(!!data);
+        }
+      } catch (err) {
+        console.error('Error checking if project is liked:', err);
       }
     };
-    
+
     checkIfLiked();
   }, [currentUser, id]);
 
   // Third effect to get project data and comments
   useEffect(() => {
     if (!id) return;
-    
+
     // get total likes
     const getTotalLikes = async () => {
       const { data, error } = await supabase
@@ -83,12 +90,12 @@ const ProjectDetails = () => {
         console.error('Error fetching project:', error);
       } else {
         setProject(project);
-        
-        // Track view for recommendations if user is logged in and we haven't tracked yet
+
+        // Only track view if user is logged in
         if (currentUser && !viewTracked.current) {
           console.log('Tracking view for project:', project.id);
           viewTracked.current = true; // Mark that we've tracked this view
-          
+
           trackProjectView(currentUser.id, project.id)
             .then(result => {
               if (result.error) {
@@ -111,6 +118,12 @@ const ProjectDetails = () => {
         return;
       }
 
+      // Only proceed if there are comments
+      if (commentsData.length === 0) {
+        setComments([]);
+        return;
+      }
+
       // fetch display names for each comment's user_id
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
@@ -121,6 +134,34 @@ const ProjectDetails = () => {
         console.error('Error fetching profiles:', profilesError);
         return;
       }
+
+      // Fetch comment votes
+      const { data: votesData, error: votesError } = await supabase
+        .from('project_comment_votes')
+        .select('*')
+        .in('comment_id', commentsData.map(comment => comment.id));
+
+      if (votesError) {
+        console.error('Error fetching comment votes:', votesError);
+      }
+
+      // Calculate vote totals and user's votes
+      const votesByComment = {};
+      commentsData.forEach(comment => {
+        const commentVotes = votesData?.filter(vote => vote.comment_id === comment.id) || [];
+        const upvotes = commentVotes.filter(vote => vote.vote_type === 'up').length;
+        const downvotes = commentVotes.filter(vote => vote.vote_type === 'down').length;
+        const userVote = currentUser ?
+          commentVotes.find(vote => vote.user_id === currentUser.id)?.vote_type || null
+          : null;
+
+        votesByComment[comment.id] = {
+          score: upvotes - downvotes,
+          userVote: userVote
+        };
+      });
+
+      setCommentVotes(votesByComment);
 
       // combine comments with display names
       const commentsWithProfiles = commentsData.map(comment => ({
@@ -136,10 +177,19 @@ const ProjectDetails = () => {
     getTotalLikes();
     fetchProject();
     fetchComments();
-  }, [id, currentUser]); // Keep currentUser dependency but use the ref to prevent multiple tracking
- 
+  }, [id, currentUser]);
+
+  // Add a function to redirect to login
+  const redirectToLogin = () => {
+    // You can replace this with your preferred login route
+    window.location.href = '/login';
+  };
+
   const handleLike = async () => {
-    if (!currentUser) return;
+    if (!currentUser) {
+      redirectToLogin();
+      return;
+    }
 
     if (isLiked) {
       // Unlike
@@ -152,7 +202,7 @@ const ProjectDetails = () => {
       if (!error) {
         setIsLiked(false);
         setLikes(prev => prev - 1);
-        
+
         // Also remove like from recommendation system
         if (project) {
           const result = await removeProjectLike(currentUser.id, project.id);
@@ -172,7 +222,7 @@ const ProjectDetails = () => {
       if (!error) {
         setIsLiked(true);
         setLikes(prev => prev + 1);
-        
+
         // Also track like for recommendation system
         if (project) {
           trackProjectLike(currentUser.id, project.id);
@@ -181,12 +231,66 @@ const ProjectDetails = () => {
     }
   };
 
-  const openReportModal = (target) => {
+  const handleVote = async (commentId, voteType) => {
     if (!currentUser) {
-      alert('Please sign in to report content');
+      redirectToLogin();
       return;
     }
-    
+
+    const currentVote = commentVotes[commentId]?.userVote;
+
+    // If same vote type, remove the vote
+    if (currentVote === voteType) {
+      // Delete existing vote
+      const { error } = await supabase
+        .from('project_comment_votes')
+        .delete()
+        .eq('comment_id', commentId)
+        .eq('user_id', currentUser.id);
+
+      if (!error) {
+        setCommentVotes(prev => ({
+          ...prev,
+          [commentId]: {
+            score: prev[commentId].score + (voteType === 'up' ? -1 : 1),
+            userVote: null
+          }
+        }));
+      }
+    } else {
+      // Either adding new vote or changing vote
+      const voteChange =
+        currentVote === null ? (voteType === 'up' ? 1 : -1) :  // New vote
+          voteType === 'up' ? 2 : -2;  // Changing from down to up or up to down (double effect)
+
+      const { error } = await supabase
+        .from('project_comment_votes')
+        .upsert([
+          {
+            comment_id: commentId,
+            user_id: currentUser.id,
+            vote_type: voteType
+          }
+        ], { onConflict: ['comment_id', 'user_id'] });
+
+      if (!error) {
+        setCommentVotes(prev => ({
+          ...prev,
+          [commentId]: {
+            score: prev[commentId].score + voteChange,
+            userVote: voteType
+          }
+        }));
+      }
+    }
+  };
+
+  const openReportModal = (target) => {
+    if (!currentUser) {
+      redirectToLogin();
+      return;
+    }
+
     setReportTarget(target);
     setReportReason('');
     setReportDescription('');
@@ -196,14 +300,14 @@ const ProjectDetails = () => {
 
   const handleReportSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!reportReason) {
       alert('Please select a reason for reporting');
       return;
     }
-    
+
     setReportSubmitting(true);
-    
+
     try {
       const reportData = {
         reporter_id: currentUser.id,
@@ -211,17 +315,17 @@ const ProjectDetails = () => {
         description: reportDescription || null,
         status: 'pending'
       };
-      
+
       if (reportTarget.type === 'project') {
         reportData.project_id = parseInt(id);
       } else {
         reportData.comment_id = parseInt(reportTarget.id);
       }
-      
+
       const { error } = await supabase
         .from('reports')
         .insert([reportData]);
-        
+
       if (error) {
         console.error('Error submitting report:', error);
         alert('Failed to submit report. Please try again.');
@@ -257,7 +361,7 @@ const ProjectDetails = () => {
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-bold">{project.repo_name}</h1>
         <div className="flex items-center gap-2">
-          <button 
+          <button
             onClick={handleLike}
             className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
               isLiked ? 'bg-blue-600' : 'bg-gray-600'
@@ -267,8 +371,8 @@ const ProjectDetails = () => {
             <span>{isLiked ? '❤️' : '🤍'}</span>
             <span>{likes}</span>
           </button>
-          
-          <button 
+
+          <button
             onClick={() => openReportModal({ type: 'project' })}
             className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded text-sm"
             title="Report Project"
@@ -307,8 +411,8 @@ const ProjectDetails = () => {
           <div key={comment.id} className="p-4 bg-gray-900 rounded-lg shadow-sm">
             <div className="flex justify-between items-start mb-1">
               <p className="font-bold">{comment.profiles.display_name}</p>
-              
-              <button 
+
+              <button
                 onClick={() => openReportModal({ type: 'comment', id: comment.id })}
                 className="text-xs bg-gray-700 hover:bg-gray-600 px-2 py-0.5 rounded"
                 title="Report Comment"
@@ -317,9 +421,38 @@ const ProjectDetails = () => {
               </button>
             </div>
             <p>{comment.comment}</p>
-            <p className="text-sm text-gray-500">
-              {new Date(comment.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-            </p>
+            <div className="flex items-center mt-2">
+              <div className="flex items-center mr-4">
+                <button
+                  onClick={() => handleVote(comment.id, 'up')}
+                  disabled={!currentUser}
+                  className={`px-2 py-1 rounded ${
+                    commentVotes[comment.id]?.userVote === 'up'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-700 hover:bg-gray-600'
+                  }`}
+                  title={currentUser ? "Upvote" : "Sign in to vote"}
+                >
+                  ▲
+                </button>
+                <span className="mx-2">{commentVotes[comment.id]?.score || 0}</span>
+                <button
+                  onClick={() => handleVote(comment.id, 'down')}
+                  disabled={!currentUser}
+                  className={`px-2 py-1 rounded ${
+                    commentVotes[comment.id]?.userVote === 'down'
+                      ? 'bg-red-600 text-white'
+                      : 'bg-gray-700 hover:bg-gray-600'
+                  }`}
+                  title={currentUser ? "Downvote" : "Sign in to vote"}
+                >
+                  ▼
+                </button>
+              </div>
+              <p className="text-sm text-gray-500">
+                {new Date(comment.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+              </p>
+            </div>
           </div>
         ))}
         {comments.length === 0 && (
@@ -340,7 +473,7 @@ const ProjectDetails = () => {
                 &times;
               </button>
             </div>
-            
+
             {reportSuccess ? (
               <div className="text-green-500 text-center py-4">
                 Report submitted successfully. Thank you for helping keep our community safe.
@@ -349,7 +482,7 @@ const ProjectDetails = () => {
               <form onSubmit={handleReportSubmit}>
                 <div className="mb-4">
                   <label className="block mb-2">Reason:</label>
-                  <select 
+                  <select
                     className="w-full bg-gray-700 p-2 rounded text-white"
                     value={reportReason}
                     onChange={(e) => setReportReason(e.target.value)}
@@ -364,10 +497,10 @@ const ProjectDetails = () => {
                     <option value="other">Other</option>
                   </select>
                 </div>
-                
+
                 <div className="mb-4">
                   <label className="block mb-2">Description (optional):</label>
-                  <textarea 
+                  <textarea
                     className="w-full bg-gray-700 p-2 rounded text-white"
                     rows="3"
                     value={reportDescription}
@@ -375,7 +508,7 @@ const ProjectDetails = () => {
                     placeholder="Please provide additional details..."
                   ></textarea>
                 </div>
-                
+
                 <div className="flex justify-end">
                   <button
                     type="button"
