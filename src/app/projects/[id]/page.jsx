@@ -4,6 +4,7 @@ import { useParams } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/supabaseClient';
 import { trackProjectView, trackProjectLike, removeProjectLike } from '@/services/recommendation-service';
+import { useProfanityFilter } from '@/hooks/useProfanityFilter';
 
 const ProjectDetails = () => {
   const { id } = useParams();
@@ -16,14 +17,26 @@ const ProjectDetails = () => {
 
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportReason, setReportReason] = useState('');
-  const [reportDescription, setReportDescription] = useState('');
   const [reportTarget, setReportTarget] = useState(null);
   const [reportSubmitting, setReportSubmitting] = useState(false);
   const [reportSuccess, setReportSuccess] = useState(false);
 
+  const {
+    value: reportDescription,
+    onChange: handleReportDescriptionChange, 
+    containsProfanity: reportHasProfanity,
+    cleanText: cleanReportText
+  } = useProfanityFilter('');
+
   const [commentVotes, setCommentVotes] = useState({});
 
-  const [newComment, setNewComment] = useState('');
+  const {
+    value: newComment,
+    onChange: handleCommentChange,
+    containsProfanity: commentHasProfanity,
+    cleanText: cleanCommentText
+  } = useProfanityFilter('');
+
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
 
   const [commentFilter, setCommentFilter] = useState('new');
@@ -298,7 +311,6 @@ const ProjectDetails = () => {
 
     setReportTarget(target);
     setReportReason('');
-    setReportDescription('');
     setReportSuccess(false);
     setShowReportModal(true);
   };
@@ -308,6 +320,12 @@ const ProjectDetails = () => {
 
     if (!reportReason) {
       alert('Please select a reason for reporting');
+      return;
+    }
+    
+    // Check for profanity before submitting
+    if (reportHasProfanity) {
+      alert('Please remove inappropriate language before submitting');
       return;
     }
 
@@ -356,8 +374,14 @@ const ProjectDetails = () => {
       return;
     }
     
-    if (!newComment.trim()) { // Prevent empty
+    if (!newComment.trim()) {
       return; 
+    }
+    
+    // Check for profanity
+    if (commentHasProfanity) {
+      alert('Please remove inappropriate language before submitting');
+      return;
     }
     
     setIsSubmittingComment(true);
@@ -581,13 +605,20 @@ const ProjectDetails = () => {
           {currentUser ? (
             <form onSubmit={handleCommentSubmit}>
               <textarea
-                className="w-full bg-gray-700 p-3 rounded text-white mb-3"
+                className={`w-full bg-gray-700 p-3 rounded text-white mb-3 ${
+                  commentHasProfanity ? 'border-2 border-red-500' : ''
+                }`}
                 rows="3"
                 value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
+                onChange={handleCommentChange}
                 placeholder="Share your thoughts about this project..."
                 required
               ></textarea>
+              {commentHasProfanity && (
+                <p className="text-red-500 text-sm mb-2">
+                  Please remove inappropriate language
+                </p>
+              )}
               
               <div className="flex justify-end">
                 <button
@@ -652,12 +683,19 @@ const ProjectDetails = () => {
                 <div className="mb-4">
                   <label className="block mb-2">Description (optional):</label>
                   <textarea
-                    className="w-full bg-gray-700 p-2 rounded text-white"
+                    className={`w-full bg-gray-700 p-2 rounded text-white ${
+                      reportHasProfanity ? 'border-2 border-red-500' : ''
+                    }`}
                     rows="3"
                     value={reportDescription}
-                    onChange={(e) => setReportDescription(e.target.value)}
+                    onChange={handleReportDescriptionChange}
                     placeholder="Please provide additional details..."
                   ></textarea>
+                  {reportHasProfanity && (
+                    <p className="text-red-500 text-sm mt-1">
+                      Please remove inappropriate language
+                    </p>
+                  )}
                 </div>
 
                 <div className="flex justify-end">
