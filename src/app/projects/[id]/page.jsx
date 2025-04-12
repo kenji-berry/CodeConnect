@@ -12,8 +12,14 @@ const ProjectDetails = () => {
   const [likes, setLikes] = useState(0);
   const [isLiked, setIsLiked] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
-  // Add a ref to track if we've already logged a view for this session
   const viewTracked = useRef(false);
+
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportReason, setReportReason] = useState('');
+  const [reportDescription, setReportDescription] = useState('');
+  const [reportTarget, setReportTarget] = useState(null);
+  const [reportSubmitting, setReportSubmitting] = useState(false);
+  const [reportSuccess, setReportSuccess] = useState(false);
 
   // First effect to get user info
   useEffect(() => {
@@ -175,6 +181,64 @@ const ProjectDetails = () => {
     }
   };
 
+  const openReportModal = (target) => {
+    if (!currentUser) {
+      alert('Please sign in to report content');
+      return;
+    }
+    
+    setReportTarget(target);
+    setReportReason('');
+    setReportDescription('');
+    setReportSuccess(false);
+    setShowReportModal(true);
+  };
+
+  const handleReportSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!reportReason) {
+      alert('Please select a reason for reporting');
+      return;
+    }
+    
+    setReportSubmitting(true);
+    
+    try {
+      const reportData = {
+        reporter_id: currentUser.id,
+        reason: reportReason,
+        description: reportDescription || null,
+        status: 'pending'
+      };
+      
+      if (reportTarget.type === 'project') {
+        reportData.project_id = parseInt(id);
+      } else {
+        reportData.comment_id = parseInt(reportTarget.id);
+      }
+      
+      const { error } = await supabase
+        .from('reports')
+        .insert([reportData]);
+        
+      if (error) {
+        console.error('Error submitting report:', error);
+        alert('Failed to submit report. Please try again.');
+      } else {
+        setReportSuccess(true);
+        setTimeout(() => {
+          setShowReportModal(false);
+        }, 2000);
+      }
+    } catch (error) {
+      console.error('Error in report submission:', error);
+      alert('An unexpected error occurred.');
+    } finally {
+      setReportSubmitting(false);
+    }
+  };
+
   if (!project) {
     return (
       <div className="flex items-center justify-center min-h-screen w-full radial-background">
@@ -203,6 +267,14 @@ const ProjectDetails = () => {
             <span>{isLiked ? '❤️' : '🤍'}</span>
             <span>{likes}</span>
           </button>
+          
+          <button 
+            onClick={() => openReportModal({ type: 'project' })}
+            className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded text-sm"
+            title="Report Project"
+          >
+            ⚠️
+          </button>
         </div>
       </div>
       <div className="grid grid-cols-2 gap-4">
@@ -225,7 +297,7 @@ const ProjectDetails = () => {
           <strong>Created At:</strong> {new Date(project.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
         </div>
         <div>
-          <strong>Links:</strong> {project.links.length > 0 ? project.links.join(', ') : 'N/A'}
+          <strong>Links:</strong> {(project.links || []).length > 0 ? project.links.join(', ') : 'N/A'}
         </div>
       </div>
 
@@ -233,7 +305,17 @@ const ProjectDetails = () => {
       <div className="space-y-4">
         {comments.map((comment) => (
           <div key={comment.id} className="p-4 bg-gray-900 rounded-lg shadow-sm">
-            <p className="font-bold">{comment.profiles.display_name}</p>
+            <div className="flex justify-between items-start mb-1">
+              <p className="font-bold">{comment.profiles.display_name}</p>
+              
+              <button 
+                onClick={() => openReportModal({ type: 'comment', id: comment.id })}
+                className="text-xs bg-gray-700 hover:bg-gray-600 px-2 py-0.5 rounded"
+                title="Report Comment"
+              >
+                ⚠️
+              </button>
+            </div>
             <p>{comment.comment}</p>
             <p className="text-sm text-gray-500">
               {new Date(comment.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
@@ -246,6 +328,75 @@ const ProjectDetails = () => {
           </div>
         )}
       </div>
+
+      {showReportModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md text-white">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold">
+                Report {reportTarget?.type === 'project' ? 'Project' : 'Comment'}
+              </h2>
+              <button onClick={() => setShowReportModal(false)} className="text-gray-400 hover:text-white text-2xl">
+                &times;
+              </button>
+            </div>
+            
+            {reportSuccess ? (
+              <div className="text-green-500 text-center py-4">
+                Report submitted successfully. Thank you for helping keep our community safe.
+              </div>
+            ) : (
+              <form onSubmit={handleReportSubmit}>
+                <div className="mb-4">
+                  <label className="block mb-2">Reason:</label>
+                  <select 
+                    className="w-full bg-gray-700 p-2 rounded text-white"
+                    value={reportReason}
+                    onChange={(e) => setReportReason(e.target.value)}
+                    required
+                  >
+                    <option value="">Select a reason</option>
+                    <option value="spam">Spam</option>
+                    <option value="inappropriate">Inappropriate content</option>
+                    <option value="offensive">Offensive language</option>
+                    <option value="harassment">Harassment</option>
+                    <option value="misinformation">Misinformation</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+                
+                <div className="mb-4">
+                  <label className="block mb-2">Description (optional):</label>
+                  <textarea 
+                    className="w-full bg-gray-700 p-2 rounded text-white"
+                    rows="3"
+                    value={reportDescription}
+                    onChange={(e) => setReportDescription(e.target.value)}
+                    placeholder="Please provide additional details..."
+                  ></textarea>
+                </div>
+                
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setShowReportModal(false)}
+                    className="px-4 py-2 rounded mr-2 bg-gray-600 hover:bg-gray-500"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 rounded bg-red-600 hover:bg-red-500"
+                    disabled={reportSubmitting}
+                  >
+                    {reportSubmitting ? 'Submitting...' : 'Submit Report'}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
