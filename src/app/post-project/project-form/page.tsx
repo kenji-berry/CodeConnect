@@ -216,7 +216,7 @@ function ProjectFormContent() {
     setSelectedTechnologies(nonRemovableTechnologies);
   }, [repoInfo.languages]);
 
-  const validateSubmission = () => {
+  const validateSubmission = async () => {
     if (!session?.user?.id) {
       throw new Error('Please sign in to submit a project');
     }
@@ -245,6 +245,34 @@ function ProjectFormContent() {
     if (invalidLinks.length > 0) {
       throw new Error(`Invalid resource links found: ${invalidLinks.map(l => l.name).join(', ')}`);
     }
+
+    // Profanity check for customDescription
+    if (descriptionOption === "Write your Own") {
+      const profanityResponse = await fetch('/api/check-profanity', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: customDescription }),
+      });
+      const profanityData = await profanityResponse.json();
+      if (profanityData.isProfane) {
+        throw new Error('Custom description contains inappropriate language. Please revise.');
+      }
+    }
+
+    // Profanity check for resource links
+    for (const link of resourceLinks) {
+      if (link.name.trim()) {
+        const profanityResponse = await fetch('/api/check-profanity', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: link.name }),
+        });
+        const profanityData = await profanityResponse.json();
+        if (profanityData.isProfane) {
+          throw new Error(`Resource link name "${link.name}" contains inappropriate language. Please revise.`);
+        }
+      }
+    }
   };
 
   const handleSubmitProject = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -252,7 +280,7 @@ function ProjectFormContent() {
     setSubmissionError(null);
     
     try {
-      validateSubmission();
+      await validateSubmission();
       setIsSubmitting(true);
       
       const response = await fetch('/api/projects/create', {

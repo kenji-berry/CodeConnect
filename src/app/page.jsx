@@ -8,6 +8,40 @@ import SingleSelector from "./Components/SingleSelector";
 import { supabase } from '@/supabaseClient';
 import { getPopularProjects, getHybridRecommendations } from '@/services/recommendation-service';
 
+// Function to get trending projects
+async function getTrendingProjects(limit = 5) {
+  try {
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    
+    console.log(`Fetching trending projects for past 7 days (since ${oneWeekAgo.toISOString()})`);
+    
+    console.log('Attempting RPC call to get_trending_projects...');
+    const { data, error } = await supabase.rpc('get_trending_projects', {
+      lookback_days: 7,
+      results_limit: limit
+    });
+    
+    if (error) {
+      console.error('RPC Error details:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      });
+      
+      console.log('RPC failed, returning empty array');
+      return [];
+    }
+    
+    console.log('RPC succeeded, trending projects:', data);
+    return data || [];
+  } catch (error) {
+    console.error('Unhandled error in getTrendingProjects:', error.message || error);
+    return [];
+  }
+}
+
 function HomeContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -23,6 +57,12 @@ function HomeContent() {
   const [recommendedProjects, setRecommendedProjects] = useState([]);
   const [loadingRecommendations, setLoadingRecommendations] = useState(true);
   const [loadingRecentProjects, setLoadingRecentProjects] = useState(true);
+  const [trendingProjects, setTrendingProjects] = useState([]);
+  const [loadingTrending, setLoadingTrending] = useState(true);
+  const [newestProjects, setNewestProjects] = useState([]);
+  const [loadingNewest, setLoadingNewest] = useState(true);
+  const [popularProjects, setPopularProjects] = useState([]);
+  const [loadingPopular, setLoadingPopular] = useState(true);
 
   useEffect(() => {
     const technologies = searchParams.get("technologies")?.split(",") || [];
@@ -261,6 +301,306 @@ function HomeContent() {
     fetchRecommendations();
   }, []);
 
+  useEffect(() => {
+    const fetchTrendingProjects = async () => {
+      setLoadingTrending(true);
+      try {
+        const cachedTrending = getCachedData('trending_projects');
+        if (cachedTrending) {
+          console.log('Using cached trending projects:', cachedTrending);
+          setTrendingProjects(cachedTrending);
+          setLoadingTrending(false);
+          return;
+        }
+
+        // Get trending projects based on combined likes and comments
+        const trendingIds = await getTrendingProjects(5);
+        console.log('Trending project IDs returned:', trendingIds);
+        
+        if (!trendingIds || trendingIds.length === 0) {
+          console.log('No trending projects found');
+          setTrendingProjects([]);
+          setLoadingTrending(false);
+          return;
+        }
+        
+        // Get activity data for each trending project
+        for (const item of trendingIds) {
+          // Log likes count
+          const { data: likes, error: likeError } = await supabase
+            .from('project_likes')
+            .select('created_at', { count: 'exact' })
+            .eq('project_id', item.project_id)
+            .gt('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
+          
+          // Log comments count
+          const { data: comments, error: commentError } = await supabase
+            .from('project_comments')
+            .select('created_at', { count: 'exact' })
+            .eq('project_id', item.project_id)
+            .gt('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
+          
+          console.log(`Project ${item.project_id} activity:`, {
+            likes: likes?.length || 0,
+            comments: comments?.length || 0,
+            total: (likes?.length || 0) + (comments?.length || 0)
+          });
+        }
+        
+        // Fetch the actual project details for each trending ID
+        const { data: projects, error: projectsError } = await supabase
+          .from('project')
+          .select(`
+            id,
+            repo_name,
+            repo_owner,
+            description_type,
+            custom_description,
+            difficulty_level,
+            created_at
+          `)
+          .in('id', trendingIds.map(item => item.project_id));
+          
+        if (projectsError) {
+          console.error('Error fetching project details:', projectsError);
+          return;
+        }
+        
+        // Now fetch technologies and tags for each project
+        const projectsWithData = await Promise.all(
+          projects.map(async (project) => {
+            const { data: techData, error: techError } = await supabase
+              .from('project_technologies')
+              .select(`
+                technologies (name),
+                is_highlighted
+              `)
+              .eq('project_id', project.id);
+
+            const { data: tagData, error: tagError } = await supabase
+              .from('project_tags')  
+              .select(`
+                tag_id, 
+                tags!inner (  
+                  name
+                )
+              `)
+              .eq('project_id', project.id);
+
+            if (techError) console.error('Error fetching technologies:', techError);
+            if (tagError) console.error('Error fetching tags:', tagError);
+
+            return {
+              ...project,
+              technologies: techData?.map(tech => ({
+                name: tech.technologies.name,
+                is_highlighted: tech.is_highlighted
+              })) || [],
+              tags: tagData?.map(tag => tag.tags.name) || [] 
+            };
+          })
+        );
+        
+        if (projectsWithData?.length > 0) {
+          setCachedData('trending_projects', projectsWithData);
+        }
+        
+        setTrendingProjects(projectsWithData);
+      } catch (error) {
+        console.error('Error fetching trending projects:', error);
+        setTrendingProjects([]);
+      } finally {
+        setLoadingTrending(false);
+      }
+    };
+    
+    fetchTrendingProjects();
+  }, []);
+
+  useEffect(() => {
+    const fetchNewestProjects = async () => {
+      setLoadingNewest(true);
+      try {
+        const cachedNewest = getCachedData('newest_projects');
+        if (cachedNewest) {
+          console.log('Using cached newest projects');
+          setNewestProjects(cachedNewest);
+          setLoadingNewest(false);
+          return;
+        }
+
+        // Get newest projects
+        const { data: newestIds, error } = await supabase.rpc('get_newest_projects', {
+          results_limit: 3
+        });
+        
+        if (error) {
+          console.error('Error fetching newest projects:', error);
+          setNewestProjects([]);
+          setLoadingNewest(false);
+          return;
+        }
+        
+        if (!newestIds || newestIds.length === 0) {
+          setNewestProjects([]);
+          setLoadingNewest(false);
+          return;
+        }
+
+        // Fetch project details
+        const { data: projects } = await supabase
+          .from('project')
+          .select(`
+            id,
+            repo_name,
+            repo_owner,
+            description_type,
+            custom_description,
+            difficulty_level,
+            created_at
+          `)
+          .in('id', newestIds.map(item => item.project_id));
+        
+        // Fetch technologies and tags for each project
+        const projectsWithData = await Promise.all(
+          projects.map(async (project) => {
+            const { data: techData } = await supabase
+              .from('project_technologies')
+              .select(`
+                technologies (name),
+                is_highlighted
+              `)
+              .eq('project_id', project.id);
+
+            const { data: tagData } = await supabase
+              .from('project_tags')  
+              .select(`
+                tag_id, 
+                tags!inner (  
+                  name
+                )
+              `)
+              .eq('project_id', project.id);
+
+            return {
+              ...project,
+              technologies: techData?.map(tech => ({
+                name: tech.technologies.name,
+                is_highlighted: tech.is_highlighted
+              })) || [],
+              tags: tagData?.map(tag => tag.tags.name) || [] 
+            };
+          })
+        );
+        
+        if (projectsWithData?.length > 0) {
+          setCachedData('newest_projects', projectsWithData);
+        }
+        
+        setNewestProjects(projectsWithData);
+      } catch (error) {
+        console.error('Error in fetchNewestProjects:', error);
+        setNewestProjects([]);
+      } finally {
+        setLoadingNewest(false);
+      }
+    };
+    
+    fetchNewestProjects();
+  }, []);
+
+  useEffect(() => {
+    const fetchPopularProjects = async () => {
+      setLoadingPopular(true);
+      try {
+        const cachedPopular = getCachedData('popular_projects');
+        if (cachedPopular) {
+          console.log('Using cached popular projects');
+          setPopularProjects(cachedPopular);
+          setLoadingPopular(false);
+          return;
+        }
+
+        // Get popular projects
+        const { data: popularIds, error } = await supabase.rpc('get_popular_projects', {
+          results_limit: 3
+        });
+        
+        if (error) {
+          console.error('Error fetching popular projects:', error);
+          setPopularProjects([]);
+          setLoadingPopular(false);
+          return;
+        }
+        
+        if (!popularIds || popularIds.length === 0) {
+          setPopularProjects([]);
+          setLoadingPopular(false);
+          return;
+        }
+
+        // Fetch project details
+        const { data: projects } = await supabase
+          .from('project')
+          .select(`
+            id,
+            repo_name,
+            repo_owner,
+            description_type,
+            custom_description,
+            difficulty_level,
+            created_at
+          `)
+          .in('id', popularIds.map(item => item.project_id));
+        
+        // Fetch technologies and tags for each project
+        const projectsWithData = await Promise.all(
+          projects.map(async (project) => {
+            const { data: techData } = await supabase
+              .from('project_technologies')
+              .select(`
+                technologies (name),
+                is_highlighted
+              `)
+              .eq('project_id', project.id);
+
+            const { data: tagData } = await supabase
+              .from('project_tags')  
+              .select(`
+                tag_id, 
+                tags!inner (  
+                  name
+                )
+              `)
+              .eq('project_id', project.id);
+
+            return {
+              ...project,
+              technologies: techData?.map(tech => ({
+                name: tech.technologies.name,
+                is_highlighted: tech.is_highlighted
+              })) || [],
+              tags: tagData?.map(tag => tag.tags.name) || [] 
+            };
+          })
+        );
+        
+        if (projectsWithData?.length > 0) {
+          setCachedData('popular_projects', projectsWithData);
+        }
+        
+        setPopularProjects(projectsWithData);
+      } catch (error) {
+        console.error('Error in fetchPopularProjects:', error);
+        setPopularProjects([]);
+      } finally {
+        setLoadingPopular(false);
+      }
+    };
+    
+    fetchPopularProjects();
+  }, []);
+
   const handleTagsChange = (type, tags) => {
     switch (type) {
       case "technologies":
@@ -375,6 +715,129 @@ function HomeContent() {
                       .map(tech => tech.name)}
                     issueCount={0}
                     recommended={true}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="w-full py-2.5">
+            <h3 className="inter-bold main-subtitle">Trending Projects:</h3>
+            
+            {loadingTrending ? (
+              <div className="flex items-center justify-center p-8">
+                <div className="text-center">
+                  <div className="mb-4">
+                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[--title-red] mx-auto"></div>
+                  </div>
+                  <p className="text-sm text-off-white">Loading trending projects...</p>
+                </div>
+              </div>
+            ) : trendingProjects.length === 0 ? (
+              <div className="text-center text-gray-400 py-4">
+                No trending projects found
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {trendingProjects.map(project => (
+                  <ProjectPreview
+                    key={project.id}
+                    id={project.id}
+                    name={project.repo_name}
+                    date={project.created_at}
+                    tags={project.tags.slice(0, 3)}
+                    description={
+                      project.description_type === "Write your Own" 
+                        ? project.custom_description 
+                        : "GitHub project description"
+                    }
+                    techStack={project.technologies
+                      .filter(tech => tech.is_highlighted)
+                      .map(tech => tech.name)}
+                    issueCount={0}
+                    recommended={false}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="w-full py-2.5">
+            <h3 className="inter-bold main-subtitle">Newest Projects:</h3>
+            
+            {loadingNewest ? (
+              <div className="flex items-center justify-center p-8">
+                <div className="text-center">
+                  <div className="mb-4">
+                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[--title-red] mx-auto"></div>
+                  </div>
+                  <p className="text-sm text-off-white">Loading newest projects...</p>
+                </div>
+              </div>
+            ) : newestProjects.length === 0 ? (
+              <div className="text-center text-gray-400 py-4">
+                No new projects found
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {newestProjects.map(project => (
+                  <ProjectPreview
+                    key={project.id}
+                    id={project.id}
+                    name={project.repo_name}
+                    date={project.created_at}
+                    tags={project.tags.slice(0, 3)}
+                    description={
+                      project.description_type === "Write your Own" 
+                        ? project.custom_description 
+                        : "GitHub project description"
+                    }
+                    techStack={project.technologies
+                      .filter(tech => tech.is_highlighted)
+                      .map(tech => tech.name)}
+                    issueCount={0}
+                    recommended={false}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="w-full py-2.5">
+            <h3 className="inter-bold main-subtitle">Popular Projects:</h3>
+            
+            {loadingPopular ? (
+              <div className="flex items-center justify-center p-8">
+                <div className="text-center">
+                  <div className="mb-4">
+                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[--title-red] mx-auto"></div>
+                  </div>
+                  <p className="text-sm text-off-white">Loading popular projects...</p>
+                </div>
+              </div>
+            ) : popularProjects.length === 0 ? (
+              <div className="text-center text-gray-400 py-4">
+                No popular projects found
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {popularProjects.map(project => (
+                  <ProjectPreview
+                    key={project.id}
+                    id={project.id}
+                    name={project.repo_name}
+                    date={project.created_at}
+                    tags={project.tags.slice(0, 3)}
+                    description={
+                      project.description_type === "Write your Own" 
+                        ? project.custom_description 
+                        : "GitHub project description"
+                    }
+                    techStack={project.technologies
+                      .filter(tech => tech.is_highlighted)
+                      .map(tech => tech.name)}
+                    issueCount={0}
+                    recommended={false}
                   />
                 ))}
               </div>
