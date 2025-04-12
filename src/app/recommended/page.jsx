@@ -1,17 +1,19 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import ProjectPreview from "../Components/ProjectPreview";
+import ProjectPageLayout from "../Components/ProjectPageLayout";
+import useProjectFilters from "../hooks/useProjectFilters";
 import { supabase } from '@/supabaseClient';
 import { getHybridRecommendations, getPopularProjects } from '@/services/recommendation-service';
 
 export default function RecommendedProjectsPage() {
-  const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
   const [page, setPage] = useState(1);
   const router = useRouter();
+  const filterProps = useProjectFilters([]);
+  const { filteredProjects, updateProjects } = filterProps;
   
   useEffect(() => {
     // Check if user is authenticated
@@ -24,8 +26,12 @@ export default function RecommendedProjectsPage() {
   }, []);
   
   useEffect(() => {
+    let isMounted = true;
+    
     const fetchRecommendedProjects = async () => {
+      if (!isMounted) return;
       setLoading(true);
+      
       try {
         let recommendations;
         if (user) {
@@ -36,23 +42,29 @@ export default function RecommendedProjectsPage() {
           recommendations = await getPopularProjects(15, true);
         }
         
-        setProjects(recommendations || []);
+        if (isMounted) updateProjects(recommendations || []);
       } catch (error) {
         console.error('Error fetching recommended projects:', error);
+        if (isMounted) updateProjects([]);
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     };
     
     fetchRecommendedProjects();
+    
+    return () => {
+      isMounted = false;
+    };
   }, [user, page]);
   
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold">Recommended Projects</h1>
-      </div>
-      
+    <ProjectPageLayout
+      title="Recommended Projects"
+      loading={loading}
+      filterProps={filterProps}
+      projectCount={filteredProjects.length}
+    >
       {!user && (
         <div className="bg-gray-900 rounded-lg p-6 mb-6 text-center">
           <h3 className="text-xl font-bold mb-2">Log in for personalized recommendations</h3>
@@ -66,23 +78,14 @@ export default function RecommendedProjectsPage() {
         </div>
       )}
       
-      {loading ? (
-        <div className="flex items-center justify-center p-12">
-          <div className="text-center">
-            <div className="mb-4">
-              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[--title-red] mx-auto"></div>
-            </div>
-            <p>Loading recommended projects...</p>
-          </div>
-        </div>
-      ) : projects.length === 0 ? (
+      {filteredProjects.length === 0 ? (
         <div className="text-center py-12 bg-gray-900 rounded-lg">
-          <h3 className="text-xl font-bold mb-3">No recommendations available yet</h3>
-          <p>Interact with more projects to help us understand your interests!</p>
+          <h3 className="text-xl font-bold mb-3">No matching recommendations found</h3>
+          <p>Try adjusting your filter criteria or interact with more projects</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {projects.map(project => (
+          {filteredProjects.map(project => (
             <ProjectPreview
               key={project.id}
               id={project.id}
@@ -103,6 +106,6 @@ export default function RecommendedProjectsPage() {
           ))}
         </div>
       )}
-    </div>
+    </ProjectPageLayout>
   );
 }

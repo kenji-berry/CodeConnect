@@ -1,116 +1,133 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import Link from "next/link";
 import ProjectPreview from "../Components/ProjectPreview";
+import ProjectPageLayout from "../Components/ProjectPageLayout";
+import useProjectFilters from "../hooks/useProjectFilters";
 import { supabase } from '@/supabaseClient';
 
 export default function NewestProjectsPage() {
-  const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
+  const filterProps = useProjectFilters([]);
+  const { filteredProjects, updateProjects } = filterProps;
   
+  // Fetch newest projects
   useEffect(() => {
+    let isMounted = true; // Flag to prevent state updates after unmount
+    
     const fetchNewestProjects = async () => {
+      if (!isMounted) return;
       setLoading(true);
+      
       try {
-        // Get newest projects
-        const { data: newestIds, error } = await supabase.rpc('get_newest_projects', {
+        // Get newest project IDs
+        const { data: newestIds, error: idError } = await supabase.rpc('get_newest_projects', {
           results_limit: 15
         });
         
-        if (error) {
-          console.error('Error fetching newest projects:', error);
-          setProjects([]);
-          setLoading(false);
+        if (idError || !newestIds || newestIds.length === 0) {
+          console.error('Error fetching newest projects:', idError);
+          if (isMounted) updateProjects([]);
           return;
         }
+
+        // Extract project IDs safely
+        const projectIds = newestIds.map(item => item.project_id).filter(Boolean);
         
-        if (!newestIds || newestIds.length === 0) {
-          setProjects([]);
-          setLoading(false);
+        if (projectIds.length === 0) {
+          if (isMounted) updateProjects([]);
           return;
         }
 
         // Fetch project details
-        const { data: projects } = await supabase
+        const { data: projects, error: projectError } = await supabase
           .from('project')
           .select(`
-            id,
-            repo_name,
-            repo_owner,
-            description_type,
-            custom_description,
-            difficulty_level,
-            created_at
+            id, repo_name, repo_owner, description_type, 
+            custom_description, difficulty_level, created_at
           `)
-          .in('id', newestIds.map(item => item.project_id));
+          .in('id', projectIds);
+          
+        if (projectError || !projects || projects.length === 0) {
+          console.error('Error fetching project details:', projectError);
+          if (isMounted) updateProjects([]);
+          return;
+        }
         
-        // Fetch technologies and tags for each project
-        const projectsWithData = await Promise.all(
-          projects.map(async (project) => {
-            const { data: techData } = await supabase
-              .from('project_technologies')
-              .select(`
-                technologies (name),
-                is_highlighted
-              `)
-              .eq('project_id', project.id);
-
-            const { data: tagData } = await supabase
-              .from('project_tags')  
-              .select(`
-                tag_id, 
-                tags!inner (  
-                  name
-                )
-              `)
-              .eq('project_id', project.id);
-
-            return {
-              ...project,
-              technologies: techData?.map(tech => ({
-                name: tech.technologies.name,
-                is_highlighted: tech.is_highlighted
-              })) || [],
-              tags: tagData?.map(tag => tag.tags.name) || [] 
-            };
-          })
-        );
+        // Process projects in smaller batches to avoid resource exhaustion
+        const projectsWithData = [];
+        const BATCH_SIZE = 5;
         
-        setProjects(projectsWithData);
+        for (let i = 0; i < projects.length; i += BATCH_SIZE) {
+          if (!isMounted) return; // Check if still mounted before processing each batch
+          
+          const batch = projects.slice(i, i + BATCH_SIZE);
+          const batchResults = await Promise.all(
+            batch.map(async (project) => {
+              try {
+                const [techResult, tagResult] = await Promise.all([
+                  supabase
+                    .from('project_technologies')
+                    .select(`technologies (name), is_highlighted`)
+                    .eq('project_id', project.id),
+                  supabase
+                    .from('project_tags')  
+                    .select(`tag_id, tags!inner (name)`)
+                    .eq('project_id', project.id)
+                ]);
+
+                return {
+                  ...project,
+                  technologies: techResult.data?.map(tech => ({
+                    name: tech.technologies.name,
+                    is_highlighted: tech.is_highlighted
+                  })) || [],
+                  tags: tagResult.data?.map(tag => tag.tags.name) || [] 
+                };
+              } catch (error) {
+                console.error(`Error processing project ${project.id}:`, error);
+                return {
+                  ...project,
+                  technologies: [],
+                  tags: []
+                };
+              }
+            })
+          );
+          
+          projectsWithData.push(...batchResults);
+        }
+        
+        if (isMounted) updateProjects(projectsWithData);
       } catch (error) {
         console.error('Error in fetchNewestProjects:', error);
-        setProjects([]);
+        if (isMounted) updateProjects([]);
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     };
     
     fetchNewestProjects();
-  }, []);
+    
+    return () => {
+      isMounted = false; // Cleanup function to prevent state updates after unmount
+    };
+  }, []); // Remove updateProjects from dependencies
   
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold">Newest Projects</h1>
-      </div>
-      
-      {loading ? (
-        <div className="flex items-center justify-center p-12">
-          <div className="text-center">
-            <div className="mb-4">
-              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[--title-red] mx-auto"></div>
-            </div>
-            <p>Loading newest projects...</p>
-          </div>
-        </div>
-      ) : projects.length === 0 ? (
+    <ProjectPageLayout
+      title="Newest Projects"
+      loading={loading}
+      filterProps={filterProps}
+      projectCount={filteredProjects.length}
+    >
+      {filteredProjects.length === 0 ? (
         <div className="text-center py-12 bg-gray-900 rounded-lg">
-          <h3 className="text-xl font-bold mb-3">No new projects found</h3>
-          <p>Be the first to add a project!</p>
+          <h3 className="text-xl font-bold mb-3">No matching projects found</h3>
+          <p>Try adjusting your filter criteria</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {projects.map(project => (
+          {filteredProjects.map(project => (
             <ProjectPreview
               key={project.id}
               id={project.id}
@@ -131,6 +148,6 @@ export default function NewestProjectsPage() {
           ))}
         </div>
       )}
-    </div>
+    </ProjectPageLayout>
   );
 }
