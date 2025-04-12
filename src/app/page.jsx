@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import CodeConnectTitle from "./Components/CodeConnectTitle";
 import ProjectPreview from "./Components/ProjectPreview";
 import MultiSelector from "./Components/MultiSelector";
@@ -656,7 +657,10 @@ function HomeContent() {
       <div className="flex justify-center w-full">
         <div className="main-page-contents">
           <div className="w-full py-2.5">
-            <h3 className="inter-bold main-subtitle">Recommended For You:</h3>
+            <div className="flex justify-between items-center">
+              <h3 className="inter-bold main-subtitle">Recommended For You:</h3>
+              <Link href="/recommended" className="text-sm inria-sans-bold title-red hover:underline">View more</Link>
+            </div>
             
             {loadingRecommendations ? (
               <div className="flex items-center justify-center p-8">
@@ -722,7 +726,10 @@ function HomeContent() {
           </div>
 
           <div className="w-full py-2.5">
-            <h3 className="inter-bold main-subtitle">Trending Projects:</h3>
+            <div className="flex justify-between items-center">
+              <h3 className="inter-bold main-subtitle">Trending Projects:</h3>
+              <Link href="/trending" className="text-sm inria-sans-bold title-red hover:underline">View more</Link>
+            </div>
             
             {loadingTrending ? (
               <div className="flex items-center justify-center p-8">
@@ -763,7 +770,10 @@ function HomeContent() {
           </div>
 
           <div className="w-full py-2.5">
-            <h3 className="inter-bold main-subtitle">Newest Projects:</h3>
+            <div className="flex justify-between items-center">
+              <h3 className="inter-bold main-subtitle">Newest Projects:</h3>
+              <Link href="/newest" className="text-sm inria-sans-bold title-red hover:underline">View more</Link>
+            </div>
             
             {loadingNewest ? (
               <div className="flex items-center justify-center p-8">
@@ -804,7 +814,10 @@ function HomeContent() {
           </div>
 
           <div className="w-full py-2.5">
-            <h3 className="inter-bold main-subtitle">Popular Projects:</h3>
+            <div className="flex justify-between items-center">
+              <h3 className="inter-bold main-subtitle">Popular Projects:</h3>
+              <Link href="/popular" className="text-sm inria-sans-bold title-red hover:underline">View more</Link>
+            </div>
             
             {loadingPopular ? (
               <div className="flex items-center justify-center p-8">
