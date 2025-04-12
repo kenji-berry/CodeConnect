@@ -23,6 +23,11 @@ const ProjectDetails = () => {
 
   const [commentVotes, setCommentVotes] = useState({});
 
+  const [newComment, setNewComment] = useState('');
+  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+
+  const [commentFilter, setCommentFilter] = useState('new');
+
   // First effect to get user info
   useEffect(() => {
     const getCurrentUser = async () => {
@@ -343,6 +348,100 @@ const ProjectDetails = () => {
     }
   };
 
+  const handleCommentSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!currentUser) {
+      redirectToLogin();
+      return;
+    }
+    
+    if (!newComment.trim()) { // Prevent empty
+      return; 
+    }
+    
+    setIsSubmittingComment(true);
+    
+    try {
+      // First insert the comment
+      const { data, error } = await supabase
+        .from('project_comments')
+        .insert([
+          {
+            project_id: parseInt(id),
+            user_id: currentUser.id,
+            comment: newComment.trim()
+          }
+        ])
+        .select();
+        
+      if (error) {
+        console.error('Error submitting comment:', error);
+        alert('Failed to submit comment. Please try again.');
+      } else {
+        // Fetch the user's profile to get the display_name
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('display_name')
+          .eq('user_id', currentUser.id)
+          .single();
+          
+        const displayName = profileError ? 'User' : profileData.display_name;
+        
+        // Add the new comment to the list with the correct display name from profiles
+        const newCommentWithProfile = {
+          ...data[0],
+          profiles: {
+            display_name: displayName
+          }
+        };
+        
+        setComments(prevComments => [newCommentWithProfile, ...prevComments]);
+        setNewComment(''); // Clear the input
+        
+        // Initialize vote count for the new comment
+        setCommentVotes(prev => ({
+          ...prev,
+          [newCommentWithProfile.id]: {
+            score: 0,
+            userVote: null
+          }
+        }));
+      }
+    } catch (error) {
+      console.error('Error in comment submission:', error);
+      alert('An unexpected error occurred.');
+    } finally {
+      setIsSubmittingComment(false);
+    }
+  };
+
+  const getFilteredComments = () => {
+    if (!comments || comments.length === 0) return [];
+    
+    // Create a copy to avoid mutating the original array
+    const filtered = [...comments];
+    
+    switch (commentFilter) {
+      case 'top':
+        // Sort by highest score first
+        return filtered.sort((a, b) => 
+          (commentVotes[b.id]?.score || 0) - (commentVotes[a.id]?.score || 0)
+        );
+      case 'old':
+        // Sort by oldest first
+        return filtered.sort((a, b) => 
+          new Date(a.created_at) - new Date(b.created_at)
+        );
+      case 'new':
+      default:
+        // Sort by newest first (default)
+        return filtered.sort((a, b) => 
+          new Date(b.created_at) - new Date(a.created_at)
+        );
+    }
+  };
+
   if (!project) {
     return (
       <div className="flex items-center justify-center min-h-screen w-full radial-background">
@@ -405,9 +504,25 @@ const ProjectDetails = () => {
         </div>
       </div>
 
-      <h2 className="text-xl font-bold mt-8 mb-4">Comments</h2>
+      <div className="flex justify-between items-center mt-8 mb-4">
+        <h2 className="text-xl font-bold">Comments</h2>
+        
+        <div className="flex items-center">
+          <label htmlFor="comment-filter" className="mr-2 text-sm">Filter by:</label>
+          <select
+            id="comment-filter"
+            className="bg-gray-700 text-white rounded px-3 py-1 text-sm"
+            value={commentFilter}
+            onChange={(e) => setCommentFilter(e.target.value)}
+          >
+            <option value="new">Newest</option>
+            <option value="top">Top Rated</option>
+            <option value="old">Oldest</option>
+          </select>
+        </div>
+      </div>
       <div className="space-y-4">
-        {comments.map((comment) => (
+        {getFilteredComments().map((comment) => (
           <div key={comment.id} className="p-4 bg-gray-900 rounded-lg shadow-sm">
             <div className="flex justify-between items-start mb-1">
               <p className="font-bold">{comment.profiles.display_name}</p>
@@ -460,6 +575,42 @@ const ProjectDetails = () => {
             No comments found
           </div>
         )}
+        <div className="mt-8 p-4 bg-gray-800 rounded-lg">
+          <h3 className="text-lg font-semibold mb-4">Add a Comment</h3>
+          
+          {currentUser ? (
+            <form onSubmit={handleCommentSubmit}>
+              <textarea
+                className="w-full bg-gray-700 p-3 rounded text-white mb-3"
+                rows="3"
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                placeholder="Share your thoughts about this project..."
+                required
+              ></textarea>
+              
+              <div className="flex justify-end">
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-white"
+                  disabled={isSubmittingComment || !newComment.trim()}
+                >
+                  {isSubmittingComment ? 'Posting...' : 'Post Comment'}
+                </button>
+              </div>
+            </form>
+          ) : (
+            <div className="text-center p-4 bg-gray-700 rounded">
+              <p className="mb-2">You need to be logged in to comment</p>
+              <button
+                onClick={redirectToLogin}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-white"
+              >
+                Log In
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {showReportModal && (
