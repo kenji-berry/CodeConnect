@@ -634,34 +634,26 @@ export async function getHybridRecommendations(userId, limit = 5, debug = false)
 
     if (debug) console.log(`🔄 User interaction count: ${interactionCount}, isNewUser: ${isNewUser}`);
 
-    // Force debug mode for getUserPreferredTags to see inferred tags
-    if (debug) {
-      // Explicitly call getUserPreferredTags with debug enabled to see inferred tags
-      console.log("🔄 Explicitly checking inferred tags from user interactions:");
-      const inferredTags = await getUserPreferredTags(userId, true);
-      console.log(`🔄 Summary of inferred tags: ${inferredTags.join(', ')}`);
-    }
-
-    // Check for tag preferences before falling back to popular projects
+    // Check for tag preferences before falling back
     if (interactionCount === 0) {
       // Get user tag preferences
       const userTagIds = await getUserTagPreferences(userId, debug);
-      
+
       if (debug) console.log(`🏷️ Found ${userTagIds.length} tag preferences for user with no interactions`);
-      
+
       // If user has tag preferences, use them for recommendations
       if (userTagIds.length > 0) {
         if (debug) console.log("🏷️ Using tag preferences to recommend projects for new user");
-        
+
         // Use content-based recommendations which will incorporate tag preferences
         const contentRecommendations = await getRecommendedProjects(userId, limit, debug);
         if (contentRecommendations && contentRecommendations.length > 0) {
           return contentRecommendations;
         }
       }
-      
-      console.warn("No interactions or useful tag preferences found. Returning popular projects as fallback.");
-      return await getPopularProjects(limit, debug);
+
+      console.warn("No interactions or useful tag preferences found. Returning an empty array.");
+      return []; 
     }
 
     // Fetch content-based and collaborative recommendations
@@ -670,16 +662,12 @@ export async function getHybridRecommendations(userId, limit = 5, debug = false)
 
     if (debug) {
       console.log(`🔄 Content recommendations count: ${contentRecommendations.length}`);
-      console.log(`🔄 Content recommendations details:`); 
-      contentRecommendations.forEach((p, i) => {
-        console.log(`  ${i+1}. ${p.repo_name} (ID: ${p.id}, Tags: ${p.tags?.join(', ') || 'none'})`);
-      });
       console.log(`🔄 Collaborative recommendations count: ${collabRecommendations.length}`);
     }
 
     if (!contentRecommendations.length && !collabRecommendations.length) {
-      console.warn("No recommendations found. Returning recent projects as fallback.");
-      return await getRecentProjects(limit);
+      console.warn("No recommendations found. Returning an empty array.");
+      return []; 
     }
 
     // Combine recommendations with weighted logic
@@ -687,8 +675,7 @@ export async function getHybridRecommendations(userId, limit = 5, debug = false)
     let contentCount = Math.max(1, Math.round(limit * contentRatio));
     let collabCount = limit - contentCount;
 
-    // IMPORTANT FIX: If we don't have enough collaborative recommendations, 
-    // use more content-based ones to reach the limit
+    // Adjust counts if there are not enough collaborative recommendations
     if (collabRecommendations.length < collabCount) {
       const availableCollab = collabRecommendations.length;
       contentCount = Math.min(contentRecommendations.length, limit - availableCollab);
@@ -707,93 +694,15 @@ export async function getHybridRecommendations(userId, limit = 5, debug = false)
 
     if (debug) {
       console.log(`🔄 Final recommendations count: ${combinedRecommendations.length}`);
-      console.log(`🔄 Final recommendations:`);
-      combinedRecommendations.forEach((p, i) => {
-        console.log(`  ${i+1}. ${p.repo_name} (ID: ${p.id}, Tags: ${p.tags?.join(', ') || 'none'}, Reason: ${p.recommendationReason?.[0] || 'Not specified'})`);
-      });
     }
 
     return combinedRecommendations.slice(0, limit);
   } catch (error) {
-    // Use a safer error logging approach
-    console.error("Error in hybrid recommendations:", 
-      error instanceof Error ? error.message : "Unknown error");
+    console.error("Error in hybrid recommendations:", error);
     return [];
   }
 }
 
-export async function getPopularProjects(limit = 5, debug = false) {
-  try {
-    if (debug) console.log("🔍 Getting popular projects as fallback");
-    
-    // Get interaction counts
-    const { data: interactions, error: countError } = await supabase
-      .from('user_interactions')
-      .select('repo_id, interaction_type');
-    
-    if (countError) {
-      console.error('Error getting interaction counts:', countError);
-      return getRecentProjects(limit);
-    }
-    
-    // Calculate scores (1 point for likes, 0.5 for views)
-    const projectScores = {};
-    interactions?.forEach(interaction => {
-      if (!projectScores[interaction.repo_id]) {
-        projectScores[interaction.repo_id] = 0;
-      }
-      
-      if (interaction.interaction_type === 'like') {
-        projectScores[interaction.repo_id] += 1;
-      } else if (interaction.interaction_type === 'view') {
-        projectScores[interaction.repo_id] += 0.5;
-      }
-    });
-    
-    // Get the top project IDs
-    const topRepoIds = Object.entries(projectScores)
-      .sort((a, b) => b[1] - a[1]) // Sort by score, descending
-      .map(([id]) => id)
-      .slice(0, limit);
-    
-    if (topRepoIds.length === 0) {
-      return getRecentProjects(limit);
-    }
-    
-    // Get project details
-    const { data: projects, error } = await supabase
-      .from('project')
-      .select(`
-        id,
-        repo_name,
-        repo_owner,
-        description_type,
-        custom_description,
-        difficulty_level,
-        created_at,
-        status
-      `)
-      .in('repo_name', topRepoIds);
-    
-    if (error) {
-      console.error('Error getting popular projects:', error);
-      return getRecentProjects(limit);
-    }
-    
-    // Get associated tags and technologies for each project
-    const projectsWithData = await enrichProjectsWithTagsAndTech(projects || []);
-    
-    // Sort by popularity score
-    return topRepoIds
-      .map(repo_name => projectsWithData.find(p => p.repo_name === repo_name))
-      .filter(Boolean)
-      .slice(0, limit);
-    
-  } catch (error) {
-    console.error('Error getting popular projects:', error);
-    return getRecentProjects(limit);
-  }
-}
 
 export async function getRecentProjects(limit = 5) {
   try {

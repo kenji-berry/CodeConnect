@@ -5,7 +5,7 @@ import ProjectPreview from "../Components/ProjectPreview";
 import ProjectPageLayout from "../Components/ProjectPageLayout";
 import useProjectFilters from "../hooks/useProjectFilters";
 import { supabase } from '@/supabaseClient';
-import { getHybridRecommendations, getPopularProjects } from '@/services/recommendation-service';
+import { getHybridRecommendations } from '@/services/recommendation-service';
 
 function RecommendedProjectsContent() {
   const [loading, setLoading] = useState(true);
