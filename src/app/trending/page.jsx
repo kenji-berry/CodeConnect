@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import ProjectPreview from "../Components/ProjectPreview";
 import ProjectPageLayout from "../Components/ProjectPageLayout";
 import useProjectFilters from "../hooks/useProjectFilters";
@@ -10,19 +10,19 @@ async function getTrendingProjects(limit = 15) {
   try {
     const oneWeekAgo = new Date();
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-    
+
     console.log(`Fetching trending projects for past 7 days`);
-    
+
     const { data, error } = await supabase.rpc('get_trending_projects', {
       lookback_days: 7,
       results_limit: limit
     });
-    
+
     if (error) {
       console.error('Error fetching trending projects:', error);
       return [];
     }
-    
+
     return data || [];
   } catch (error) {
     console.error('Error in getTrendingProjects:', error);
@@ -30,27 +30,27 @@ async function getTrendingProjects(limit = 15) {
   }
 }
 
-export default function TrendingProjectsPage() {
+function TrendingProjectsContent() {
   const [loading, setLoading] = useState(true);
   const filterProps = useProjectFilters([]);
   const { filteredProjects, updateProjects } = filterProps;
-  
+
   useEffect(() => {
     let isMounted = true; // Flag to prevent state updates after unmount
-    
+
     const fetchTrendingProjects = async () => {
       if (!isMounted) return;
       setLoading(true);
-      
+
       try {
         // Get trending projects based on combined likes and comments
         const trendingIds = await getTrendingProjects(15);
-        
+
         if (!trendingIds || trendingIds.length === 0) {
           if (isMounted) updateProjects([]);
           return;
         }
-        
+
         // Fetch the actual project details for each trending ID
         const { data: projects, error: projectsError } = await supabase
           .from('project')
@@ -64,20 +64,20 @@ export default function TrendingProjectsPage() {
             created_at
           `)
           .in('id', trendingIds.map(item => item.project_id));
-          
+
         if (projectsError || !projects || projects.length === 0) {
           console.error('Error fetching project details:', projectsError);
           if (isMounted) updateProjects([]);
           return;
         }
-        
+
         // Process projects in smaller batches to avoid resource exhaustion
         const projectsWithData = [];
         const BATCH_SIZE = 5;
-        
+
         for (let i = 0; i < projects.length; i += BATCH_SIZE) {
           if (!isMounted) return; // Check if still mounted before processing each batch
-          
+
           const batch = projects.slice(i, i + BATCH_SIZE);
           const batchResults = await Promise.all(
             batch.map(async (project) => {
@@ -111,10 +111,10 @@ export default function TrendingProjectsPage() {
               }
             })
           );
-          
+
           projectsWithData.push(...batchResults);
         }
-        
+
         if (isMounted) updateProjects(projectsWithData);
       } catch (error) {
         console.error('Error fetching trending projects:', error);
@@ -123,14 +123,14 @@ export default function TrendingProjectsPage() {
         if (isMounted) setLoading(false);
       }
     };
-    
+
     fetchTrendingProjects();
-    
+
     return () => {
       isMounted = false; // Cleanup function to prevent state updates after unmount
     };
-  }, []);
-  
+  }, []); // Remove updateProjects from dependencies
+
   return (
     <ProjectPageLayout
       title="Trending Projects"
@@ -167,5 +167,13 @@ export default function TrendingProjectsPage() {
         </div>
       )}
     </ProjectPageLayout>
+  );
+}
+
+export default function TrendingProjectsPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <TrendingProjectsContent />
+    </Suspense>
   );
 }

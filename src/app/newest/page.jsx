@@ -1,29 +1,28 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import ProjectPreview from "../Components/ProjectPreview";
 import ProjectPageLayout from "../Components/ProjectPageLayout";
 import useProjectFilters from "../hooks/useProjectFilters";
 import { supabase } from '@/supabaseClient';
 
-export default function NewestProjectsPage() {
+function NewestProjectsContent() {
   const [loading, setLoading] = useState(true);
   const filterProps = useProjectFilters([]);
   const { filteredProjects, updateProjects } = filterProps;
-  
-  // Fetch newest projects
+
   useEffect(() => {
     let isMounted = true; // Flag to prevent state updates after unmount
-    
+
     const fetchNewestProjects = async () => {
       if (!isMounted) return;
       setLoading(true);
-      
+
       try {
         // Get newest project IDs
         const { data: newestIds, error: idError } = await supabase.rpc('get_newest_projects', {
           results_limit: 15
         });
-        
+
         if (idError || !newestIds || newestIds.length === 0) {
           console.error('Error fetching newest projects:', idError);
           if (isMounted) updateProjects([]);
@@ -32,7 +31,7 @@ export default function NewestProjectsPage() {
 
         // Extract project IDs safely
         const projectIds = newestIds.map(item => item.project_id).filter(Boolean);
-        
+
         if (projectIds.length === 0) {
           if (isMounted) updateProjects([]);
           return;
@@ -46,20 +45,20 @@ export default function NewestProjectsPage() {
             custom_description, difficulty_level, created_at
           `)
           .in('id', projectIds);
-          
+
         if (projectError || !projects || projects.length === 0) {
           console.error('Error fetching project details:', projectError);
           if (isMounted) updateProjects([]);
           return;
         }
-        
+
         // Process projects in smaller batches to avoid resource exhaustion
         const projectsWithData = [];
         const BATCH_SIZE = 5;
-        
+
         for (let i = 0; i < projects.length; i += BATCH_SIZE) {
           if (!isMounted) return; // Check if still mounted before processing each batch
-          
+
           const batch = projects.slice(i, i + BATCH_SIZE);
           const batchResults = await Promise.all(
             batch.map(async (project) => {
@@ -93,10 +92,10 @@ export default function NewestProjectsPage() {
               }
             })
           );
-          
+
           projectsWithData.push(...batchResults);
         }
-        
+
         if (isMounted) updateProjects(projectsWithData);
       } catch (error) {
         console.error('Error in fetchNewestProjects:', error);
@@ -105,14 +104,14 @@ export default function NewestProjectsPage() {
         if (isMounted) setLoading(false);
       }
     };
-    
+
     fetchNewestProjects();
-    
+
     return () => {
       isMounted = false; // Cleanup function to prevent state updates after unmount
     };
   }, []); // Remove updateProjects from dependencies
-  
+
   return (
     <ProjectPageLayout
       title="Newest Projects"
@@ -149,5 +148,13 @@ export default function NewestProjectsPage() {
         </div>
       )}
     </ProjectPageLayout>
+  );
+}
+
+export default function NewestProjectsPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <NewestProjectsContent />
+    </Suspense>
   );
 }

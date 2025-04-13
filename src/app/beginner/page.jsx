@@ -1,28 +1,28 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import ProjectPreview from "../Components/ProjectPreview";
 import ProjectPageLayout from "../Components/ProjectPageLayout";
 import useProjectFilters from "../hooks/useProjectFilters";
 import { supabase } from '@/supabaseClient';
 
-export default function BeginnerProjectsPage() {
+function BeginnerProjectsContent() {
   const [loading, setLoading] = useState(true);
   const filterProps = useProjectFilters([]);
   const { filteredProjects, updateProjects } = filterProps;
-  
+
   useEffect(() => {
     let isMounted = true; // Flag to prevent state updates after unmount
-    
+
     const fetchBeginnerProjects = async () => {
       if (!isMounted) return;
       setLoading(true);
-      
+
       try {
         // Get beginner projects
         const { data: beginnerIds, error: idError } = await supabase.rpc('get_beginner_projects', {
           results_limit: 15
         });
-        
+
         if (idError || !beginnerIds || beginnerIds.length === 0) {
           console.error('Error fetching beginner projects:', idError);
           if (isMounted) updateProjects([]);
@@ -31,7 +31,7 @@ export default function BeginnerProjectsPage() {
 
         // Extract project IDs safely
         const projectIds = beginnerIds.map(item => item.project_id).filter(Boolean);
-        
+
         if (projectIds.length === 0) {
           if (isMounted) updateProjects([]);
           return;
@@ -45,20 +45,20 @@ export default function BeginnerProjectsPage() {
             custom_description, difficulty_level, created_at
           `)
           .in('id', projectIds);
-          
+
         if (projectError || !projects || projects.length === 0) {
           console.error('Error fetching project details:', projectError);
           if (isMounted) updateProjects([]);
           return;
         }
-        
+
         // Process projects in smaller batches to avoid resource exhaustion
         const projectsWithData = [];
         const BATCH_SIZE = 5;
-        
+
         for (let i = 0; i < projects.length; i += BATCH_SIZE) {
           if (!isMounted) return; // Check if still mounted before processing each batch
-          
+
           const batch = projects.slice(i, i + BATCH_SIZE);
           const batchResults = await Promise.all(
             batch.map(async (project) => {
@@ -92,10 +92,10 @@ export default function BeginnerProjectsPage() {
               }
             })
           );
-          
+
           projectsWithData.push(...batchResults);
         }
-        
+
         if (isMounted) updateProjects(projectsWithData);
       } catch (error) {
         console.error('Error in fetchBeginnerProjects:', error);
@@ -104,14 +104,14 @@ export default function BeginnerProjectsPage() {
         if (isMounted) setLoading(false);
       }
     };
-    
+
     fetchBeginnerProjects();
-    
+
     return () => {
       isMounted = false; // Cleanup function to prevent state updates after unmount
     };
-  }, []);
-  
+  }, []); // Remove updateProjects from dependencies
+
   return (
     <ProjectPageLayout
       title="Beginner Projects"
@@ -148,5 +148,13 @@ export default function BeginnerProjectsPage() {
         </div>
       )}
     </ProjectPageLayout>
+  );
+}
+
+export default function BeginnerProjectsPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <BeginnerProjectsContent />
+    </Suspense>
   );
 }

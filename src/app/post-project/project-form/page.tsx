@@ -283,6 +283,9 @@ function ProjectFormContent() {
       await validateSubmission();
       setIsSubmitting(true);
       
+      // Construct the full GitHub repository URL
+      const githubLink = `https://github.com/${owner}/${repoName}`;
+      
       const response = await fetch('/api/projects/create', {
         method: 'POST',
         headers: {
@@ -292,10 +295,17 @@ function ProjectFormContent() {
         body: JSON.stringify({
           repoName,
           owner,
+          github_link: githubLink,
           description_type: descriptionOption,
           custom_description: customDescription,
-          difficulty_level: difficulty,
-          links: resourceLinks.filter(link => link.name && link.url && link.isValid).map(link => link.url),
+          difficulty_level: difficulty === 1 ? "Beginner" : difficulty === 2 ? "Intermediate" : "Advanced",
+          tags: selectedTags,
+          technologies: selectedTechnologies,
+          highlighted_technologies: highlightedTechnologies,
+          links: resourceLinks.filter(link => link.name && link.url && link.isValid).map(link => ({
+            name: link.name,
+            url: link.url
+          })),
           status: projectStatus,
         }),
       });
@@ -305,6 +315,10 @@ function ProjectFormContent() {
       if (!response.ok) {
         throw new Error(result.error || 'Failed to create project');
       }
+      
+      // On success, redirect to the project page or dashboard
+      window.location.href = `/project/${result.projectId}`;
+      
     } catch (err) {
       setSubmissionError(err instanceof Error ? err.message : 'An unexpected error occurred');
     } finally {
