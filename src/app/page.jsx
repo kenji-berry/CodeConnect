@@ -121,7 +121,6 @@ function HomeContent() {
         if (session?.user) {
           recommendations = await getHybridRecommendations(session.user.id, 3, true);
         } else {
-          recommendations = await getPopularProjects(3, true);
         }
         
         if (recommendations?.length > 0) {

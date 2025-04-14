@@ -154,10 +154,12 @@ async function getUserInteractions(userId) {
 /**
  * Calculate interaction scores for projects
  * Like = 1 point, View = 0.5 points
-
-async function calculateInteractionScores(userId: string) {
+ * @param {string} userId - The user ID to calculate scores for
+ * @returns {Object} - Dictionary of scores by repo ID
+ */
+async function calculateInteractionScores(userId) {
   const interactions = await getUserInteractions(userId);
-  
+  const scores = {};
   
   interactions.forEach(interaction => {
     const { repo_id, interaction_type } = interaction;
@@ -175,7 +177,6 @@ async function calculateInteractionScores(userId: string) {
   
   return scores;
 }
- */
 
 const scores = {};
 async function getUserPreferredTags(userId, debug = false) {

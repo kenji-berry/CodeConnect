@@ -38,8 +38,6 @@ function RecommendedProjectsContent() {
           // Get personalized recommendations if logged in
           recommendations = await getHybridRecommendations(user.id, 15, true);
         } else {
-          // Get popular projects for non-authenticated users
-          recommendations = await getPopularProjects(15, true);
         }
 
         if (isMounted) updateProjects(recommendations || []);
