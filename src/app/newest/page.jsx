@@ -7,7 +7,7 @@ import { supabase } from '@/supabaseClient';
 
 function NewestProjectsContent() {
   const [loading, setLoading] = useState(true);
-  const filterProps = useProjectFilters([]);
+  const filterProps = useProjectFilters([], { includeTags: true });
   const { filteredProjects, updateProjects } = filterProps;
 
   useEffect(() => {

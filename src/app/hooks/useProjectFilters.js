@@ -15,6 +15,7 @@ export default function useProjectFilters(initialProjects = [], options = {}) {
 
   // Filter states
   const [availableTechnologies, setAvailableTechnologies] = useState([]);
+  const [availableTags, setAvailableTags] = useState([]); // Add state for available tags
   const [projects, setProjects] = useState(initialProjects);
   const [filteredProjects, setFilteredProjects] = useState(initialProjects);
   const [selectedTechnologies, setSelectedTechnologies] = useState([]);
@@ -75,6 +76,31 @@ export default function useProjectFilters(initialProjects = [], options = {}) {
     };
 
     fetchTechnologies();
+  }, []);
+  
+  // Fetch available tags - New function
+  useEffect(() => {
+    const fetchTags = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('tags')
+          .select('id, name')
+          .order('name');
+
+        if (error) {
+          console.error('Error fetching tags:', error);
+          return;
+        }
+
+        if (data) {
+          setAvailableTags(data.map(tag => tag.name));
+        }
+      } catch (error) {
+        console.error('Failed to fetch tags:', error);
+      }
+    };
+
+    fetchTags();
   }, []);
   
   // Apply filters when filter state or projects change
@@ -221,6 +247,7 @@ export default function useProjectFilters(initialProjects = [], options = {}) {
 
   return {
     availableTechnologies,
+    availableTags, // Add availableTags to the return value
     selectedTechnologies,
     selectedContributionTypes,
     selectedDifficulties,

@@ -7,7 +7,8 @@ import { supabase } from '@/supabaseClient';
 
 function PopularProjectsContent() {
   const [loading, setLoading] = useState(true);
-  const filterProps = useProjectFilters([]);
+  // Enable includeTags option
+  const filterProps = useProjectFilters([], { includeTags: true });
   const { filteredProjects, updateProjects } = filterProps;
 
   useEffect(() => {
