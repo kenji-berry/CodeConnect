@@ -3,7 +3,13 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/supabaseClient';
 
-export default function useProjectFilters(initialProjects = []) {
+export default function useProjectFilters(initialProjects = [], options = {}) {
+  const {
+    includeTags = false,
+    numericDifficulty = false,
+    defaultDifficulty = 1
+  } = options;
+  
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -13,24 +19,38 @@ export default function useProjectFilters(initialProjects = []) {
   const [filteredProjects, setFilteredProjects] = useState(initialProjects);
   const [selectedTechnologies, setSelectedTechnologies] = useState([]);
   const [selectedContributionTypes, setSelectedContributionTypes] = useState([]);
-  const [selectedDifficulty, setSelectedDifficulty] = useState("");
+  const [selectedDifficulties, setSelectedDifficulties] = useState([]);
   const [selectedLastUpdated, setSelectedLastUpdated] = useState("");
   const [filterMode, setFilterMode] = useState('AND');
+  const [selectedTags, setSelectedTags] = useState([]);
   
   // Load filters from URL parameters
   useEffect(() => {
     const technologies = searchParams.get("technologies")?.split(",") || [];
     const contributionTypes = searchParams.get("contributionTypes")?.split(",") || [];
-    const difficulty = searchParams.get("difficulty") || "";
+    const tags = includeTags ? (searchParams.get("tags")?.split(",") || []) : [];
+    const difficultiesParam = searchParams.get("difficulties");
     const lastUpdated = searchParams.get("lastUpdated") || "";
     const mode = searchParams.get("filterMode") || 'AND';
 
     setSelectedTechnologies(technologies.filter(Boolean));
     setSelectedContributionTypes(contributionTypes.filter(Boolean));
-    setSelectedDifficulty(difficulty);
+    setSelectedTags(tags.filter(Boolean));
+
+    // Ensure we handle the difficulties value consistently
+    let difficultiesValue = [];
+    if (numericDifficulty) {
+      // For numeric difficulties, parse to numbers
+      difficultiesValue = difficultiesParam ? difficultiesParam.split(",").map(Number) : [];
+    } else {
+      // For string difficulties, use as-is
+      difficultiesValue = difficultiesParam ? difficultiesParam.split(",") : [];
+    }
+    setSelectedDifficulties(difficultiesValue);
+
     setSelectedLastUpdated(lastUpdated);
     setFilterMode(mode);
-  }, [searchParams]);
+  }, [searchParams, includeTags, numericDifficulty]);
   
   // Fetch available technologies
   useEffect(() => {
@@ -75,6 +95,18 @@ export default function useProjectFilters(initialProjects = []) {
       });
     }
     
+    // Apply tag filter if enabled
+    if (includeTags && selectedTags.length > 0) {
+      filtered = filtered.filter(project => {
+        const projectTags = project.tags || [];
+        if (filterMode === 'AND') {
+          return selectedTags.every(tag => projectTags.includes(tag));
+        } else {
+          return selectedTags.some(tag => projectTags.includes(tag));
+        }
+      });
+    }
+    
     // Apply contribution type filter
     if (selectedContributionTypes.length > 0) {
       filtered = filtered.filter(project => {
@@ -87,11 +119,12 @@ export default function useProjectFilters(initialProjects = []) {
       });
     }
     
-    // Apply difficulty filter
-    if (selectedDifficulty) {
-      filtered = filtered.filter(project => 
-        project.difficulty_level === selectedDifficulty
-      );
+    // Apply difficulties filter - ensure we're comparing numbers
+    if (selectedDifficulties.length > 0) {
+      filtered = filtered.filter(project => {
+        const projectDifficulty = Number(project.difficulty_level);
+        return selectedDifficulties.map(Number).includes(projectDifficulty);
+      });
     }
     
     // Apply lastUpdated filter
@@ -115,7 +148,7 @@ export default function useProjectFilters(initialProjects = []) {
     }
     
     setFilteredProjects(filtered);
-  }, [projects, selectedTechnologies, selectedContributionTypes, selectedDifficulty, selectedLastUpdated, filterMode]);
+  }, [projects, selectedTechnologies, selectedContributionTypes, selectedTags, includeTags, selectedDifficulties, selectedLastUpdated, filterMode, numericDifficulty]);
 
   // Memoize updateProjects to prevent unnecessary re-renders
   const updateProjects = useCallback((newProjects) => {
@@ -132,7 +165,7 @@ export default function useProjectFilters(initialProjects = []) {
         urlParams.set(key, value.join(","));
       } else if (Array.isArray(value) && value.length === 0) {
         urlParams.delete(key);
-      } else if (value) {
+      } else if (value !== null && value !== undefined && value !== "") {
         urlParams.set(key, value);
       } else {
         urlParams.delete(key);
@@ -153,9 +186,17 @@ export default function useProjectFilters(initialProjects = []) {
     updateUrl({ contributionTypes: types });
   };
   
-  const handleDifficultyChange = (difficulty) => {
-    setSelectedDifficulty(difficulty || "");
-    updateUrl({ difficulty: difficulty || "" });
+  const handleTagsChange = (tags) => {
+    setSelectedTags(tags);
+    updateUrl({ tags });
+  };
+  
+  const handleDifficultyChange = (difficulties) => {
+    // Update the state first
+    setSelectedDifficulties(difficulties);
+    
+    // Then update the URL with a consistent value
+    updateUrl({ difficulties: difficulties.length > 0 ? difficulties : "" });
   };
   
   const handleLastUpdatedChange = (lastUpdated) => {
@@ -171,7 +212,8 @@ export default function useProjectFilters(initialProjects = []) {
   const clearAllFilters = () => {
     setSelectedTechnologies([]);
     setSelectedContributionTypes([]);
-    setSelectedDifficulty("");
+    setSelectedTags([]);
+    setSelectedDifficulties([]);
     setSelectedLastUpdated("");
     setFilterMode("AND");
     router.push(`?`, { scroll: false });
@@ -181,9 +223,10 @@ export default function useProjectFilters(initialProjects = []) {
     availableTechnologies,
     selectedTechnologies,
     selectedContributionTypes,
-    selectedDifficulty,
+    selectedDifficulties,
     selectedLastUpdated,
     filterMode,
+    selectedTags,
     filteredProjects,
     updateProjects,
     handleTechnologiesChange,
@@ -191,6 +234,7 @@ export default function useProjectFilters(initialProjects = []) {
     handleDifficultyChange,
     handleLastUpdatedChange,
     handleFilterModeChange,
+    handleTagsChange,
     clearAllFilters
   };
 }

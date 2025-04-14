@@ -16,14 +16,17 @@ export default function ProjectPageLayout({
     availableTechnologies,
     selectedTechnologies,
     selectedContributionTypes,
-    selectedDifficulty,
+    selectedDifficulties, // Changed from selectedDifficulty (singular) to plural
     selectedLastUpdated,
     filterMode,
+    availableTags,
+    selectedTags,
     handleTechnologiesChange,
     handleContributionTypesChange,
     handleDifficultyChange,
     handleLastUpdatedChange,
     handleFilterModeChange,
+    handleTagsChange,
     clearAllFilters
   } = filterProps;
 
@@ -60,12 +63,15 @@ export default function ProjectPageLayout({
               onTechnologiesChange={handleTechnologiesChange}
               selectedContributionTypes={selectedContributionTypes}
               onContributionTypesChange={handleContributionTypesChange}
-              selectedDifficulty={selectedDifficulty}
-              onDifficultyChange={handleDifficultyChange}
+              selectedDifficulties={selectedDifficulties} // Changed to plural
+              onDifficultiesChange={handleDifficultyChange} // Changed name to match component expectation
               selectedLastUpdated={selectedLastUpdated}
               onLastUpdatedChange={handleLastUpdatedChange}
               filterMode={filterMode}
               onFilterModeChange={handleFilterModeChange}
+              availableTags={availableTags}
+              selectedTags={selectedTags}
+              onTagsChange={handleTagsChange}
               onClearFilters={clearAllFilters}
             />
           </div>

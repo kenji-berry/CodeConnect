@@ -2,6 +2,7 @@
 import React from "react";
 import MultiSelector from "./MultiSelector";
 import SingleSelector from "./SingleSelector";
+import MultiDifficultySelector from "./MultiDifficultySelector";
 
 export default function FilterSidebar({
   availableTechnologies = [],
@@ -9,12 +10,15 @@ export default function FilterSidebar({
   onTechnologiesChange,
   selectedContributionTypes = [],
   onContributionTypesChange,
-  selectedDifficulty = "",
-  onDifficultyChange,
+  selectedDifficulties = [],
+  onDifficultiesChange,
   selectedLastUpdated = "",
   onLastUpdatedChange,
   filterMode = "AND",
   onFilterModeChange,
+  availableTags = [],
+  selectedTags = [],
+  onTagsChange,
   onClearFilters,
   className = ""
 }) {
@@ -27,7 +31,6 @@ export default function FilterSidebar({
     "Translation",
   ];
 
-  const difficulty = ["Beginner", "Intermediate", "Advanced", "Expert"];
   const lastUpdated = ["Last 24 hours", "Last 7 days", "Last 30 days"];
 
   return (
@@ -45,6 +48,15 @@ export default function FilterSidebar({
         </div>
         
         <div>
+          <p className="mb-2">Tags:</p>
+          <MultiSelector
+            availableTags={availableTags}
+            onTagsChange={onTagsChange}
+            initialTags={selectedTags}
+          />
+        </div>
+        
+        <div>
           <p className="mb-2">Contribution Type:</p>
           <MultiSelector
             availableTags={contributionTypes}
@@ -55,10 +67,9 @@ export default function FilterSidebar({
         
         <div>
           <p className="mb-2">Difficulty:</p>
-          <SingleSelector
-            values={difficulty}
-            onValueChange={onDifficultyChange}
-            initialValue={selectedDifficulty}
+          <MultiDifficultySelector
+            onDifficultiesChange={onDifficultiesChange} 
+            selectedDifficulties={selectedDifficulties}
           />
         </div>
         

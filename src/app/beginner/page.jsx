@@ -7,11 +7,37 @@ import { supabase } from '@/supabaseClient';
 
 function BeginnerProjectsContent() {
   const [loading, setLoading] = useState(true);
-  const filterProps = useProjectFilters([]);
+  const [availableTags, setAvailableTags] = useState([]);
+  
+  // Updated useProjectFilters to include tags and numeric difficulty
+  const filterProps = useProjectFilters([], {
+    includeTags: true,
+    numericDifficulty: true,
+    defaultDifficulty: 1  // Default to beginner level
+  });
+  
   const { filteredProjects, updateProjects } = filterProps;
 
+  // Fetch available tags for filtering
   useEffect(() => {
-    let isMounted = true; // Flag to prevent state updates after unmount
+    const fetchTags = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('tags')
+          .select('name');
+          
+        if (error) throw error;
+        setAvailableTags(data.map(tag => tag.name));
+      } catch (error) {
+        console.error('Error fetching tags:', error);
+      }
+    };
+    
+    fetchTags();
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
 
     const fetchBeginnerProjects = async () => {
       if (!isMounted) return;
@@ -57,7 +83,7 @@ function BeginnerProjectsContent() {
         const BATCH_SIZE = 5;
 
         for (let i = 0; i < projects.length; i += BATCH_SIZE) {
-          if (!isMounted) return; // Check if still mounted before processing each batch
+          if (!isMounted) return;
 
           const batch = projects.slice(i, i + BATCH_SIZE);
           const batchResults = await Promise.all(
@@ -108,15 +134,18 @@ function BeginnerProjectsContent() {
     fetchBeginnerProjects();
 
     return () => {
-      isMounted = false; // Cleanup function to prevent state updates after unmount
+      isMounted = false;
     };
-  }, []); // Remove updateProjects from dependencies
+  }, []);
 
   return (
     <ProjectPageLayout
       title="Beginner Projects"
       loading={loading}
-      filterProps={filterProps}
+      filterProps={{
+        ...filterProps,
+        availableTags: availableTags
+      }}
       projectCount={filteredProjects.length}
     >
       {filteredProjects.length === 0 ? (
