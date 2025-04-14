@@ -85,28 +85,34 @@ const MultiSelector: React.FC<MultiSelectorProps> = ({
         <div className="relative">
           <input
             type="text"
-            className="form-input block w-full mb-2 pr-10 main-input"
-            placeholder="Search..."
+            className="form-input block w-full mb-2 pr-10 rounded-md border-2 border-slate-600 
+                      bg-magenta-dark text-black placeholder-gray-500 
+                      focus:border-orange focus:outline-none focus:ring-1 focus:ring-orange 
+                      transition-colors py-1.5 px-3"
+            placeholder="Search tags..."
             value={searchTerm}
             onChange={handleSearchChange}
             onClick={() => setIsDropdownOpen(true)}
           />
           {searchTerm && (
             <button
-              className="absolute right-0 top-1 mt-2 mr-2 text-red-600"
+              className="absolute right-0 top-0 h-full px-3 text-slate-800 hover:text-muted-red transition-colors"
               onClick={handleClearSearch}
+              aria-label="Clear search"
             >
-              Clear
+              ×
             </button>
           )}
         </div>
         {isDropdownOpen && filteredTags.length > 0 && (
-          <ul className="dropdown-list absolute w-full mt-1 z-10">
+          <ul className="dropdown-list absolute w-full mt-1 z-10 max-h-48 overflow-y-auto 
+                      rounded-md border border-slate-600 bg-slate-200 shadow-lg">
             {filteredTags.map((tag) => (
               <li
                 key={`available-${tag}`}
                 onClick={() => handleTagChange(tag)}
-                className="p-2 cursor-pointer hover:bg-slate-800 bg-slate-700 text-black inter-regular text-uppercase"
+                className="p-2 cursor-pointer hover:bg-slate-300 text-black inter-regular 
+                          border-b border-slate-400 last:border-b-0 transition-colors"
               >
                 {tag.toUpperCase()}
               </li>
@@ -114,19 +120,21 @@ const MultiSelector: React.FC<MultiSelectorProps> = ({
           </ul>
         )}
       </div>
-      <div className="selected-tags mt-1">
+      <div className="selected-tags mt-2 flex flex-wrap gap-1.5">
         {selectedTags.map((tag) => (
           <button
             key={`selected-${tag}`}
-            className={`tag-item selected-tag flex items-center py-1 px-2 m-1 rounded text-uppercase ${
-              nonRemovableTags.includes(tag)
-                ? 'bg-blue-500 hover:bg-blue-700'
-                : 'bg-slate-500 hover:bg-red-900'
-            }`}
+            className={`tag-item flex items-center py-1.5 px-2.5 rounded text-sm font-medium transition-colors
+                      ${nonRemovableTags.includes(tag)
+                ? 'bg-title-red text-black cursor-default'
+                : 'bg-slate-300 hover:bg-muted-red text-black'}`}
             onClick={() => handleTagChange(tag)}
             disabled={nonRemovableTags.includes(tag)}
           >
-            {tag.toUpperCase()}
+            <span>{tag.toUpperCase()}</span>
+            {!nonRemovableTags.includes(tag) && (
+              <span className="ml-1.5 text-sm opacity-80 hover:opacity-100">×</span>
+            )}
           </button>
         ))}
       </div>
