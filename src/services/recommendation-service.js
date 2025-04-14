@@ -649,7 +649,7 @@ export async function getHybridRecommendations(userId, limit = 5, debug = false)
         // Use content-based recommendations which will incorporate tag preferences
         const contentRecommendations = await getRecommendedProjects(userId, limit, debug);
         if (contentRecommendations && contentRecommendations.length > 0) {
-          return contentRecommendations;
+          return contentRecommendations.slice(0, limit);
         }
       }
 
@@ -657,9 +657,13 @@ export async function getHybridRecommendations(userId, limit = 5, debug = false)
       return []; 
     }
 
-    // Fetch content-based and collaborative recommendations
-    const contentRecommendations = await getRecommendedProjects(userId, limit, debug) || [];
-    const collabRecommendations = await getCollaborativeRecommendations(userId, limit, debug) || [];
+    // Request MORE recommendations than needed to account for duplicates
+    const bufferMultiplier = 3; // Increase buffer to ensure we have enough unique recommendations
+    const requestLimit = Math.max(limit * bufferMultiplier, limit + 10);
+    
+    // Fetch content-based and collaborative recommendations with buffer
+    const contentRecommendations = await getRecommendedProjects(userId, requestLimit, debug) || [];
+    const collabRecommendations = await getCollaborativeRecommendations(userId, requestLimit, debug) || [];
 
     if (debug) {
       console.log(`🔄 Content recommendations count: ${contentRecommendations.length}`);
@@ -671,39 +675,53 @@ export async function getHybridRecommendations(userId, limit = 5, debug = false)
       return []; 
     }
 
-    // Combine recommendations with weighted logic
-    const contentRatio = isNewUser ? 0.8 : 0.6;
-    let contentCount = Math.max(1, Math.round(limit * contentRatio));
-    let collabCount = limit - contentCount;
+    // IMPROVED APPROACH: Combine all recommendations and prioritize by quality
+    const allRecommendations = [];
+    const includedProjectIds = new Set();
+    
+    // Helper function to safely add unique recommendations
+    const addUniqueRecommendations = (recommendations, source, weight = 1) => {
+      for (const project of recommendations) {
+        if (includedProjectIds.has(project.id)) continue;
+        
+        includedProjectIds.add(project.id);
+        allRecommendations.push({
+          ...project,
+          weight: weight // Store a quality weight for sorting
+        });
+      }
+    };
 
-    // Adjust counts if there are not enough collaborative recommendations
-    if (collabRecommendations.length < collabCount) {
-      const availableCollab = collabRecommendations.length;
-      contentCount = Math.min(contentRecommendations.length, limit - availableCollab);
-      collabCount = availableCollab;
-    }
+    // Add all unique recommendations with appropriate weights
+    // For new users, prioritize content-based recommendations
+    const contentWeight = isNewUser ? 1.2 : 1.0;
+    const collabWeight = isNewUser ? 0.8 : 1.0;
+    
+    addUniqueRecommendations(contentRecommendations, 'content', contentWeight);
+    addUniqueRecommendations(collabRecommendations, 'collab', collabWeight);
+
+    // Sort all recommendations by weight (can be enhanced with more sophisticated scoring)
+    allRecommendations.sort((a, b) => b.weight - a.weight);
+
+    // Take exactly the requested number of recommendations
+    const finalRecommendations = allRecommendations.slice(0, limit);
 
     if (debug) {
-      console.log(`🔄 Content ratio: ${contentRatio}, taking ${contentCount} content recommendations`);
-      console.log(`🔄 Taking ${collabCount} collaborative recommendations`);
+      console.log(`🔄 Final recommendations count: ${finalRecommendations.length}/${limit}`);
+      if (finalRecommendations.length < limit) {
+        console.log(`🔄 Could only find ${finalRecommendations.length} unique recommendations`);
+      } else {
+        console.log(`🔄 Successfully found ${limit} unique recommendations`);
+      }
     }
 
-    const combinedRecommendations = [
-      ...(contentRecommendations || []).slice(0, contentCount),
-      ...(collabRecommendations || []).slice(0, collabCount),
-    ];
-
-    if (debug) {
-      console.log(`🔄 Final recommendations count: ${combinedRecommendations.length}`);
-    }
-
-    return combinedRecommendations.slice(0, limit);
+    // Remove the weight property before returning
+    return finalRecommendations.map(({ weight, ...project }) => project);
   } catch (error) {
     console.error("Error in hybrid recommendations:", error);
     return [];
   }
 }
-
 
 export async function getRecentProjects(limit = 5) {
   try {

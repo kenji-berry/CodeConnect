@@ -12,13 +12,19 @@ export default async function handler(req, res) {
     req, 
     res,
     supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
-    supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_KEY
+    supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_KEY 
   });
   
   // Check if user is authenticated
-  const { data: { session }, error: authError } = await supabaseServerClient.auth.getSession();
-  if (authError || !session) {
-    return res.status(401).json({ error: 'Unauthorized' });
+  const { data, error: authError } = await supabaseServerClient.auth.getSession();
+  console.log("Auth session check:", data ? "Session exists" : "No session", 
+              "Error:", authError ? authError.message : "None");
+              
+  if (authError || !data.session) {
+    return res.status(401).json({ 
+      error: 'Unauthorized', 
+      details: authError ? authError.message : 'No active session found'
+    });
   }
   
   try {

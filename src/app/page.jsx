@@ -582,9 +582,9 @@ function HomeContent() {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {recommendedProjects.map(project => (
+                {recommendedProjects.map((project, index) => (
                   <ProjectPreview
-                    key={project.id}
+                    key={`recommended-${project.id}-${index}`} // Add index to ensure uniqueness
                     id={project.id}
                     name={project.repo_name}
                     date={project.created_at}
@@ -628,7 +628,7 @@ function HomeContent() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {trendingProjects.map(project => (
                   <ProjectPreview
-                    key={project.id}
+                    key={`trending-${project.id}`}
                     id={project.id}
                     name={project.repo_name}
                     date={project.created_at}
@@ -672,7 +672,7 @@ function HomeContent() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {newestProjects.map(project => (
                   <ProjectPreview
-                    key={project.id}
+                    key={`newest-${project.id}`}
                     id={project.id}
                     name={project.repo_name}
                     date={project.created_at}
@@ -716,7 +716,7 @@ function HomeContent() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {popularProjects.map(project => (
                   <ProjectPreview
-                    key={project.id}
+                    key={`popular-${project.id}`}
                     id={project.id}
                     name={project.repo_name}
                     date={project.created_at}
@@ -760,7 +760,7 @@ function HomeContent() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {beginnerProjects.map(project => (
                   <ProjectPreview
-                    key={project.id}
+                    key={`beginner-${project.id}`}
                     id={project.id}
                     name={project.repo_name}
                     date={project.created_at}
