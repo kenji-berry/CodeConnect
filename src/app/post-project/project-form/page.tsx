@@ -298,7 +298,7 @@ function ProjectFormContent() {
           github_link: githubLink,
           description_type: descriptionOption,
           custom_description: customDescription,
-          difficulty_level: difficulty === 1 ? "Beginner" : difficulty === 2 ? "Intermediate" : "Advanced",
+          difficulty_level: difficulty,
           tags: selectedTags,
           technologies: selectedTechnologies,
           highlighted_technologies: highlightedTechnologies,
@@ -316,8 +316,7 @@ function ProjectFormContent() {
         throw new Error(result.error || 'Failed to create project');
       }
       
-      // On success, redirect to the project page or dashboard
-      window.location.href = `/project/${result.projectId}`;
+      window.location.href = `/projects/${result.projectId}`;
       
     } catch (err) {
       setSubmissionError(err instanceof Error ? err.message : 'An unexpected error occurred');

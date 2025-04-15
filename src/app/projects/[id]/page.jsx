@@ -100,7 +100,22 @@ const ProjectDetails = () => {
     const fetchProject = async () => {
       const { data: project, error } = await supabase
         .from('project')
-        .select('*')
+        .select(`
+          *,
+          project_technologies (
+            is_highlighted,
+            technologies (
+              id,
+              name
+            )
+          ),
+          project_tags (
+            tags (
+              id,
+              name
+            )
+          )
+        `)
         .eq('id', id)
         .single();
 
@@ -111,9 +126,7 @@ const ProjectDetails = () => {
 
         // Only track view if user is logged in
         if (currentUser && !viewTracked.current) {
-          console.log('Tracking view for project:', project.id);
-          viewTracked.current = true; // Mark that we've tracked this view
-
+          viewTracked.current = true;
           trackProjectView(currentUser.id, project.id)
             .then(result => {
               if (result.error) {
@@ -192,9 +205,25 @@ const ProjectDetails = () => {
       setComments(commentsWithProfiles);
     };
 
+    const fetchTechnologiesAndTags = async () => {
+      const { data: techs, error: techsError } = await supabase
+        .from('project_technologies')
+        .select('*')
+        .eq('project_id', id);
+
+      const { data: tags, error: tagsError } = await supabase
+        .from('project_tags')
+        .select('*')
+        .eq('project_id', id);
+
+      console.log('techs', techs);
+      console.log('tags', tags);
+    };
+
     getTotalLikes();
     fetchProject();
     fetchComments();
+    fetchTechnologiesAndTags();
   }, [id, currentUser]);
 
   // Add a function to redirect to login
@@ -505,26 +534,32 @@ const ProjectDetails = () => {
         </div>
       </div>
       <div className="grid grid-cols-2 gap-4">
-        <div>
-          <strong>Repository Owner:</strong> {project.repo_owner}
+        {Object.entries(project).map(([key, value]) => {
+          // Skip relations, handle below
+          if (['project_technologies', 'project_tags'].includes(key)) return null;
+          return (
+            <div key={key}>
+              <strong>{key.replace(/_/g, ' ')}:</strong> {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+            </div>
+          );
+        })}
+        <div className="col-span-2">
+          <strong>Technologies:</strong>{" "}
+          {project.project_technologies && project.project_technologies.length > 0
+            ? project.project_technologies.map(pt =>
+                <span key={pt.technologies.id} className={pt.is_highlighted ? "font-bold text-blue-300" : ""}>
+                  {pt.technologies.name}{pt.is_highlighted ? " (highlighted)" : ""},{" "}
+                </span>
+              )
+            : "N/A"}
         </div>
-        <div>
-          <strong>Custom Description:</strong> {project.custom_description || 'N/A'}
-        </div>
-        <div>
-          <strong>Difficulty Level:</strong> {project.difficulty_level}
-        </div>
-        <div>
-          <strong>Status:</strong> {project.status}
-        </div>
-        <div>
-          <strong>Tech:</strong> {project.technologies}
-        </div>
-        <div>
-          <strong>Created At:</strong> {new Date(project.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
-        </div>
-        <div>
-          <strong>Links:</strong> {(project.links || []).length > 0 ? project.links.join(', ') : 'N/A'}
+        <div className="col-span-2">
+          <strong>Tags:</strong>{" "}
+          {project.project_tags && project.project_tags.length > 0
+            ? project.project_tags.map(pt =>
+                <span key={pt.tags.id}>{pt.tags.name}, </span>
+              )
+            : "N/A"}
         </div>
       </div>
 

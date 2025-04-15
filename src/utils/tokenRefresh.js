@@ -1,6 +1,5 @@
-export async function storeGitHubToken(token, refreshToken, expiresIn = 2628000) {
+export async function storeGitHubToken(token, expiresIn = 2628000) {
   try {
-    // Store token in HttpOnly cookie via API endpoint
     const response = await fetch('/api/auth/session', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -10,11 +9,7 @@ export async function storeGitHubToken(token, refreshToken, expiresIn = 2628000)
         expires_in: expiresIn,
       }),
     });
-
-    if (!response.ok) {
-      throw new Error(`Failed to store token: ${response.status}`);
-    }
-
+    if (!response.ok) throw new Error(`Failed to store token: ${response.status}`);
     return true;
   } catch (error) {
     console.error('Failed to store GitHub tokens:', error);
@@ -48,10 +43,6 @@ export async function getValidGitHubToken(req, res) {
 }
 
 export const clearGitHubTokens = async () => {
-  // Clear any legacy localStorage token (if it exists)
-  localStorage.removeItem('github_token');
-
-  // Call the logout API to clear the HttpOnly cookie
   await fetch('/api/auth/logout', {
     method: 'POST',
     credentials: 'include',
