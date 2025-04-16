@@ -50,6 +50,25 @@ export async function sendRecommendationEmail(
     
     // Record the email in our logs
     await recordEmailSent(userId);
+
+    // --- Record recommendations in user_recommendation_history ---
+    if (recommendations.length > 0) {
+      const now = new Date().toISOString();
+      const rows = recommendations.map(project => ({
+        user_id: userId,
+        project_id: project.id,
+        sent_at: now,
+        context: 'daily_email'
+      }));
+      const { error: recHistError } = await supabase
+        .from('user_recommendation_history')
+        .insert(rows);
+      if (recHistError) {
+        console.error('Error inserting into user_recommendation_history:', recHistError);
+      } else {
+        console.log(`[EMAIL SERVICE] Logged ${rows.length} recommendations for user ${userId}`);
+      }
+    }
     
     return { success: true };
   } catch (error) {

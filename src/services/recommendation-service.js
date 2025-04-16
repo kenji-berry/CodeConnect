@@ -615,7 +615,7 @@ export async function getRecommendedProjects(userId, limit = 5, debug = false) {
   }
 }
 
-export async function getHybridRecommendations(userId, limit = 5, debug = false) {
+export async function getHybridRecommendations(userId, limit = 5, debug = false, context = 'web') {
   try {
     if (debug) console.log("🔄 Starting hybrid recommendation process");
 
@@ -635,6 +635,24 @@ export async function getHybridRecommendations(userId, limit = 5, debug = false)
 
     if (debug) console.log(`🔄 User interaction count: ${interactionCount}, isNewUser: ${isNewUser}`);
 
+    // Only fetch recent recommendations if context is 'email'
+    let recentlyRecommendedIds = [];
+    let recentRecs = [];
+    if (context === 'email') {
+      const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const { data, error } = await supabase
+        .from('user_recommendation_history')
+        .select('project_id, sent_at')
+        .eq('user_id', userId)
+        .gte('sent_at', oneWeekAgo);
+
+      if (error) {
+        console.error("Error fetching recent recommendations:", error);
+      }
+      recentRecs = data || [];
+      recentlyRecommendedIds = recentRecs.map(r => r.project_id);
+    }
+
     // Check for tag preferences before falling back
     if (interactionCount === 0) {
       // Get user tag preferences
@@ -647,20 +665,34 @@ export async function getHybridRecommendations(userId, limit = 5, debug = false)
         if (debug) console.log("🏷️ Using tag preferences to recommend projects for new user");
 
         // Use content-based recommendations which will incorporate tag preferences
-        const contentRecommendations = await getRecommendedProjects(userId, limit, debug);
+        let contentRecommendations = await getRecommendedProjects(userId, limit * 3, debug);
         if (contentRecommendations && contentRecommendations.length > 0) {
-          return contentRecommendations.slice(0, limit);
+          let fresh = contentRecommendations;
+          if (context === 'email') {
+            // Filter out stale recommendations only for email
+            fresh = contentRecommendations.filter(
+              p => !recentlyRecommendedIds.includes(p.id)
+            );
+            if (fresh.length < limit) {
+              // Not enough fresh, fill with least stale
+              const stale = contentRecommendations
+                .filter(p => recentlyRecommendedIds.includes(p.id))
+                .slice(0, limit - fresh.length);
+              fresh = fresh.concat(stale);
+            }
+          }
+          return fresh.slice(0, limit);
         }
       }
 
       console.warn("No interactions or useful tag preferences found. Returning an empty array.");
-      return []; 
+      return [];
     }
 
     // Request MORE recommendations than needed to account for duplicates
     const bufferMultiplier = 3; // Increase buffer to ensure we have enough unique recommendations
     const requestLimit = Math.max(limit * bufferMultiplier, limit + 10);
-    
+
     // Fetch content-based and collaborative recommendations with buffer
     const contentRecommendations = await getRecommendedProjects(userId, requestLimit, debug) || [];
     const collabRecommendations = await getCollaborativeRecommendations(userId, requestLimit, debug) || [];
@@ -672,18 +704,18 @@ export async function getHybridRecommendations(userId, limit = 5, debug = false)
 
     if (!contentRecommendations.length && !collabRecommendations.length) {
       console.warn("No recommendations found. Returning an empty array.");
-      return []; 
+      return [];
     }
 
     // IMPROVED APPROACH: Combine all recommendations and prioritize by quality
     const allRecommendations = [];
     const includedProjectIds = new Set();
-    
+
     // Helper function to safely add unique recommendations
     const addUniqueRecommendations = (recommendations, source, weight = 1) => {
       for (const project of recommendations) {
         if (includedProjectIds.has(project.id)) continue;
-        
+
         includedProjectIds.add(project.id);
         allRecommendations.push({
           ...project,
@@ -696,15 +728,43 @@ export async function getHybridRecommendations(userId, limit = 5, debug = false)
     // For new users, prioritize content-based recommendations
     const contentWeight = isNewUser ? 1.2 : 1.0;
     const collabWeight = isNewUser ? 0.8 : 1.0;
-    
+
     addUniqueRecommendations(contentRecommendations, 'content', contentWeight);
     addUniqueRecommendations(collabRecommendations, 'collab', collabWeight);
 
-    // Sort all recommendations by weight (can be enhanced with more sophisticated scoring)
-    allRecommendations.sort((a, b) => b.weight - a.weight);
+    let finalRecommendations = [];
 
-    // Take exactly the requested number of recommendations
-    const finalRecommendations = allRecommendations.slice(0, limit);
+    if (context === 'email') {
+      // --- Filter out stale recommendations for email only ---
+      let freshRecommendations = allRecommendations.filter(
+        p => !recentlyRecommendedIds.includes(p.id)
+      );
+
+      if (freshRecommendations.length >= limit) {
+        // Enough fresh recommendations
+        finalRecommendations = freshRecommendations
+          .sort((a, b) => b.weight - a.weight)
+          .slice(0, limit);
+      } else {
+        // Not enough fresh, fill with least stale
+        const staleRecommendations = allRecommendations
+          .filter(p => recentlyRecommendedIds.includes(p.id))
+          // Sort by how long ago they were last recommended (oldest first)
+          .sort((a, b) => {
+            const aRec = recentRecs?.find(r => r.project_id === a.id);
+            const bRec = recentRecs?.find(r => r.project_id === b.id);
+            return new Date(aRec?.sent_at || 0) - new Date(bRec?.sent_at || 0);
+          });
+        finalRecommendations = freshRecommendations.concat(
+          staleRecommendations.slice(0, limit - freshRecommendations.length)
+        );
+      }
+    } else {
+      // For web or other contexts, do not filter out stale recommendations
+      finalRecommendations = allRecommendations
+        .sort((a, b) => b.weight - a.weight)
+        .slice(0, limit);
+    }
 
     if (debug) {
       console.log(`🔄 Final recommendations count: ${finalRecommendations.length}/${limit}`);
