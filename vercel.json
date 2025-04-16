@@ -7,6 +7,10 @@
       {
         "path": "/api/cron/email-schedule?cron=weekly",
         "schedule": "0 10 * * 0"
+      },
+      {
+        "path": "/api/cron/email-schedule?cron=every5min",
+        "schedule": "*/5 * * * *"
       }
     ]
   }

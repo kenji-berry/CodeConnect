@@ -17,8 +17,8 @@ export async function processEmailSchedule(): Promise<EmailScheduleResult> {
     const currentDay = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
     const today = now.toISOString().split('T')[0]; // YYYY-MM-DD
     
-    // Determine which frequency we're processing today
-    const frequencies = ['daily'];
+    // --- TEMP: Add 'every5min' frequency for testing the 5 min cron job ---
+    const frequencies = ['daily', 'every5min'];
     
     // If it's Sunday, also process weekly emails
     if (currentDay === 0) {
