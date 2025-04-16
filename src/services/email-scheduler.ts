@@ -21,9 +21,7 @@ export async function processEmailSchedule(): Promise<EmailScheduleResult> {
     const frequencies = ['daily', 'every5min'];
     
     // If it's Sunday, also process weekly emails
-    if (currentDay === 0) {
-      frequencies.push('weekly');
-    }
+
     
     console.log(`📧 Processing emails for frequencies: ${frequencies.join(', ')}`);
     
