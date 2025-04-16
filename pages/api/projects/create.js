@@ -30,7 +30,8 @@ export default async function handler(req, res) {
     technologies = [],
     highlighted_technologies = [],
     links = [],
-    status
+    status,
+    contribution_types = []
   } = req.body;
 
   // Insert project (matching your schema)
@@ -128,6 +129,39 @@ export default async function handler(req, res) {
         .insert(tagRowsToInsert);
       if (tagError) {
         return res.status(500).json({ error: tagError.message });
+      }
+    }
+  }
+
+  // Map contribution type names to IDs and insert into project_contribution_type
+  if (contribution_types.length > 0) {
+    const { data: ctRows, error: ctFetchError } = await supabase
+      .from('contribution_type')
+      .select('id, name')
+      .in('name', contribution_types);
+
+    if (ctFetchError) {
+      return res.status(500).json({ error: ctFetchError.message });
+    }
+
+    const ctNameToId = {};
+    ctRows.forEach(row => {
+      ctNameToId[row.name.toLowerCase()] = row.id;
+    });
+
+    const ctIds = contribution_types.map(name => ctNameToId[name.toLowerCase()]).filter(Boolean);
+
+    const ctRowsToInsert = ctIds.map(ctId => ({
+      project_id: project.id,
+      contribution_type_id: ctId,
+    }));
+
+    if (ctRowsToInsert.length > 0) {
+      const { error: ctError } = await supabase
+        .from('project_contribution_type')
+        .insert(ctRowsToInsert);
+      if (ctError) {
+        return res.status(500).json({ error: ctError.message });
       }
     }
   }

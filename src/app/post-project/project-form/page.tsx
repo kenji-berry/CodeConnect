@@ -47,6 +47,8 @@ function ProjectFormContent() {
     pullRequests: 0,
     latestCommit: '',
   });
+  const [contributionTypes, setContributionTypes] = useState<string[]>([]);
+  const [selectedContributionTypes, setSelectedContributionTypes] = useState<string[]>([]);
 
   const handleTagsChange = (tags: string[]) => {
     setSelectedTags(tags);
@@ -216,6 +218,16 @@ function ProjectFormContent() {
     setSelectedTechnologies(nonRemovableTechnologies);
   }, [repoInfo.languages]);
 
+  useEffect(() => {
+    const fetchContributionTypes = async () => {
+      const { data, error } = await supabase.from('contribution_type').select('name');
+      if (!error && data) {
+        setContributionTypes(data.map((row: { name: string }) => row.name));
+      }
+    };
+    fetchContributionTypes();
+  }, []);
+
   const validateSubmission = async () => {
     if (!session?.user?.id) {
       throw new Error('Please sign in to submit a project');
@@ -244,6 +256,10 @@ function ProjectFormContent() {
     const invalidLinks = resourceLinks.filter(link => link.url && !link.isValid);
     if (invalidLinks.length > 0) {
       throw new Error(`Invalid resource links found: ${invalidLinks.map(l => l.name).join(', ')}`);
+    }
+
+    if (selectedContributionTypes.length === 0) {
+      throw new Error('At least one contribution type is required');
     }
 
     // Profanity check for customDescription
@@ -307,6 +323,7 @@ function ProjectFormContent() {
             url: link.url
           })),
           status: projectStatus,
+          contribution_types: selectedContributionTypes,
         }),
       });
       
@@ -425,6 +442,14 @@ function ProjectFormContent() {
                 initialDifficulty={difficulty}
               />
             </div>
+          </div>
+          <div className="bento-box half-width radial-background">
+            <h4>Contribution Types:</h4>
+            <MultiSelector
+              availableTags={contributionTypes}
+              onTagsChange={setSelectedContributionTypes}
+              initialTags={selectedContributionTypes}
+            />
           </div>
           <div className="bento-box full-width radial-background">
             <h4>Resource Links:</h4>
