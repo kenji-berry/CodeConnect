@@ -50,10 +50,22 @@ function ProjectFormContent() {
   const [contributionTypes, setContributionTypes] = useState<string[]>([]);
   const [selectedContributionTypes, setSelectedContributionTypes] = useState<string[]>([]);
   const [mentorship, setMentorship] = useState<string>("No");
+  const [license, setLicense] = useState<string>("MIT");
+  const [customLicense, setCustomLicense] = useState<string>("");
+  const [setupTime, setSetupTime] = useState<number>(5);
 
   const mentorshipOptions = [
     { value: "Yes", tooltip: "Mentorship is available for new contributors." },
     { value: "No", tooltip: "No formal mentorship is available." },
+  ];
+
+  const licenseOptions = [
+    "MIT",
+    "Apache-2.0",
+    "GPL-3.0",
+    "BSD-3-Clause",
+    "Unlicensed",
+    "Other"
   ];
 
   const handleTagsChange = (tags: string[]) => {
@@ -331,6 +343,8 @@ function ProjectFormContent() {
           status: projectStatus,
           contribution_types: selectedContributionTypes,
           mentorship,
+          license: license === "Other" ? customLicense : license,
+          setup_time: setupTime,
         }),
       });
       
@@ -465,6 +479,35 @@ function ProjectFormContent() {
               onValueChange={(selectedValue) => setMentorship(selectedValue || "No")}
               initialValue={mentorship}
               tooltips={Object.fromEntries(mentorshipOptions.map(opt => [opt.value, opt.tooltip]))}
+            />
+          </div>
+          <div className="bento-box half-width radial-background">
+            <h4>License:</h4>
+            <SingleSelector
+              values={licenseOptions}
+              onValueChange={(selectedValue) => setLicense(selectedValue || "")}
+              initialValue={license}
+            />
+            {license === "Other" && (
+              <input
+                type="text"
+                className="mt-2 w-full p-2 rounded-lg border border-gray-300 outline-none text-black"
+                placeholder="Enter custom license"
+                value={customLicense}
+                onChange={e => setCustomLicense(e.target.value)}
+              />
+            )}
+          </div>
+          <div className="bento-box half-width radial-background">
+            <h4>Estimated Setup Time (minutes):</h4>
+            <input
+              type="number"
+              min={1}
+              max={240}
+              className="w-full p-2 rounded-lg border border-gray-300 outline-none text-black"
+              placeholder="Estimated setup time in minutes"
+              value={setupTime}
+              onChange={e => setSetupTime(Number(e.target.value))}
             />
           </div>
           <div className="bento-box full-width radial-background">

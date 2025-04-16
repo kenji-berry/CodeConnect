@@ -32,7 +32,9 @@ export default async function handler(req, res) {
     links = [],
     status,
     contribution_types = [],
-    mentorship
+    mentorship,
+    license,        
+    setup_time      
   } = req.body;
 
   const { data: project, error: projectError } = await supabase
@@ -49,7 +51,9 @@ export default async function handler(req, res) {
       user_id: session.user.id,
       created_at: new Date().toISOString(),
       repo_name_owner: `${repoName || 'Untitled Project'} by ${owner || session.user.email}`,
-      mentorship: mentorship === "Yes" // convert to boolean
+      mentorship: mentorship === "Yes", // convert to boolean
+      license: license || null,        
+      setup_time: setup_time || null   
     }])
     .select()
     .single();
