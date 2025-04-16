@@ -31,10 +31,10 @@ export default async function handler(req, res) {
     highlighted_technologies = [],
     links = [],
     status,
-    contribution_types = []
+    contribution_types = [],
+    mentorship
   } = req.body;
 
-  // Insert project (matching your schema)
   const { data: project, error: projectError } = await supabase
     .from('project')
     .insert([{
@@ -49,6 +49,7 @@ export default async function handler(req, res) {
       user_id: session.user.id,
       created_at: new Date().toISOString(),
       repo_name_owner: `${repoName || 'Untitled Project'} by ${owner || session.user.email}`,
+      mentorship: mentorship === "Yes" // convert to boolean
     }])
     .select()
     .single();

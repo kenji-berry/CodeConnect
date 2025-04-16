@@ -49,6 +49,12 @@ function ProjectFormContent() {
   });
   const [contributionTypes, setContributionTypes] = useState<string[]>([]);
   const [selectedContributionTypes, setSelectedContributionTypes] = useState<string[]>([]);
+  const [mentorship, setMentorship] = useState<string>("No");
+
+  const mentorshipOptions = [
+    { value: "Yes", tooltip: "Mentorship is available for new contributors." },
+    { value: "No", tooltip: "No formal mentorship is available." },
+  ];
 
   const handleTagsChange = (tags: string[]) => {
     setSelectedTags(tags);
@@ -324,6 +330,7 @@ function ProjectFormContent() {
           })),
           status: projectStatus,
           contribution_types: selectedContributionTypes,
+          mentorship,
         }),
       });
       
@@ -449,6 +456,15 @@ function ProjectFormContent() {
               availableTags={contributionTypes}
               onTagsChange={setSelectedContributionTypes}
               initialTags={selectedContributionTypes}
+            />
+          </div>
+          <div className="bento-box half-width radial-background">
+            <h4>Mentorship Available?</h4>
+            <SingleSelector
+              values={mentorshipOptions.map(opt => opt.value)}
+              onValueChange={(selectedValue) => setMentorship(selectedValue || "No")}
+              initialValue={mentorship}
+              tooltips={Object.fromEntries(mentorshipOptions.map(opt => [opt.value, opt.tooltip]))}
             />
           </div>
           <div className="bento-box full-width radial-background">

@@ -226,9 +226,7 @@ const ProjectDetails = () => {
     fetchTechnologiesAndTags();
   }, [id, currentUser]);
 
-  // Add a function to redirect to login
   const redirectToLogin = () => {
-    // You can replace this with your preferred login route
     window.location.href = '/login';
   };
 
