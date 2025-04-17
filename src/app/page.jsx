@@ -195,7 +195,8 @@ function HomeContent() {
             description_type,
             custom_description,
             difficulty_level,
-            created_at
+            created_at,
+            image
           `)
           .in('id', trendingIds.map(item => item.project_id));
           
@@ -295,7 +296,8 @@ function HomeContent() {
             description_type,
             custom_description,
             difficulty_level,
-            created_at
+            created_at,
+            image
           `)
           .in('id', newestIds.map(item => item.project_id));
         
@@ -387,7 +389,8 @@ function HomeContent() {
             description_type,
             custom_description,
             difficulty_level,
-            created_at
+            created_at,
+            image
           `)
           .in('id', popularIds.map(item => item.project_id));
         
@@ -479,7 +482,8 @@ function HomeContent() {
             description_type,
             custom_description,
             difficulty_level,
-            created_at
+            created_at,
+            image
           `)
           .in('id', beginnerIds.map(item => item.project_id));
         
@@ -553,7 +557,7 @@ function HomeContent() {
               </div>
             ) : !user ? (
               <div className="relative">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 blur-sm opacity-60">
+                <div className="flex flex-wrap justify-around gap-4 blur-sm opacity-60 space-between">
                   {[...Array(3)].map((_, index) => (
                     <ProjectPreview
                       key={`placeholder-${index}`}
@@ -581,7 +585,7 @@ function HomeContent() {
                 <p className="mb-3 text-sm">Explore and interact with more projects to help us understand your interests!</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="flex flex-wrap justify-around gap-4">
                 {recommendedProjects.map((project, index) => (
                   <ProjectPreview
                     key={`recommended-${project.id}-${index}`} // Add index to ensure uniqueness
@@ -599,6 +603,7 @@ function HomeContent() {
                       .map(tech => tech.name)}
                     issueCount={0}
                     recommended={true}
+                    image={project.image}
                   />
                 ))}
               </div>
@@ -625,7 +630,7 @@ function HomeContent() {
                 No trending projects found
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="flex flex-wrap justify-around gap-4">
                 {trendingProjects.map(project => (
                   <ProjectPreview
                     key={`trending-${project.id}`}
@@ -643,6 +648,7 @@ function HomeContent() {
                       .map(tech => tech.name)}
                     issueCount={0}
                     recommended={false}
+                    image={project.image}
                   />
                 ))}
               </div>
@@ -669,7 +675,7 @@ function HomeContent() {
                 No new projects found
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="flex flex-wrap justify-around gap-4">
                 {newestProjects.map(project => (
                   <ProjectPreview
                     key={`newest-${project.id}`}
@@ -687,6 +693,7 @@ function HomeContent() {
                       .map(tech => tech.name)}
                     issueCount={0}
                     recommended={false}
+                    image={project.image}
                   />
                 ))}
               </div>
@@ -713,7 +720,7 @@ function HomeContent() {
                 No popular projects found
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="flex flex-wrap justify-around gap-4">
                 {popularProjects.map(project => (
                   <ProjectPreview
                     key={`popular-${project.id}`}
@@ -731,6 +738,7 @@ function HomeContent() {
                       .map(tech => tech.name)}
                     issueCount={0}
                     recommended={false}
+                    image={project.image}
                   />
                 ))}
               </div>
@@ -757,7 +765,7 @@ function HomeContent() {
                 No beginner projects found
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="flex flex-wrap justify-around gap-4">
                 {beginnerProjects.map(project => (
                   <ProjectPreview
                     key={`beginner-${project.id}`}
@@ -775,6 +783,7 @@ function HomeContent() {
                       .map(tech => tech.name)}
                     issueCount={0}
                     recommended={false}
+                    image={project.image}
                   />
                 ))}
               </div>

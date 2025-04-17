@@ -68,7 +68,7 @@ function BeginnerProjectsContent() {
           .from('project')
           .select(`
             id, repo_name, repo_owner, description_type, 
-            custom_description, difficulty_level, created_at
+            custom_description, difficulty_level, created_at, image
           `)
           .in('id', projectIds);
 
@@ -172,6 +172,7 @@ function BeginnerProjectsContent() {
                 .map(tech => tech.name)}
               issueCount={0}
               recommended={false}
+              image={project.image}
             />
           ))}
         </div>

@@ -428,11 +428,11 @@ function ProjectFormContent() {
             <h4>Project Banner Image (Optional):</h4>
             <div className="mt-2 flex flex-col items-center">
               {bannerImagePreview ? (
-                <div className="relative w-full h-40">
+                <div className="relative w-full aspect-[16/9]">
                   <img 
                     src={bannerImagePreview} 
                     alt="Banner preview" 
-                    className="w-full h-full object-cover rounded-lg"
+                    className="w-full h-full object-cover object-center rounded-lg"
                   />
                   <button
                     type="button"
@@ -456,7 +456,8 @@ function ProjectFormContent() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
                     <p className="text-gray-400">Click to upload a banner image</p>
-                    <p className="text-xs text-gray-500 mt-1">Recommended: 1200×400px (JPG, PNG, GIF, WEBP)</p>
+                    <p className="text-xs text-gray-500 mt-1">Recommended: 16:9 aspect ratio (1280×720px or similar)</p>
+                    <p className="text-xs text-gray-500">Images will be displayed in 16:9 format</p>
                   </div>
                   <input
                     type="file"

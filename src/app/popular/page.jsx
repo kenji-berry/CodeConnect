@@ -44,7 +44,7 @@ function PopularProjectsContent() {
           .select(`
             id, repo_name, repo_owner, description_type, 
             custom_description, difficulty_level, created_at,
-            license, mentorship, setup_time
+            license, mentorship, setup_time, image
           `)
           .in('id', projectIds);
 
@@ -145,6 +145,7 @@ function PopularProjectsContent() {
                 .map(tech => tech.name)}
               issueCount={0}
               recommended={false}
+              image={project.image}
             />
           ))}
         </div>
