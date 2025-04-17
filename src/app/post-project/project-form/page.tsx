@@ -8,6 +8,12 @@ import SingleSelector from "@/app/Components/SingleSelector";
 import HighlightableMultiSelector from "@/app/Components/HighlightableMultiSelector";
 import LanguageBar from "@/app/Components/LanguageBar";
 import DifficultySelector from "@/app/Components/DifficultySelector";
+import { 
+  fetchRepositoryReadme, 
+  extractTagsFromReadme, 
+  fetchAvailableTags,
+  fetchAvailableTechnologies 
+} from '../../../utils/githubUtils';
 
 interface ResourceLink {
   name: string;
@@ -56,6 +62,11 @@ function ProjectFormContent() {
   const [bannerImage, setBannerImage] = useState<string | null>(null);
   const [bannerImagePreview, setBannerImagePreview] = useState<string | null>(null);
   const [bannerImageFile, setBannerImageFile] = useState<File | null>(null);
+  const [availableTags, setAvailableTags] = useState<string[]>([]);
+  const [availableTechnologies, setAvailableTechnologies] = useState<string[]>([]);
+  const [suggestedTags, setSuggestedTags] = useState<string[]>([]);
+  const [suggestedTechnologies, setSuggestedTechnologies] = useState<string[]>([]);
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState<boolean>(false);
 
   const mentorshipOptions = [
     { value: "Yes", tooltip: "Mentorship is available for new contributors." },
@@ -275,6 +286,43 @@ function ProjectFormContent() {
     };
     fetchContributionTypes();
   }, []);
+
+  useEffect(() => {
+    const loadTagsAndTech = async () => {
+      const [tagsData, techData] = await Promise.all([
+        fetchAvailableTags(),
+        fetchAvailableTechnologies()
+      ]);
+      
+      setAvailableTags(tagsData);
+      setAvailableTechnologies(techData);
+    };
+    
+    loadTagsAndTech();
+  }, []);
+  
+  useEffect(() => {
+    if (repoName && owner && availableTags.length > 0 && availableTechnologies.length > 0) {
+      setIsLoadingSuggestions(true);
+      
+      fetchRepositoryReadme(owner, repoName)
+        .then(readmeContent => {
+          const { tags, technologies } = extractTagsFromReadme(
+            readmeContent, 
+            availableTags, 
+            availableTechnologies
+          );
+          setSuggestedTags(tags);
+          setSuggestedTechnologies(technologies);
+        })
+        .catch(error => {
+          console.error("Error processing README:", error);
+        })
+        .finally(() => {
+          setIsLoadingSuggestions(false);
+        });
+    }
+  }, [repoName, owner, availableTags, availableTechnologies]);
 
   const validateSubmission = async () => {
     if (!session?.user?.id) {
@@ -511,6 +559,40 @@ function ProjectFormContent() {
               }}
             />
             <LanguageBar languages={repoInfo.languages} />
+            
+            <div className="mt-3 border-t border-[var(--off-white)] pt-3">
+              <h5 className="text-sm font-semibold mb-2 inria-sans-semibold">
+                {isLoadingSuggestions ? 'Analyzing README...' : 'Suggested Technologies:'}
+              </h5>
+              {isLoadingSuggestions ? (
+                <div className="flex items-center space-x-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-[var(--title-red)]"></div>
+                  <span className="text-sm text-gray-400">Finding technologies in README...</span>
+                </div>
+              ) : suggestedTechnologies.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {suggestedTechnologies.map((tech, index) => (
+                    <button
+                      key={`tech-${index}`}
+                      onClick={() => {
+                        if (!selectedTechnologies.includes(tech)) {
+                          handleTechnologiesChange([...selectedTechnologies, tech]);
+                        }
+                      }}
+                      className={`px-2 py-1 rounded text-xs border border-[var(--off-white)] 
+                        ${selectedTechnologies.includes(tech) 
+                          ? 'bg-[var(--muted-red)] text-[var(--off-white)] cursor-default' 
+                          : 'bg-transparent hover:bg-[var(--magenta-dark)]'
+                        } transition-colors`}
+                    >
+                      {tech}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-400">No technologies found in README</p>
+              )}
+            </div>
           </div>
           <div className="bento-box half-width radial-background">
             <h4>Tags:</h4>
@@ -519,6 +601,41 @@ function ProjectFormContent() {
               onTagsChange={handleTagsChange}
               initialTags={selectedTags}
             />
+            
+            {/* Tag Suggestions - Updated styling */}
+            <div className="mt-3 border-t border-[var(--off-white)] pt-3">
+              <h5 className="text-sm font-semibold mb-2 inria-sans-semibold">
+                {isLoadingSuggestions ? 'Analyzing README...' : 'Suggested Tags:'}
+              </h5>
+              {isLoadingSuggestions ? (
+                <div className="flex items-center space-x-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-[var(--title-red)]"></div>
+                  <span className="text-sm text-gray-400">Finding tags in README...</span>
+                </div>
+              ) : suggestedTags.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {suggestedTags.map((tag, index) => (
+                    <button
+                      key={`tag-${index}`}
+                      onClick={() => {
+                        if (!selectedTags.includes(tag)) {
+                          handleTagsChange([...selectedTags, tag]);
+                        }
+                      }}
+                      className={`px-2 py-1 rounded text-xs border border-[var(--off-white)]
+                        ${selectedTags.includes(tag) 
+                          ? 'bg-[var(--muted-red)] text-[var(--off-white)] cursor-default' 
+                          : 'bg-transparent hover:bg-[var(--magenta-dark)]'
+                        } transition-colors`}
+                    >
+                      {tag}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-400">No tags found in README</p>
+              )}
+            </div>
           </div>
           <div className="bento-box half-width radial-background">
             <h4>Project Status:</h4>

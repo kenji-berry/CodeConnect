@@ -1,6 +1,8 @@
 import { createPagesServerClient } from '@supabase/auth-helpers-nextjs';
 import { IncomingForm } from 'formidable';
 import fs from 'fs';
+import axios from 'axios';
+import FormData from 'form-data';
 
 export const config = {
   api: { bodyParser: false }
@@ -107,7 +109,69 @@ export default async function handler(req, res) {
     const difficulty = difficulty_level ? parseInt(difficulty_level, 10) : null;
     const setupTime = setup_time ? parseInt(setup_time, 10) : null;
 
-    // First create the project without an image URL
+    let imageUrl = null;
+    if (data.files && data.files.banner_image) {
+      const file = Array.isArray(data.files.banner_image)
+        ? data.files.banner_image[0]
+        : data.files.banner_image;
+
+      if (file && file.filepath) {
+        try {
+          const fileExt = file.originalFilename.split('.').pop();
+          const fileType = file.mimetype;
+          const buffer = fs.readFileSync(file.filepath);
+          console.log(`File read successfully, size: ${buffer.length} bytes`);
+
+          // Sightengine moderation 
+          const formData = new FormData();
+          formData.append('models', 'nudity-2.1,weapon,alcohol,recreational_drug,medical,offensive-2.0,scam,text-content,face-attributes,gore-2.0,text,qr-content,tobacco,violence,self-harm,money,gambling');
+          formData.append('api_user', process.env.SIGHTENGINE_USER);
+          formData.append('api_secret', process.env.SIGHTENGINE_SECRET);
+          formData.append('media', buffer, {
+            filename: file.originalFilename,
+            contentType: fileType,
+          });
+
+          const sightengineResponse = await axios.post(
+            'https://api.sightengine.com/1.0/check.json',
+            formData,
+            { headers: formData.getHeaders() }
+          );
+
+          const result = sightengineResponse.data;
+
+          // Block if not safe for work or contains restricted content
+          if (
+            result.nudity?.safe === false ||
+            result.weapon?.weapon === true ||
+            result.alcohol?.alcohol === true ||
+            result.gore?.prob > 0.5 ||
+            result.offensive?.prob > 0.5 ||
+            result.violence?.violence === true ||
+            result.scam?.scam === true ||
+            result.self_harm?.self_harm === true ||
+            result.gambling?.gambling === true
+          ) {
+            // Return a clear error message
+            return res.status(400).json({ error: "Image failed moderation: contains inappropriate or restricted content." });
+          }
+
+          // Image passed moderation, upload to storage after project is created below
+
+        } catch (error) {
+          // Return a clear error message
+          let errorMsg = "Image moderation failed.";
+          if (error.response && error.response.data && error.response.data.error) {
+            errorMsg = typeof error.response.data.error === "string"
+              ? error.response.data.error
+              : JSON.stringify(error.response.data.error);
+          }
+          return res.status(400).json({ error: errorMsg });
+        }
+      }
+    }
+
+    //create the project (only if image moderation passed or no image)
     const { data: project, error: projectError } = await supabase
       .from('project')
       .insert([{
@@ -137,23 +201,20 @@ export default async function handler(req, res) {
 
     console.log("Project created:", project.id);
 
-    // Then handle image upload with proper path using the project ID
-    let imageUrl = null;
+    // If image exists and passed moderation, upload it now and update project
     if (data.files && data.files.banner_image) {
-      const file = Array.isArray(data.files.banner_image) 
-        ? data.files.banner_image[0] 
+      const file = Array.isArray(data.files.banner_image)
+        ? data.files.banner_image[0]
         : data.files.banner_image;
-      
+
       if (file && file.filepath) {
         try {
           const fileExt = file.originalFilename.split('.').pop();
           const fileType = file.mimetype;
           const buffer = fs.readFileSync(file.filepath);
-          console.log(`File read successfully, size: ${buffer.length} bytes`);
 
-          // Store in user_id folder with project.id as filename
           const filename = `${session.user.id}/project_banners/${project.id}.${fileExt}`;
-          
+
           const { data: uploadData, error: uploadError } = await supabase.storage
             .from('project-images')
             .upload(filename, buffer, {
@@ -162,37 +223,23 @@ export default async function handler(req, res) {
               upsert: true
             });
 
-          if (uploadError) {
-            console.error("Supabase upload error:", uploadError);
-          } else {
-            console.log("Upload successful:", uploadData);
-            
-            // Get the public URL
+          if (!uploadError) {
             const { data: { publicUrl } } = supabase.storage
               .from('project-images')
               .getPublicUrl(filename);
-            
+
             imageUrl = publicUrl;
-            console.log("Image URL generated:", imageUrl);
-            
-            // Update the project with the image URL
-            if (imageUrl) {
-              const { error: updateError } = await supabase
-                .from('project')
-                .update({ image: imageUrl })
-                .eq('id', project.id);
-                
-              if (updateError) {
-                console.error("Failed to update project with image URL:", updateError);
-              }
-            }
+            await supabase
+              .from('project')
+              .update({ image: imageUrl })
+              .eq('id', project.id);
           }
         } catch (error) {
-          console.error("Error in image upload process:", error);
+          console.error("Error uploading image after project creation:", error);
+          // Optionally, you could delete the project if image upload fails
         }
       }
     }
-
 
     // Map technology names to IDs
     let technologyIds = [];

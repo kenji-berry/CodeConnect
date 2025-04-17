@@ -127,7 +127,7 @@ const MultiSelector: React.FC<MultiSelectorProps> = ({
             className={`tag-item flex items-center py-1.5 px-2.5 rounded text-sm font-medium transition-colors
                       ${nonRemovableTags.includes(tag)
                 ? 'bg-title-red text-black cursor-default'
-                : 'bg-slate-300 hover:bg-muted-red text-black'}`}
+                : 'bg-[var(--muted-red)] hover:bg-[var(--title-red)] text-[var(--off-white)]'}`}
             onClick={() => handleTagChange(tag)}
             disabled={nonRemovableTags.includes(tag)}
           >
