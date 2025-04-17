@@ -15,7 +15,7 @@ export default function useProjectFilters(initialProjects = [], options = {}) {
 
   // Filter states
   const [availableTechnologies, setAvailableTechnologies] = useState([]);
-  const [availableTags, setAvailableTags] = useState([]); // Add state for available tags
+  const [availableTags, setAvailableTags] = useState([]);
   const [projects, setProjects] = useState(initialProjects);
   const [filteredProjects, setFilteredProjects] = useState(initialProjects);
   const [selectedTechnologies, setSelectedTechnologies] = useState([]);
@@ -24,6 +24,10 @@ export default function useProjectFilters(initialProjects = [], options = {}) {
   const [selectedLastUpdated, setSelectedLastUpdated] = useState("");
   const [filterMode, setFilterMode] = useState('AND');
   const [selectedTags, setSelectedTags] = useState([]);
+  const [selectedLicense, setSelectedLicense] = useState("");
+  const [selectedMentorship, setSelectedMentorship] = useState("");
+  const [setupTimeMin, setSetupTimeMin] = useState("");
+  const [setupTimeMax, setSetupTimeMax] = useState("");
   
   // Load filters from URL parameters
   useEffect(() => {
@@ -33,6 +37,10 @@ export default function useProjectFilters(initialProjects = [], options = {}) {
     const difficultiesParam = searchParams.get("difficulties");
     const lastUpdated = searchParams.get("lastUpdated") || "";
     const mode = searchParams.get("filterMode") || 'AND';
+    const license = searchParams.get("license") || "";
+    const mentorship = searchParams.get("mentorship") || "";
+    const setupMin = searchParams.get("setupTimeMin") || "";
+    const setupMax = searchParams.get("setupTimeMax") || "";
 
     setSelectedTechnologies(technologies.filter(Boolean));
     setSelectedContributionTypes(contributionTypes.filter(Boolean));
@@ -51,6 +59,10 @@ export default function useProjectFilters(initialProjects = [], options = {}) {
 
     setSelectedLastUpdated(lastUpdated);
     setFilterMode(mode);
+    setSelectedLicense(license);
+    setSelectedMentorship(mentorship);
+    setSetupTimeMin(setupMin);
+    setSetupTimeMax(setupMax);
   }, [searchParams, includeTags, numericDifficulty]);
   
   // Fetch available technologies
@@ -172,9 +184,50 @@ export default function useProjectFilters(initialProjects = [], options = {}) {
         );
       }
     }
+
+    // License filter
+    if (selectedLicense) {
+      filtered = filtered.filter(project =>
+        (project.license || "").toLowerCase() === selectedLicense.toLowerCase()
+      );
+    }
+
+    // Mentorship filter
+    if (selectedMentorship) {
+      filtered = filtered.filter(project =>
+        (project.mentorship === true && selectedMentorship === "Yes") ||
+        (project.mentorship === false && selectedMentorship === "No")
+      );
+    }
+
+    // Setup time filter
+    if (setupTimeMin) {
+      filtered = filtered.filter(project =>
+        project.setup_time !== null && Number(project.setup_time) >= Number(setupTimeMin)
+      );
+    }
+    if (setupTimeMax) {
+      filtered = filtered.filter(project =>
+        project.setup_time !== null && Number(project.setup_time) <= Number(setupTimeMax)
+      );
+    }
     
     setFilteredProjects(filtered);
-  }, [projects, selectedTechnologies, selectedContributionTypes, selectedTags, includeTags, selectedDifficulties, selectedLastUpdated, filterMode, numericDifficulty]);
+  }, [
+    projects,
+    selectedTechnologies,
+    selectedContributionTypes,
+    selectedTags,
+    includeTags,
+    selectedDifficulties,
+    selectedLastUpdated,
+    filterMode,
+    numericDifficulty,
+    selectedLicense,
+    selectedMentorship,
+    setupTimeMin,
+    setupTimeMax
+  ]);
 
   // Memoize updateProjects to prevent unnecessary re-renders
   const updateProjects = useCallback((newProjects) => {
@@ -234,6 +287,26 @@ export default function useProjectFilters(initialProjects = [], options = {}) {
     setFilterMode(mode || "AND");
     updateUrl({ filterMode: mode || "AND" });
   };
+
+  const handleLicenseChange = (license) => {
+    setSelectedLicense(license);
+    updateUrl({ license });
+  };
+
+  const handleMentorshipChange = (mentorship) => {
+    setSelectedMentorship(mentorship);
+    updateUrl({ mentorship });
+  };
+
+  const handleSetupTimeMinChange = (min) => {
+    setSetupTimeMin(min);
+    updateUrl({ setupTimeMin: min });
+  };
+
+  const handleSetupTimeMaxChange = (max) => {
+    setSetupTimeMax(max);
+    updateUrl({ setupTimeMax: max });
+  };
   
   const clearAllFilters = () => {
     setSelectedTechnologies([]);
@@ -242,6 +315,10 @@ export default function useProjectFilters(initialProjects = [], options = {}) {
     setSelectedDifficulties([]);
     setSelectedLastUpdated("");
     setFilterMode("AND");
+    setSelectedLicense("");
+    setSelectedMentorship("");
+    setSetupTimeMin("");
+    setSetupTimeMax("");
     router.push(`?`, { scroll: false });
   };
 
@@ -254,6 +331,10 @@ export default function useProjectFilters(initialProjects = [], options = {}) {
     selectedLastUpdated,
     filterMode,
     selectedTags,
+    selectedLicense,
+    selectedMentorship,
+    setupTimeMin,
+    setupTimeMax,
     filteredProjects,
     updateProjects,
     handleTechnologiesChange,
@@ -262,6 +343,10 @@ export default function useProjectFilters(initialProjects = [], options = {}) {
     handleLastUpdatedChange,
     handleFilterModeChange,
     handleTagsChange,
+    handleLicenseChange,
+    handleMentorshipChange,
+    handleSetupTimeMinChange,
+    handleSetupTimeMaxChange,
     clearAllFilters
   };
 }

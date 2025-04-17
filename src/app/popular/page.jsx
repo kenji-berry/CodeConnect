@@ -43,7 +43,8 @@ function PopularProjectsContent() {
           .from('project')
           .select(`
             id, repo_name, repo_owner, description_type, 
-            custom_description, difficulty_level, created_at
+            custom_description, difficulty_level, created_at,
+            license, mentorship, setup_time
           `)
           .in('id', projectIds);
 

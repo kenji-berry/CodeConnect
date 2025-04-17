@@ -3,6 +3,8 @@ import React from "react";
 import MultiSelector from "./MultiSelector";
 import SingleSelector from "./SingleSelector";
 import MultiDifficultySelector from "./MultiDifficultySelector";
+import 'rc-slider/assets/index.css';
+import Slider from 'rc-slider';
 
 export default function FilterSidebar({
   availableTechnologies = [],
@@ -20,7 +22,15 @@ export default function FilterSidebar({
   selectedTags = [],
   onTagsChange,
   onClearFilters,
-  className = ""
+  className = "",
+  selectedLicense = "",
+  onLicenseChange,
+  selectedMentorship = "",
+  onMentorshipChange,
+  setupTimeMin = "",
+  setupTimeMax = "",
+  onSetupTimeMinChange,
+  onSetupTimeMaxChange
 }) {
   // Filter options
   const contributionTypes = [
@@ -32,6 +42,23 @@ export default function FilterSidebar({
   ];
 
   const lastUpdated = ["Last 24 hours", "Last 7 days", "Last 30 days"];
+
+  const licenseOptions = [
+    "MIT",
+    "Apache-2.0",
+    "GPL-3.0",
+    "BSD-3-Clause",
+    "Unlicense",
+    "Other"
+  ];
+
+  const mentorshipOptions = ["Yes", "No"];
+
+  const minSetup = 1;
+  const maxSetup = 1440; // 24 hours, adjust as needed
+
+  const sliderMin = Number(setupTimeMin) || minSetup;
+  const sliderMax = Number(setupTimeMax) || maxSetup;
 
   return (
     <div className={`filter-sidebar ${className}`}>
@@ -90,7 +117,60 @@ export default function FilterSidebar({
             initialValue={filterMode}
           />
         </div>
-        
+
+        <div>
+          <p className="mb-2">License:</p>
+          <SingleSelector
+            values={licenseOptions}
+            onValueChange={(value) => {
+              if (onLicenseChange) {
+                onLicenseChange(value);
+              }
+            }}
+            initialValue={selectedLicense}
+          />
+        </div>
+
+        <div>
+          <p className="mb-2">Mentorship:</p>
+          <SingleSelector
+            values={mentorshipOptions}
+            onValueChange={(value) => {
+              if (onMentorshipChange) {
+                onMentorshipChange(value);
+              }
+            }}
+            initialValue={selectedMentorship}
+          />
+        </div>
+
+        <div>
+          <p className="mb-2">Setup Time (min):</p>
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              placeholder="Min"
+              value={setupTimeMin}
+              onChange={e => {
+                const numericValue = e.target.value.replace(/\D/g, '');
+                onSetupTimeMinChange && onSetupTimeMinChange(numericValue);
+              }}
+              className="w-16 p-1 rounded border border-gray-300 text-black"
+            />
+            <span className="mx-2 text-gray-400">—</span>
+            <input
+              type="text"
+              placeholder="Max"
+              value={setupTimeMax}
+              onChange={e => {
+                const numericValue = e.target.value.replace(/\D/g, '');
+                onSetupTimeMaxChange && onSetupTimeMaxChange(numericValue);
+              }}
+              className="w-16 p-1 rounded border border-gray-300 text-black"
+            />
+          </div>
+        </div>
+
         <div className="mt-2">
           <button 
             onClick={onClearFilters} 

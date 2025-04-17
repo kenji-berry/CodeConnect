@@ -42,7 +42,8 @@ function NewestProjectsContent() {
           .from('project')
           .select(`
             id, repo_name, repo_owner, description_type, 
-            custom_description, difficulty_level, created_at
+            custom_description, difficulty_level, created_at,
+            license, mentorship, setup_time
           `)
           .in('id', projectIds);
 
@@ -96,7 +97,12 @@ function NewestProjectsContent() {
           projectsWithData.push(...batchResults);
         }
 
-        if (isMounted) updateProjects(projectsWithData);
+        if (isMounted) {
+          const sortedProjects = projectsWithData.sort((a, b) => 
+            new Date(b.created_at) - new Date(a.created_at)
+          );
+          updateProjects(sortedProjects);
+        }
       } catch (error) {
         console.error('Error in fetchNewestProjects:', error);
         if (isMounted) updateProjects([]);

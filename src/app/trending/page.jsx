@@ -55,13 +55,9 @@ function TrendingProjectsContent() {
         const { data: projects, error: projectsError } = await supabase
           .from('project')
           .select(`
-            id,
-            repo_name,
-            repo_owner,
-            description_type,
-            custom_description,
-            difficulty_level,
-            created_at
+            id, repo_name, repo_owner, description_type, 
+            custom_description, difficulty_level, created_at,
+            license, mentorship, setup_time
           `)
           .in('id', trendingIds.map(item => item.project_id));
 

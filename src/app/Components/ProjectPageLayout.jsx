@@ -16,17 +16,25 @@ export default function ProjectPageLayout({
     availableTechnologies,
     selectedTechnologies,
     selectedContributionTypes,
-    selectedDifficulties, // Changed from selectedDifficulty (singular) to plural
+    selectedDifficulties, 
     selectedLastUpdated,
     filterMode,
     availableTags,
     selectedTags,
+    selectedLicense,
+    selectedMentorship,
+    setupTimeMin,
+    setupTimeMax,
     handleTechnologiesChange,
     handleContributionTypesChange,
     handleDifficultyChange,
     handleLastUpdatedChange,
     handleFilterModeChange,
     handleTagsChange,
+    handleLicenseChange,
+    handleMentorshipChange,
+    handleSetupTimeMinChange,
+    handleSetupTimeMaxChange,
     clearAllFilters
   } = filterProps;
 
@@ -50,7 +58,6 @@ export default function ProjectPageLayout({
       </div>
       
       <div className="flex flex-1">
-        {/* Sidebar */}
         <div className={`
           w-64 bg-[--primary-color] border-r border-gray-800 fixed md:static h-full z-40 overflow-y-auto 
           transition-all duration-300 ease-in-out
@@ -63,8 +70,8 @@ export default function ProjectPageLayout({
               onTechnologiesChange={handleTechnologiesChange}
               selectedContributionTypes={selectedContributionTypes}
               onContributionTypesChange={handleContributionTypesChange}
-              selectedDifficulties={selectedDifficulties} // Changed to plural
-              onDifficultiesChange={handleDifficultyChange} // Changed name to match component expectation
+              selectedDifficulties={selectedDifficulties}
+              onDifficultiesChange={handleDifficultyChange} 
               selectedLastUpdated={selectedLastUpdated}
               onLastUpdatedChange={handleLastUpdatedChange}
               filterMode={filterMode}
@@ -72,6 +79,14 @@ export default function ProjectPageLayout({
               availableTags={availableTags}
               selectedTags={selectedTags}
               onTagsChange={handleTagsChange}
+              selectedLicense={selectedLicense}
+              onLicenseChange={handleLicenseChange}
+              selectedMentorship={selectedMentorship}
+              onMentorshipChange={handleMentorshipChange}
+              setupTimeMin={setupTimeMin}
+              setupTimeMax={setupTimeMax}
+              onSetupTimeMinChange={handleSetupTimeMinChange}
+              onSetupTimeMaxChange={handleSetupTimeMaxChange}
               onClearFilters={clearAllFilters}
             />
           </div>
