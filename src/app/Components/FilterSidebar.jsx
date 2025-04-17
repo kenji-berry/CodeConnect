@@ -145,7 +145,7 @@ export default function FilterSidebar({
               value={setupTimeMin}
               onChange={e => {
                 const numericValue = e.target.value.replace(/\D/g, '');
-                onSetupTimeMinChange && onSetupTimeMinChange(numericValue);
+                onSetupTimeMinChange?.(numericValue);
               }}
               className="w-16 p-1 rounded border border-gray-300 text-black"
             />
@@ -156,7 +156,7 @@ export default function FilterSidebar({
               value={setupTimeMax}
               onChange={e => {
                 const numericValue = e.target.value.replace(/\D/g, '');
-                onSetupTimeMaxChange && onSetupTimeMaxChange(numericValue);
+                onSetupTimeMaxChange?.(numericValue);
               }}
               className="w-16 p-1 rounded border border-gray-300 text-black"
             />
