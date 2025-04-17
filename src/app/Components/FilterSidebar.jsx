@@ -52,12 +52,6 @@ export default function FilterSidebar({
 
   const mentorshipOptions = ["Yes", "No"];
 
-  const minSetup = 1;
-  const maxSetup = 1440; // 24 hours, adjust as needed
-
-  const sliderMin = Number(setupTimeMin) || minSetup;
-  const sliderMax = Number(setupTimeMax) || maxSetup;
-
   return (
     <div className={`filter-sidebar ${className}`}>
       <h3 className="inter-bold text-xl mb-4">Filters</h3>
@@ -121,7 +115,9 @@ export default function FilterSidebar({
           <SingleSelector
             values={licenseOptions}
             onValueChange={(value) => {
-              onLicenseChange?.(value);
+              if (onLicenseChange) {
+                onLicenseChange(value);
+              }
             }}
             initialValue={selectedLicense}
           />
@@ -132,7 +128,9 @@ export default function FilterSidebar({
           <SingleSelector
             values={mentorshipOptions}
             onValueChange={(value) => {
-              onMentorshipChange?.(value);
+              if (onMentorshipChange) {
+                onMentorshipChange(value);
+              }
             }}
             initialValue={selectedMentorship}
           />
