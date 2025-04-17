@@ -53,6 +53,9 @@ function ProjectFormContent() {
   const [license, setLicense] = useState<string>("MIT");
   const [customLicense, setCustomLicense] = useState<string>("");
   const [setupTime, setSetupTime] = useState<number>();
+  const [bannerImage, setBannerImage] = useState<string | null>(null);
+  const [bannerImagePreview, setBannerImagePreview] = useState<string | null>(null);
+  const [bannerImageFile, setBannerImageFile] = useState<File | null>(null);
 
   const mentorshipOptions = [
     { value: "Yes", tooltip: "Mentorship is available for new contributors." },
@@ -90,6 +93,34 @@ function ProjectFormContent() {
 
   const handleDifficultyChange = (level: number) => {
     setDifficulty(level);
+  };
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    const file = files[0];
+
+    // Check file type
+    const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      alert('Please upload a valid image file (JPEG, PNG, GIF, WEBP)');
+      return;
+    }
+
+    // Check file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Image size should be less than 5MB');
+      return;
+    }
+
+    setBannerImageFile(file);
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        setBannerImagePreview(reader.result);
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   const descriptionOptions = ["Use existing description", "Write your Own"];
@@ -311,50 +342,49 @@ function ProjectFormContent() {
   const handleSubmitProject = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setSubmissionError(null);
-    
+
     try {
       await validateSubmission();
       setIsSubmitting(true);
-      
-      // Construct the full GitHub repository URL
+
       const githubLink = `https://github.com/${owner}/${repoName}`;
-      
+      const formData = new FormData();
+
+      formData.append('repoName', repoName ?? '');
+      formData.append('owner', owner ?? '');
+      formData.append('github_link', githubLink);
+      formData.append('description_type', descriptionOption);
+      formData.append('custom_description', customDescription);
+      formData.append('difficulty_level', String(difficulty));
+      formData.append('tags', JSON.stringify(selectedTags));
+      formData.append('technologies', JSON.stringify(selectedTechnologies));
+      formData.append('highlighted_technologies', JSON.stringify(highlightedTechnologies));
+      formData.append('links', JSON.stringify(resourceLinks.filter(link => link.name && link.url && link.isValid).map(link => ({
+        name: link.name,
+        url: link.url
+      }))));
+      formData.append('status', projectStatus);
+      formData.append('contribution_types', JSON.stringify(selectedContributionTypes));
+      formData.append('mentorship', mentorship);
+      formData.append('license', license === "Other" ? customLicense : license);
+      formData.append('setup_time', String(setupTime ?? ''));
+      if (bannerImageFile) {
+        formData.append('banner_image', bannerImageFile);
+      }
+
       const response = await fetch('/api/projects/create', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        body: formData,
         credentials: 'include',
-        body: JSON.stringify({
-          repoName,
-          owner,
-          github_link: githubLink,
-          description_type: descriptionOption,
-          custom_description: customDescription,
-          difficulty_level: difficulty,
-          tags: selectedTags,
-          technologies: selectedTechnologies,
-          highlighted_technologies: highlightedTechnologies,
-          links: resourceLinks.filter(link => link.name && link.url && link.isValid).map(link => ({
-            name: link.name,
-            url: link.url
-          })),
-          status: projectStatus,
-          contribution_types: selectedContributionTypes,
-          mentorship,
-          license: license === "Other" ? customLicense : license,
-          setup_time: setupTime,
-        }),
       });
-      
+
       const result = await response.json();
-      
+
       if (!response.ok) {
         throw new Error(result.error || 'Failed to create project');
       }
-      
+
       window.location.href = `/projects/${result.projectId}`;
-      
     } catch (err) {
       setSubmissionError(err instanceof Error ? err.message : 'An unexpected error occurred');
     } finally {
@@ -394,6 +424,50 @@ function ProjectFormContent() {
       
       <form onSubmit={handleSubmitProject} className="w-full">
         <div className="bento-container w-full inria-sans-regular">
+          <div className="bento-box full-width radial-background">
+            <h4>Project Banner Image (Optional):</h4>
+            <div className="mt-2 flex flex-col items-center">
+              {bannerImagePreview ? (
+                <div className="relative w-full h-40">
+                  <img 
+                    src={bannerImagePreview} 
+                    alt="Banner preview" 
+                    className="w-full h-full object-cover rounded-lg"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBannerImage(null);
+                      setBannerImagePreview(null);
+                      setBannerImageFile(null);
+                    }}
+                    className="absolute top-2 right-2 bg-gray-800 text-white p-2 rounded-full hover:bg-gray-700"
+                    aria-label="Remove image"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                </div>
+              ) : (
+                <label className="cursor-pointer w-full">
+                  <div className="border-2 border-dashed border-gray-600 rounded-lg p-6 flex flex-col items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-gray-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <p className="text-gray-400">Click to upload a banner image</p>
+                    <p className="text-xs text-gray-500 mt-1">Recommended: 1200×400px (JPG, PNG, GIF, WEBP)</p>
+                  </div>
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/gif,image/webp"
+                    onChange={handleImageChange}
+                    className="hidden"
+                  />
+                </label>
+              )}
+            </div>
+          </div>
           <div className="bento-box full-width radial-background">
             <div className="flex items-center">
               <span className="mr-2 inria-sans-semibold">
