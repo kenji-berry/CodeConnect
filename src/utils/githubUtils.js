@@ -1,5 +1,104 @@
 import { supabase } from '@/supabaseClient';
 
+// Add this helper function for Levenshtein distance calculation
+function levenshteinDistance(a, b) {
+  const matrix = Array(b.length + 1).fill().map(() => Array(a.length + 1).fill(0));
+  
+  for (let i = 0; i <= a.length; i++) matrix[0][i] = i;
+  for (let j = 0; j <= b.length; j++) matrix[j][0] = j;
+  
+  for (let j = 1; j <= b.length; j++) {
+    for (let i = 1; i <= a.length; i++) {
+      const substitutionCost = a[i - 1] === b[j - 1] ? 0 : 1;
+      matrix[j][i] = Math.min(
+        matrix[j][i - 1] + 1,                   // deletion
+        matrix[j - 1][i] + 1,                   // insertion
+        matrix[j - 1][i - 1] + substitutionCost // substitution
+      );
+    }
+  }
+  
+  return matrix[b.length][a.length];
+}
+
+export const extractTagsFromReadme = (readmeContent, availableTags = [], availableTechnologies = []) => {
+  console.log('Extracting tags from README with fuzzy matching:');
+  console.log('- README length:', readmeContent?.length || 0);
+  
+  if (!readmeContent) return { tags: [], technologies: [] };
+
+  // Convert README to lowercase for case-insensitive matching
+  const lowerContent = readmeContent.toLowerCase();
+  
+  // Extract words and phrases from the README
+  const words = lowerContent.split(/[\s,.;:()\[\]{}'"<>\/\\|`~!@#$%^&*+=]+/)
+    .filter(word => word.length > 2);  // Filter out short words
+    
+  // Generate n-grams (phrases of 2-3 words) for better matching
+  const ngrams = [];
+  for (let i = 0; i < words.length - 1; i++) {
+    ngrams.push(words[i] + ' ' + words[i+1]);
+    if (i < words.length - 2) {
+      ngrams.push(words[i] + ' ' + words[i+1] + ' ' + words[i+2]);
+    }
+  }
+  
+  // All terms to check (words + n-grams)
+  const terms = [...words, ...ngrams];
+  
+  // Function to find fuzzy matches with a threshold
+  const findFuzzyMatches = (candidates, threshold = 0.25) => {
+    const matches = new Map();
+    
+    candidates.forEach(candidate => {
+      const candidateLower = candidate.toLowerCase();
+      
+      // Exact match has highest priority
+      if (lowerContent.includes(candidateLower)) {
+        matches.set(candidate, 1.0);
+        return;
+      }
+      
+      // Check individual words and n-grams for close matches
+      terms.forEach(term => {
+        if (Math.abs(term.length - candidateLower.length) > candidateLower.length * threshold) {
+          return;
+        }
+        
+        const distance = levenshteinDistance(term, candidateLower);
+        const similarity = 1 - (distance / Math.max(term.length, candidateLower.length));
+        
+        // If similarity is above threshold, count it as a match
+        if (similarity >= (1 - threshold)) {
+          // Keep the highest similarity score if there are multiple matches
+          if (!matches.has(candidate) || similarity > matches.get(candidate)) {
+            matches.set(candidate, similarity);
+          }
+        }
+      });
+    });
+    
+    // Sort by similarity score (descending)
+    return [...matches.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(entry => entry[0]);
+  };
+  
+  // Find fuzzy matches for technologies and tags
+  const technologies = findFuzzyMatches(availableTechnologies);
+  const tags = findFuzzyMatches(availableTags);
+  
+  const result = {
+    technologies: [...new Set(technologies)], // Remove duplicates
+    tags: [...new Set(tags)]  // Remove duplicates
+  };
+  
+  console.log('Fuzzy matched tag suggestions:', result.tags);
+  console.log('Fuzzy matched technology suggestions:', result.technologies);
+  
+  return result;
+};
+
 export async function fetchGitHubApi(url, options = {}) {
   try {
     const apiPath = url.replace('https://api.github.com/', '');
@@ -126,42 +225,4 @@ export const fetchRepositoryReadme = async (owner, repo) => {
     console.error("Error fetching repository README:", error);
     return "";
   }
-};
-
-export const extractTagsFromReadme = (readmeContent, availableTags = [], availableTechnologies = []) => {
-  console.log('Extracting tags from README:');
-  console.log('- README length:', readmeContent?.length || 0);
-  console.log('- Available tags:', availableTags);
-  console.log('- Available technologies:', availableTechnologies);
-  
-  if (!readmeContent) return { tags: [], technologies: [] };
-
-  // Convert README to lowercase for case-insensitive matching
-  const lowerContent = readmeContent.toLowerCase();
-  
-  // Extract technologies that appear in the README
-  const technologies = availableTechnologies.filter(tech => {
-    // Use more robust regex escaping to handle special characters
-    const cleanedTech = tech.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const regex = new RegExp(`\\b${cleanedTech}\\b`, 'i');
-    return regex.test(lowerContent);
-  });
-  
-  // Extract tags that appear in the README
-  const tags = availableTags.filter(tag => {
-    // Use more robust regex escaping to handle special characters
-    const cleanedTag = tag.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const regex = new RegExp(`\\b${cleanedTag}\\b`, 'i');
-    return regex.test(lowerContent);
-  });
-  
-  const result = {
-    technologies: [...new Set(technologies)], // Remove duplicates
-    tags: [...new Set(tags)]  // Remove duplicates
-  };
-  
-  console.log('Extracted tag suggestions:', result.tags);
-  console.log('Extracted technology suggestions:', result.technologies);
-  
-  return result;
 };
