@@ -3,8 +3,6 @@ import React from "react";
 import MultiSelector from "./MultiSelector";
 import SingleSelector from "./SingleSelector";
 import MultiDifficultySelector from "./MultiDifficultySelector";
-import 'rc-slider/assets/index.css';
-import Slider from 'rc-slider';
 
 export default function FilterSidebar({
   availableTechnologies = [],
