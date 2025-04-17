@@ -561,9 +561,27 @@ function ProjectFormContent() {
             <LanguageBar languages={repoInfo.languages} />
             
             <div className="mt-3 border-t border-[var(--off-white)] pt-3">
-              <h5 className="text-sm font-semibold mb-2 inria-sans-semibold">
-                {isLoadingSuggestions ? 'Analyzing README...' : 'Suggested Technologies:'}
-              </h5>
+              <div className="flex justify-between items-center mb-2">
+                <h5 className="text-sm font-semibold inria-sans-semibold">
+                  {isLoadingSuggestions ? 'Analyzing README...' : 'Suggested Technologies:'}
+                </h5>
+                {!isLoadingSuggestions && suggestedTechnologies.length > 0 && (
+                  <button
+                    onClick={() => {
+                      const newTechnologies = [...selectedTechnologies];
+                      suggestedTechnologies.forEach(tech => {
+                        if (!newTechnologies.includes(tech)) {
+                          newTechnologies.push(tech);
+                        }
+                      });
+                      handleTechnologiesChange(newTechnologies);
+                    }}
+                    className="text-xs px-2 py-1 bg-[var(--muted-red)] text-[var(--off-white)] rounded hover:bg-[var(--title-red)] transition-colors"
+                  >
+                    Add All
+                  </button>
+                )}
+              </div>
               {isLoadingSuggestions ? (
                 <div className="flex items-center space-x-2">
                   <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-[var(--title-red)]"></div>
@@ -590,7 +608,7 @@ function ProjectFormContent() {
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-gray-400">No technologies found in README</p>
+                <p className="text-sm text-gray-400">No technologies to suggest</p>
               )}
             </div>
           </div>
@@ -602,11 +620,29 @@ function ProjectFormContent() {
               initialTags={selectedTags}
             />
             
-            {/* Tag Suggestions - Updated styling */}
+            {/* Tag Suggestions - Updated with Add All button */}
             <div className="mt-3 border-t border-[var(--off-white)] pt-3">
-              <h5 className="text-sm font-semibold mb-2 inria-sans-semibold">
-                {isLoadingSuggestions ? 'Analyzing README...' : 'Suggested Tags:'}
-              </h5>
+              <div className="flex justify-between items-center mb-2">
+                <h5 className="text-sm font-semibold inria-sans-semibold">
+                  {isLoadingSuggestions ? 'Analyzing README...' : 'Suggested Tags:'}
+                </h5>
+                {!isLoadingSuggestions && suggestedTags.length > 0 && (
+                  <button
+                    onClick={() => {
+                      const newTags = [...selectedTags];
+                      suggestedTags.forEach(tag => {
+                        if (!newTags.includes(tag)) {
+                          newTags.push(tag);
+                        }
+                      });
+                      handleTagsChange(newTags);
+                    }}
+                    className="text-xs px-2 py-1 bg-[var(--muted-red)] text-[var(--off-white)] rounded hover:bg-[var(--title-red)] transition-colors"
+                  >
+                    Add All
+                  </button>
+                )}
+              </div>
               {isLoadingSuggestions ? (
                 <div className="flex items-center space-x-2">
                   <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-[var(--title-red)]"></div>
@@ -633,7 +669,7 @@ function ProjectFormContent() {
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-gray-400">No tags found in README</p>
+                <p className="text-sm text-gray-400">No tags to suggest</p>
               )}
             </div>
           </div>
