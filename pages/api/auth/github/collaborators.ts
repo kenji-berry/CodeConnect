@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getValidGitHubToken } from '../../../../../../utils/tokenRefresh';
+import { getValidGitHubToken } from '../../../../src/utils/tokenRefresh';
 
 export default async function handler(
   req: NextApiRequest,

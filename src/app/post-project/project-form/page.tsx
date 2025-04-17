@@ -52,7 +52,7 @@ function ProjectFormContent() {
   const [mentorship, setMentorship] = useState<string>("No");
   const [license, setLicense] = useState<string>("MIT");
   const [customLicense, setCustomLicense] = useState<string>("");
-  const [setupTime, setSetupTime] = useState<number>(5);
+  const [setupTime, setSetupTime] = useState<number>();
 
   const mentorshipOptions = [
     { value: "Yes", tooltip: "Mentorship is available for new contributors." },
@@ -96,7 +96,6 @@ function ProjectFormContent() {
   const statusOptions = [
     { value: "Active Development", tooltip: "The project is actively being worked on." },
     { value: "Maintenance", tooltip: "The project is in maintenance mode." },
-    { value: "Completed", tooltip: "The project is completed and no longer actively developed." },
   ];
 
   const isValidUrl = (url: string): boolean => {
