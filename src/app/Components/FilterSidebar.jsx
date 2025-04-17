@@ -121,9 +121,7 @@ export default function FilterSidebar({
           <SingleSelector
             values={licenseOptions}
             onValueChange={(value) => {
-              if (onLicenseChange) {
-                onLicenseChange(value);
-              }
+              onLicenseChange?.(value);
             }}
             initialValue={selectedLicense}
           />
@@ -134,9 +132,7 @@ export default function FilterSidebar({
           <SingleSelector
             values={mentorshipOptions}
             onValueChange={(value) => {
-              if (onMentorshipChange) {
-                onMentorshipChange(value);
-              }
+              onMentorshipChange?.(value);
             }}
             initialValue={selectedMentorship}
           />
