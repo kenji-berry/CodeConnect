@@ -309,6 +309,11 @@ function ProjectFormContent() {
               tags (
                 name
               )
+            ),
+            project_contribution_type (
+              contribution_type (
+                name
+              )
             )
           `)
           .eq('repo_name', repoName)
@@ -352,7 +357,12 @@ function ProjectFormContent() {
             isValid: !!l.url
           })) : []);
           
-          setSelectedContributionTypes(Array.isArray(project.contribution_types) ? project.contribution_types : []);
+          const projectContributionTypes = (project.project_contribution_type || [])
+            .map((pct: any) => pct.contribution_type?.name)
+            .filter(Boolean);
+      
+          setSelectedContributionTypes(projectContributionTypes);
+          
           setBannerImage(project.image || null);
           setBannerImagePreview(project.image || null);
 
@@ -382,6 +392,59 @@ function ProjectFormContent() {
         setSession(authSession); // Always set the session
       }
 
+      try {
+        
+        // Load ALL dropdown options in one batch
+        const [tagsResponse, technologiesResponse, contributionTypesResponse] = await Promise.all([
+          supabase.from('tags').select('name'),
+          supabase.from('technologies').select('name'),
+          supabase.from('contribution_type').select('name')
+        ]);
+
+        // Process tags
+        if (!tagsResponse.error) {
+          const tagNames = (tagsResponse.data || [])
+            .filter((tag): tag is { name: string } => tag && typeof tag.name === 'string')
+            .map(tag => tag.name)
+            .filter(name => name.length > 0);
+          console.log(`Loaded ${tagNames.length} tags`);
+          setTags(tagNames);
+          setAvailableTags(tagNames); // Add this line to also set availableTags
+        } else {
+          console.error('Error loading tags:', tagsResponse.error);
+        }
+
+        // Process technologies
+        if (!technologiesResponse.error) {
+          const techNames = (technologiesResponse.data || [])
+            .filter((tech): tech is { name: string } => tech && typeof tech.name === 'string')
+            .map(tech => tech.name)
+            .filter(name => name.length > 0);
+          console.log(`Loaded ${techNames.length} technologies`);
+          setTechnologies(techNames);
+          setAvailableTechnologies(techNames); // Add this line to also set availableTechnologies
+        } else {
+          console.error('Error loading technologies:', technologiesResponse.error);
+        }
+
+        // Process contribution types
+        if (!contributionTypesResponse.error) {
+          const contributionTypeNames = (contributionTypesResponse.data || [])
+            .filter((type): type is { name: string } => type && typeof type.name === 'string')
+            .map(type => type.name)
+            .filter(name => name.length > 0);
+          console.log(`Loaded ${contributionTypeNames.length} contribution types:`, contributionTypeNames);
+          setContributionTypes(contributionTypeNames);
+        } else {
+          console.error('Error loading contribution types:', contributionTypesResponse.error);
+        }
+        
+      } catch (error) {
+        console.error('Error fetching form options:', error);
+      }
+
+      // This loads existing project data if we're in edit mode
+      console.log('Checking for existing project data...');
       const existingTechs = await fetchExistingProject();
       
       // Only fetch GitHub data if we don't already have project data
@@ -391,53 +454,13 @@ function ProjectFormContent() {
       } else {
         console.log('Using existing project data, skipping GitHub API fetch');
       }
+      
+      console.log('Project form initialization complete');
     };
     
     initializeProjectForm();
   }, [repoName, owner]);
 
-  useEffect(() => {
-    if (Object.keys(repoInfo.languages).length > 0) {
-      const nonRemovableTechnologies = Object.keys(repoInfo.languages).map(lang => lang.toLowerCase());
-      console.log('repoInfo.languages changed:', 
-                  'languages:', nonRemovableTechnologies, 
-                  'isEditMode:', isEditMode, 
-                  'hasPrefilled:', hasPrefilled);
-      
-      // Only set technologies if we're not in edit mode with prefilled data
-      if (!(isEditMode && hasPrefilled)) {
-        console.log('Setting technologies from repo languages');
-        setSelectedTechnologies(nonRemovableTechnologies);
-      } else {
-        console.log('Preserving prefilled technologies - skipping update');
-      }
-    }
-  }, [repoInfo.languages, isEditMode, hasPrefilled]);
-
-  useEffect(() => {
-    const fetchContributionTypes = async () => {
-      const { data, error } = await supabase.from('contribution_type').select('name');
-      if (!error && data) {
-        setContributionTypes(data.map((row: { name: string }) => row.name));
-      }
-    };
-    fetchContributionTypes();
-  }, []);
-
-  useEffect(() => {
-    const loadTagsAndTech = async () => {
-      const [tagsData, techData] = await Promise.all([
-        fetchAvailableTags(),
-        fetchAvailableTechnologies()
-      ]);
-      
-      setAvailableTags(tagsData);
-      setAvailableTechnologies(techData);
-    };
-    
-    loadTagsAndTech();
-  }, []);
-  
   useEffect(() => {
     if (repoName && owner && availableTags.length > 0 && availableTechnologies.length > 0) {
       setIsLoadingSuggestions(true);

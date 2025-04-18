@@ -333,6 +333,46 @@ export default async function handler(req, res) {
       }
     }
 
+    // --- CONTRIBUTION TYPES ---
+    // Remove old project_contribution_type if updating
+    if (isUpdate) {
+      await supabase.from('project_contribution_type').delete().eq('project_id', project.id);
+    }
+
+    // Insert project_contribution_type
+    if (contribution_types.length > 0) {
+      // Get contribution type IDs
+      const { data: contTypeRows, error: contTypeFetchError } = await supabase
+        .from('contribution_type')
+        .select('id, name')
+        .in('name', contribution_types);
+
+      if (contTypeFetchError) {
+        return res.status(500).json({ error: contTypeFetchError.message });
+      }
+
+      const contTypeNameToId = {};
+      contTypeRows.forEach(row => {
+        contTypeNameToId[row.name.toLowerCase()] = row.id;
+      });
+
+      const contTypeIds = contribution_types.map(name => contTypeNameToId[name.toLowerCase()]).filter(Boolean);
+
+      const contTypeRowsToInsert = contTypeIds.map(contTypeId => ({
+        project_id: project.id,
+        contribution_type_id: contTypeId
+      }));
+
+      if (contTypeRowsToInsert.length > 0) {
+        const { error: contTypeError } = await supabase
+          .from('project_contribution_type')
+          .insert(contTypeRowsToInsert);
+        if (contTypeError) {
+          return res.status(500).json({ error: contTypeError.message });
+        }
+      }
+    }
+
     return res.status(isUpdate ? 200 : 201).json({ projectId: project.id });
   } catch (error) {
     return res.status(500).json({ error: error.message || 'Internal server error' });
