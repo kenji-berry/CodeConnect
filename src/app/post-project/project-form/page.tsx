@@ -392,8 +392,8 @@ function ProjectFormContent() {
           setSelectedTags((project.project_tags || []).map((pt: ProjectTag) => pt.tags?.name).filter(Boolean));
           
           setHighlightedTags((project.project_tags || [])
-            .filter((pt: any) => pt.is_highlighted)
-            .map((pt: any) => pt.tags?.name)
+            .filter((pt: ProjectTag) => pt.is_highlighted)
+            .map((pt: ProjectTag) => pt.tags?.name)
             .filter(Boolean));
           
           // Store technologies in a local variable to ensure availability for API calls
