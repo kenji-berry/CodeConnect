@@ -15,6 +15,51 @@ import {
   fetchAvailableTechnologies 
 } from '../../../utils/githubUtils';
 
+
+// Define interfaces for the data structure
+interface Tag {
+  name: string;
+}
+
+interface Technology {
+  name: string;
+}
+
+interface ContributionType {
+  name: string;
+}
+
+interface ProjectTag {
+  tags: Tag;
+}
+
+interface ProjectTechnology {
+  is_highlighted: boolean;
+  technologies: Technology;
+}
+
+interface ProjectContributionType {
+  contribution_type: ContributionType;
+}
+
+interface Project {
+  id: number;
+  repo_name: string;
+  repo_owner: string;
+  custom_description?: string;
+  description_type?: string;
+  difficulty_level?: number;
+  status?: string;
+  mentorship?: boolean;
+  license?: string;
+  setup_time?: number;
+  image?: string | null;
+  links?: Array<{ name: string; url: string }>;
+  project_tags: ProjectTag[];
+  project_technologies: ProjectTechnology[];
+  project_contribution_type: ProjectContributionType[];
+}
+
 interface ResourceLink {
   name: string;
   url: string;
@@ -337,28 +382,28 @@ function ProjectFormContent() {
           setCustomLicense(project.license && !["MIT", "Apache-2.0", "GPL-3.0", "BSD-3-Clause", "Unlicensed"].includes(project.license) ? project.license : "");
           setSetupTime(project.setup_time || undefined);
           
-          setSelectedTags((project.project_tags || []).map((pt: any) => pt.tags?.name).filter(Boolean));
+          setSelectedTags((project.project_tags || []).map((pt: ProjectTag) => pt.tags?.name).filter(Boolean));
           
           // Store technologies in a local variable to ensure availability for API calls
           const projectTechs = (project.project_technologies || [])
-            .map((pt: any) => pt.technologies?.name)
+            .map((pt: ProjectTechnology) => pt.technologies?.name)
             .filter(Boolean);
           console.log('Loading existing technologies from DB:', projectTechs);
           setSelectedTechnologies(projectTechs);
           
           setHighlightedTechnologies((project.project_technologies || [])
-            .filter((pt: any) => pt.is_highlighted)
-            .map((pt: any) => pt.technologies?.name)
+            .filter((pt: ProjectTechnology) => pt.is_highlighted)
+            .map((pt: ProjectTechnology) => pt.technologies?.name)
             .filter(Boolean));
           
-          setResourceLinks(Array.isArray(project.links) ? project.links.map((l: any) => ({
+          setResourceLinks(Array.isArray(project.links) ? project.links.map((l: { name: string; url: string }) => ({
             name: l.name,
             url: l.url,
             isValid: !!l.url
           })) : []);
           
           const projectContributionTypes = (project.project_contribution_type || [])
-            .map((pct: any) => pct.contribution_type?.name)
+            .map((pct: ProjectContributionType) => pct.contribution_type?.name)
             .filter(Boolean);
       
           setSelectedContributionTypes(projectContributionTypes);

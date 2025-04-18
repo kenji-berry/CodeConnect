@@ -977,7 +977,7 @@ const ProjectDetails = () => {
                   Are you sure you want to delete this project? This action <span className="font-bold">cannot be undone</span> and will remove all associated data including comments and likes.
                 </p>
                 <p className="font-semibold mb-2">
-                  Type <span className="text-red-400">"{project.repo_name}"</span> to confirm:
+                  Type <span className="text-red-400">&ldquo;{project.repo_name}&rdquo;</span> to confirm:
                 </p>
                 <input
                   type="text"
