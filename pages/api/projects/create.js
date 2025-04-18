@@ -57,6 +57,7 @@ export default async function handler(req, res) {
     const tags = JSON.parse(parseField(data.fields.tags) || '[]');
     const technologies = JSON.parse(parseField(data.fields.technologies) || '[]');
     const highlighted_technologies = JSON.parse(parseField(data.fields.highlighted_technologies) || '[]');
+    const highlighted_tags = JSON.parse(parseField(data.fields.highlighted_tags) || '[]');
     const links = JSON.parse(parseField(data.fields.links) || '[]');
     const status = parseField(data.fields.status);
     const contribution_types = JSON.parse(parseField(data.fields.contribution_types) || '[]');
@@ -320,7 +321,12 @@ export default async function handler(req, res) {
 
       const tagRowsToInsert = tagIds.map(tagId => ({
         project_id: project.id,
-        tag_id: tagId
+        tag_id: tagId,
+        is_highlighted: highlighted_tags
+          .map(str => str.toLowerCase())
+          .includes(
+            Object.keys(tagNameToId).find(key => tagNameToId[key] === tagId)
+          )
       }));
 
       if (tagRowsToInsert.length > 0) {

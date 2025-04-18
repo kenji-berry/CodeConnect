@@ -264,7 +264,8 @@ function HomeContent() {
               })) || [],
               tags: tagData?.map(tag => ({
                 name: tag.tags.name,
-                colour: tag.tags.colour
+                colour: tag.tags.colour,
+                is_highlighted: tag.is_highlighted
               })) || [] 
             };
           })
@@ -361,7 +362,8 @@ function HomeContent() {
               })) || [],
               tags: tagData?.map(tag => ({
                 name: tag.tags.name,
-                colour: tag.tags.colour
+                colour: tag.tags.colour,
+                is_highlighted: tag.is_highlighted
               })) || [] 
             };
           })
@@ -458,7 +460,8 @@ function HomeContent() {
               })) || [],
               tags: tagData?.map(tag => ({
                 name: tag.tags.name,
-                colour: tag.tags.colour
+                colour: tag.tags.colour,
+                is_highlighted: tag.is_highlighted
               })) || [] 
             };
           })
@@ -555,7 +558,8 @@ function HomeContent() {
               })) || [],
               tags: tagData?.map(tag => ({
                 name: tag.tags.name,
-                colour: tag.tags.colour
+                colour: tag.tags.colour,
+                is_highlighted: tag.is_highlighted
               })) || [] 
             };
           })
@@ -640,7 +644,11 @@ function HomeContent() {
                     id={project.id}
                     name={project.repo_name}
                     date={project.created_at}
-                    tags={project.tags.slice(0, 3)}
+                    tags={
+                      project.tags && project.tags.filter(tag => tag.is_highlighted).length > 0
+                        ? project.tags.filter(tag => tag.is_highlighted)
+                        : project.tags.slice(0, 3)
+                    }
                     description={
                       project.description_type === "Write your Own" 
                         ? project.custom_description 
@@ -685,7 +693,11 @@ function HomeContent() {
                     id={project.id}
                     name={project.repo_name}
                     date={project.created_at}
-                    tags={project.tags.slice(0, 3)}
+                    tags={
+                      project.tags && project.tags.filter(tag => tag.is_highlighted).length > 0
+                        ? project.tags.filter(tag => tag.is_highlighted)
+                        : project.tags.slice(0, 3)
+                    }
                     description={
                       project.description_type === "Write your Own" 
                         ? project.custom_description 
@@ -730,7 +742,11 @@ function HomeContent() {
                     id={project.id}
                     name={project.repo_name}
                     date={project.created_at}
-                    tags={project.tags.slice(0, 3)}
+                    tags={
+                      project.tags && project.tags.filter(tag => tag.is_highlighted).length > 0
+                        ? project.tags.filter(tag => tag.is_highlighted)
+                        : project.tags.slice(0, 3)
+                    }
                     description={
                       project.description_type === "Write your Own" 
                         ? project.custom_description 
@@ -775,7 +791,11 @@ function HomeContent() {
                     id={project.id}
                     name={project.repo_name}
                     date={project.created_at}
-                    tags={project.tags.slice(0, 3)}
+                    tags={
+                      project.tags && project.tags.filter(tag => tag.is_highlighted).length > 0
+                        ? project.tags.filter(tag => tag.is_highlighted)
+                        : project.tags.slice(0, 3)
+                    }
                     description={
                       project.description_type === "Write your Own" 
                         ? project.custom_description 
@@ -820,7 +840,11 @@ function HomeContent() {
                     id={project.id}
                     name={project.repo_name}
                     date={project.created_at}
-                    tags={project.tags.slice(0, 3)}
+                    tags={
+                      project.tags && project.tags.filter(tag => tag.is_highlighted).length > 0
+                        ? project.tags.filter(tag => tag.is_highlighted)
+                        : project.tags.slice(0, 3)
+                    }
                     description={
                       project.description_type === "Write your Own" 
                         ? project.custom_description 

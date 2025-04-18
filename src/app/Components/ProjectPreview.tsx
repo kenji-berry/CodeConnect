@@ -3,6 +3,7 @@ import React, { useState } from "react";
 interface TagWithColour {
   name: string;
   colour?: string;
+  is_highlighted?: boolean;
 }
 
 interface ProjectPreviewProps {

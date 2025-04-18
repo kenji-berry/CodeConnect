@@ -31,6 +31,7 @@ interface ContributionType {
 
 interface ProjectTag {
   tags: Tag;
+  is_highlighted?: boolean;
 }
 
 interface ProjectTechnology {
@@ -77,6 +78,7 @@ function ProjectFormContent() {
 
   const [tags, setTags] = useState<string[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [highlightedTags, setHighlightedTags] = useState<string[]>([]);
   const [technologies, setTechnologies] = useState<string[]>([]);
   const [selectedTechnologies, setSelectedTechnologies] = useState<string[]>([]);
   const [highlightedTechnologies, setHighlightedTechnologies] = useState<string[]>([]);
@@ -133,6 +135,10 @@ function ProjectFormContent() {
 
   const handleTagsChange = (tags: string[]) => {
     setSelectedTags(tags);
+  };
+
+  const handleHighlightedTagsChange = (highlighted: string[]) => {
+    setHighlightedTags(highlighted);
   };
 
   const handleTechnologiesChange = (technologies: string[]) => {
@@ -353,7 +359,8 @@ function ProjectFormContent() {
             project_tags (
               tags (
                 name
-              )
+              ),
+              is_highlighted
             ),
             project_contribution_type (
               contribution_type (
@@ -383,6 +390,11 @@ function ProjectFormContent() {
           setSetupTime(project.setup_time || undefined);
           
           setSelectedTags((project.project_tags || []).map((pt: ProjectTag) => pt.tags?.name).filter(Boolean));
+          
+          setHighlightedTags((project.project_tags || [])
+            .filter((pt: any) => pt.is_highlighted)
+            .map((pt: any) => pt.tags?.name)
+            .filter(Boolean));
           
           // Store technologies in a local variable to ensure availability for API calls
           const projectTechs = (project.project_technologies || [])
@@ -614,6 +626,7 @@ function ProjectFormContent() {
       formData.append('custom_description', customDescription);
       formData.append('difficulty_level', String(difficulty));
       formData.append('tags', JSON.stringify(selectedTags));
+      formData.append('highlighted_tags', JSON.stringify(highlightedTags));
       formData.append('technologies', JSON.stringify(selectedTechnologies));
       formData.append('highlighted_technologies', JSON.stringify(highlightedTechnologies));
       formData.append('links', JSON.stringify(resourceLinks.filter(link => link.name && link.url && link.isValid).map(link => ({
@@ -824,10 +837,13 @@ function ProjectFormContent() {
           </div>
           <div className="bento-box half-width radial-background">
             <h4>Tags:</h4>
-            <MultiSelector
+            <HighlightableMultiSelector
               availableTags={tags}
               onTagsChange={handleTagsChange}
               initialTags={selectedTags}
+              highlightedTags={highlightedTags}
+              onHighlightedTagsChange={handleHighlightedTagsChange}
+              nonRemovableTags={[]} // No non-removable tags for this selector
             />
             
             <div className="mt-3 border-t border-[var(--off-white)] pt-3">
