@@ -1038,14 +1038,53 @@ function ProjectFormContent() {
             </div>
           </div>
         </div>
-        
-        {submissionError && (
-          <div className="w-full max-w-2xl mx-auto mt-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
-            <p className="font-medium">Error</p>
-            <p>{submissionError}</p>
+
+        {/* --- GITHUB WEBHOOK INSTRUCTIONS --- */}
+        <div className="w-full max-w-2xl mx-auto mt-8 mb-4 p-6 bg-blue-50 border border-blue-300 rounded-lg text-blue-900">
+          <h2 className="text-lg font-semibold mb-2 flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M12 20a8 8 0 100-16 8 8 0 000 16z" />
+            </svg>
+            GitHub Webhook Required
+          </h2>
+          <ol className="list-decimal ml-6 mb-2">
+            <li>
+              <b>Go to your GitHub repository</b> and open <b>Settings &rarr; Webhooks</b>.
+            </li>
+            <li>
+              Click <b>Add webhook</b>.
+            </li>
+            <li>
+              <b>Fill out the form:</b>
+              <ul className="list-disc ml-6 mt-1">
+                <li>
+                  <b>Payload URL:</b><br />
+                  <code className="bg-blue-100 px-1 py-0.5 rounded text-sm">
+                    https://codeconnect.cc/api/webhooks/github?projectId=YOUR_PROJECT_ID
+                  </code>
+                  <br />
+                </li>
+                <li>
+                  <b>Content type:</b> <code className="bg-blue-100 px-1 py-0.5 rounded text-sm">application/json</code>
+                </li>
+                <li>
+                  <b>Secret:</b> <span className="text-xs text-blue-700">Copy the secret from your project’s webhook setup page.</span>
+                </li>
+                <li>
+                  <b>Events:</b> Select <b>Let me select individual events</b> and check <b>Push</b>, <b>Issues</b>, and <b>Pull requests</b>.
+                </li>
+              </ul>
+            </li>
+            <li>
+              Click <b>Add webhook</b> to save.
+            </li>
+          </ol>
+          <div className="text-sm text-blue-700 mt-2">
+            <b>Tip:</b> You can find your webhook URL and secret in your project’s settings page on CodeConnect.
           </div>
-        )}
-        
+        </div>
+        {/* --- END GITHUB WEBHOOK INSTRUCTIONS --- */}
+
         <div className="w-full flex justify-center mt-8 mb-12">
           <button
             type="submit"
