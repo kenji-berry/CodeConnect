@@ -1,10 +1,15 @@
 import React, { useState } from "react";
 
+interface TagWithColour {
+  name: string;
+  colour?: string;
+}
+
 interface ProjectPreviewProps {
-  id: string;
+  id: string | number;
   name: string;
   date: string;
-  tags: string[];
+  tags: TagWithColour[];
   description: string;
   techStack: string[];
   issueCount: number;
@@ -70,14 +75,19 @@ const ProjectPreview: React.FC<ProjectPreviewProps> = ({
           </div>
 
           <div className="flex flex-wrap gap-1 mb-1">
-            {tags.map((tag, index) => (
-              <span
-                key={index}
-                className="bg-[var(--muted-red)] px-2 py-0.5 rounded text-xs text-[var(--off-white)]"
-              >
-                {tag}
-              </span>
-            ))}
+            {tags.map((tag, index) => {
+              const tagColour = tag.colour ? `#${tag.colour}` : 'var(--muted-red)';
+              
+              return (
+                <span
+                  key={index}
+                  className="px-2 py-0.5 rounded text-xs text-[var(--off-white)]"
+                  style={{ backgroundColor: tagColour }}
+                >
+                  {tag.name}
+                </span>
+              );
+            })}
           </div>
 
           <p className="text-[var(--off-white)] text-xs line-clamp-3 bg-[rgb(121,121,121)] px-2 py-1 flex-grow h-[3.2rem] inter-basic">

@@ -247,7 +247,8 @@ function HomeContent() {
               .select(`
                 tag_id, 
                 tags!inner (  
-                  name
+                  name,
+                  colour
                 )
               `)
               .eq('project_id', project.id);
@@ -261,7 +262,10 @@ function HomeContent() {
                 name: tech.technologies.name,
                 is_highlighted: tech.is_highlighted
               })) || [],
-              tags: tagData?.map(tag => tag.tags.name) || [] 
+              tags: tagData?.map(tag => ({
+                name: tag.tags.name,
+                colour: tag.tags.colour
+              })) || [] 
             };
           })
         );
@@ -343,7 +347,8 @@ function HomeContent() {
               .select(`
                 tag_id, 
                 tags!inner (  
-                  name
+                  name,
+                  colour
                 )
               `)
               .eq('project_id', project.id);
@@ -354,7 +359,10 @@ function HomeContent() {
                 name: tech.technologies.name,
                 is_highlighted: tech.is_highlighted
               })) || [],
-              tags: tagData?.map(tag => tag.tags.name) || [] 
+              tags: tagData?.map(tag => ({
+                name: tag.tags.name,
+                colour: tag.tags.colour
+              })) || [] 
             };
           })
         );
@@ -436,7 +444,8 @@ function HomeContent() {
               .select(`
                 tag_id, 
                 tags!inner (  
-                  name
+                  name,
+                  colour
                 )
               `)
               .eq('project_id', project.id);
@@ -447,7 +456,10 @@ function HomeContent() {
                 name: tech.technologies.name,
                 is_highlighted: tech.is_highlighted
               })) || [],
-              tags: tagData?.map(tag => tag.tags.name) || [] 
+              tags: tagData?.map(tag => ({
+                name: tag.tags.name,
+                colour: tag.tags.colour
+              })) || [] 
             };
           })
         );
@@ -529,7 +541,8 @@ function HomeContent() {
               .select(`
                 tag_id, 
                 tags!inner (  
-                  name
+                  name,
+                  colour
                 )
               `)
               .eq('project_id', project.id);
@@ -540,7 +553,10 @@ function HomeContent() {
                 name: tech.technologies.name,
                 is_highlighted: tech.is_highlighted
               })) || [],
-              tags: tagData?.map(tag => tag.tags.name) || [] 
+              tags: tagData?.map(tag => ({
+                name: tag.tags.name,
+                colour: tag.tags.colour
+              })) || [] 
             };
           })
         );
@@ -620,7 +636,7 @@ function HomeContent() {
               <div className="flex flex-wrap justify-around gap-4">
                 {recommendedProjects.map((project, index) => (
                   <ProjectPreview
-                    key={`recommended-${project.id}-${index}`} // Add index to ensure uniqueness
+                    key={`recommended-${project.id}-${index}`}
                     id={project.id}
                     name={project.repo_name}
                     date={project.created_at}
