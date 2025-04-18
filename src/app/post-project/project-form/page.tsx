@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect, Suspense } from "react";
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from "next/navigation";
 import { supabase } from "@/supabaseClient";
 import "../../post-project/style.css";
 import MultiSelector from "@/app/Components/MultiSelector";
@@ -23,8 +23,12 @@ interface ResourceLink {
 
 function ProjectFormContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const repoName = searchParams ? searchParams.get('repo') : null;
   const owner = searchParams ? searchParams.get('owner') : null;
+
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [projectId, setProjectId] = useState<number | null>(null);
 
   const [tags, setTags] = useState<string[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -111,14 +115,12 @@ function ProjectFormContent() {
     if (!files || files.length === 0) return;
     const file = files[0];
 
-    // Check file type
     const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
     if (!validTypes.includes(file.type)) {
       alert('Please upload a valid image file (JPEG, PNG, GIF, WEBP)');
       return;
     }
 
-    // Check file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
       alert('Image size should be less than 5MB');
       return;
@@ -149,7 +151,11 @@ function ProjectFormContent() {
     }
   };
 
+  // Prevent overwriting user edits after initial load
+  const [hasPrefilled, setHasPrefilled] = useState(false);
+
   useEffect(() => {
+    // Define fetchAllData inside the useEffect closure
     const fetchAllData = async () => {
       try {
         const { data: { session: authSession }, error: sessionError } = await supabase.auth.getSession();
@@ -255,7 +261,22 @@ function ProjectFormContent() {
             });
         
             const nonRemovableTechnologies = Object.keys(languagesData || {}).map(lang => lang.toLowerCase());
-            setSelectedTechnologies(nonRemovableTechnologies);
+            console.log('In fetchAllData, about to set technologies:', 
+                        'technologies:', nonRemovableTechnologies,
+                        'isEditMode:', isEditMode, 
+                        'hasPrefilled:', hasPrefilled);
+            
+            // Check hasPrefilled again right before setting technologies
+            // This ensures not overwrite user's prefilled technologies
+            const currentHasPrefilled = isEditMode && hasPrefilled;
+            console.log('Current hasPrefilled value:', currentHasPrefilled);
+            
+            if (!currentHasPrefilled) {
+              console.log('Setting technologies from fetchAllData');
+              setSelectedTechnologies(nonRemovableTechnologies);
+            } else {
+              console.log('Skipping technology update - data already loaded');
+            }
           } catch (error) {
             console.error('Error fetching GitHub repository data:', error);
             setSubmissionError(error instanceof Error 
@@ -268,14 +289,130 @@ function ProjectFormContent() {
         console.error('Error in fetchAllData:', error);
       }
     };
-  
-    fetchAllData();
+
+    const fetchExistingProject = async () => {
+      if (!repoName || !owner) return;
+      console.log('Fetching existing project data...');
+      
+      try {
+        const { data: project, error } = await supabase
+          .from('project')
+          .select(`
+            *,
+            project_technologies (
+              is_highlighted,
+              technologies (
+                name
+              )
+            ),
+            project_tags (
+              tags (
+                name
+              )
+            )
+          `)
+          .eq('repo_name', repoName)
+          .eq('repo_owner', owner)
+          .single();
+
+        if (project) {
+          setIsEditMode(true);
+          setProjectId(project.id);
+          
+          // When editing an existing project, we should have access
+          setHasRepoAccess(true);
+          
+          // Set all project data
+          setCustomDescription(project.custom_description || '');
+          setDescriptionOption(project.description_type || "Use existing description");
+          setDifficulty(project.difficulty_level || 1);
+          setProjectStatus(project.status || "Active Development");
+          setMentorship(project.mentorship ? "Yes" : "No");
+          setLicense(project.license || "MIT");
+          setCustomLicense(project.license && !["MIT", "Apache-2.0", "GPL-3.0", "BSD-3-Clause", "Unlicensed"].includes(project.license) ? project.license : "");
+          setSetupTime(project.setup_time || undefined);
+          
+          setSelectedTags((project.project_tags || []).map((pt: any) => pt.tags?.name).filter(Boolean));
+          
+          // Store technologies in a local variable to ensure availability for API calls
+          const projectTechs = (project.project_technologies || [])
+            .map((pt: any) => pt.technologies?.name)
+            .filter(Boolean);
+          console.log('Loading existing technologies from DB:', projectTechs);
+          setSelectedTechnologies(projectTechs);
+          
+          setHighlightedTechnologies((project.project_technologies || [])
+            .filter((pt: any) => pt.is_highlighted)
+            .map((pt: any) => pt.technologies?.name)
+            .filter(Boolean));
+          
+          setResourceLinks(Array.isArray(project.links) ? project.links.map((l: any) => ({
+            name: l.name,
+            url: l.url,
+            isValid: !!l.url
+          })) : []);
+          
+          setSelectedContributionTypes(Array.isArray(project.contribution_types) ? project.contribution_types : []);
+          setBannerImage(project.image || null);
+          setBannerImagePreview(project.image || null);
+
+          // Wait for all state updates to complete by deferring this
+          setTimeout(() => {
+            console.log('Setting hasPrefilled to true');
+            setHasPrefilled(true); // Prevent further overwrites
+          }, 0);
+          
+          // Return the technologies to prevent later overwrites
+          return projectTechs;
+        }
+        return null;
+      } catch (err) {
+        console.error('Error fetching existing project:', err);
+        return null;
+      }
+    };
+    
+    // Initialize project form by checking for existing data first
+    const initializeProjectForm = async () => {
+      // Get the session regardless of whether we're creating or editing
+      const { data: { session: authSession }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) {
+        console.error('Session error:', sessionError.message);
+      } else {
+        setSession(authSession); // Always set the session
+      }
+
+      const existingTechs = await fetchExistingProject();
+      
+      // Only fetch GitHub data if we don't already have project data
+      if (!existingTechs) {
+        console.log('No existing project data found, fetching from GitHub API');
+        fetchAllData();
+      } else {
+        console.log('Using existing project data, skipping GitHub API fetch');
+      }
+    };
+    
+    initializeProjectForm();
   }, [repoName, owner]);
 
   useEffect(() => {
-    const nonRemovableTechnologies = Object.keys(repoInfo.languages).map(lang => lang.toLowerCase());
-    setSelectedTechnologies(nonRemovableTechnologies);
-  }, [repoInfo.languages]);
+    if (Object.keys(repoInfo.languages).length > 0) {
+      const nonRemovableTechnologies = Object.keys(repoInfo.languages).map(lang => lang.toLowerCase());
+      console.log('repoInfo.languages changed:', 
+                  'languages:', nonRemovableTechnologies, 
+                  'isEditMode:', isEditMode, 
+                  'hasPrefilled:', hasPrefilled);
+      
+      // Only set technologies if we're not in edit mode with prefilled data
+      if (!(isEditMode && hasPrefilled)) {
+        console.log('Setting technologies from repo languages');
+        setSelectedTechnologies(nonRemovableTechnologies);
+      } else {
+        console.log('Preserving prefilled technologies - skipping update');
+      }
+    }
+  }, [repoInfo.languages, isEditMode, hasPrefilled]);
 
   useEffect(() => {
     const fetchContributionTypes = async () => {
@@ -324,6 +461,12 @@ function ProjectFormContent() {
     }
   }, [repoName, owner, availableTags, availableTechnologies]);
 
+  useEffect(() => {
+    console.log('selectedTechnologies changed:', selectedTechnologies, 
+                'isEditMode:', isEditMode, 
+                'hasPrefilled:', hasPrefilled);
+  }, [selectedTechnologies]);
+
   const validateSubmission = async () => {
     if (!session?.user?.id) {
       throw new Error('Please sign in to submit a project');
@@ -358,7 +501,6 @@ function ProjectFormContent() {
       throw new Error('At least one contribution type is required');
     }
 
-    // Profanity check for customDescription
     if (descriptionOption === "Write your Own") {
       const profanityResponse = await fetch('/api/check-profanity', {
         method: 'POST',
@@ -371,7 +513,6 @@ function ProjectFormContent() {
       }
     }
 
-    // Profanity check for resource links
     for (const link of resourceLinks) {
       if (link.name.trim()) {
         const profanityResponse = await fetch('/api/check-profanity', {
@@ -419,6 +560,9 @@ function ProjectFormContent() {
       if (bannerImageFile) {
         formData.append('banner_image', bannerImageFile);
       }
+      if (isEditMode && projectId) {
+        formData.append('project_id', String(projectId));
+      }
 
       const response = await fetch('/api/projects/create', {
         method: 'POST',
@@ -429,10 +573,10 @@ function ProjectFormContent() {
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to create project');
+        throw new Error(result.error || 'Failed to save project');
       }
 
-      window.location.href = `/projects/${result.projectId}`;
+      router.push(`/projects/${result.projectId}`);
     } catch (err) {
       setSubmissionError(err instanceof Error ? err.message : 'An unexpected error occurred');
     } finally {
@@ -547,14 +691,12 @@ function ProjectFormContent() {
             <HighlightableMultiSelector
               availableTags={technologies}
               onTagsChange={(tags: string[]) => {
-                // Prevent form submission when changing tags
                 handleTechnologiesChange(tags);
               }}
               initialTags={selectedTechnologies}
               nonRemovableTags={Object.keys(repoInfo.languages).map(lang => lang.toLowerCase())}
               highlightedTags={highlightedTechnologies}
               onHighlightedTagsChange={(highlighted: string[]) => {
-                // Prevent event propagation
                 handleHighlightedTechnologiesChange(highlighted);
               }}
             />
@@ -620,7 +762,6 @@ function ProjectFormContent() {
               initialTags={selectedTags}
             />
             
-            {/* Tag Suggestions - Updated with Add All button */}
             <div className="mt-3 border-t border-[var(--off-white)] pt-3">
               <div className="flex justify-between items-center mb-2">
                 <h5 className="text-sm font-semibold inria-sans-semibold">
@@ -836,7 +977,7 @@ function ProjectFormContent() {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                Submitting...
+                {isEditMode ? "Updating..." : "Submitting..."}
               </>
             ) : !hasRepoAccess ? (
               "No Repository Access"
@@ -845,7 +986,7 @@ function ProjectFormContent() {
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                 </svg>
-                Post Project
+                {isEditMode ? "Update Project" : "Post Project"}
               </>
             )}
           </button>
@@ -874,3 +1015,4 @@ const Page = () => {
 };
 
 export default Page;
+

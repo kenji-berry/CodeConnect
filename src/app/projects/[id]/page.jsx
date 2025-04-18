@@ -41,6 +41,60 @@ const ProjectDetails = () => {
 
   const [commentFilter, setCommentFilter] = useState('new');
 
+  // Add state for edit mode
+  const [isEditing, setIsEditing] = useState(false);
+  const [editData, setEditData] = useState({});
+
+  // Helper: check if current user owns the project
+  const isOwner = currentUser && project && currentUser.id === project.user_id;
+
+  // Replace startEditing function with this redirect function
+  const redirectToEditPage = () => {
+    if (!project || !project.repo_name) return;
+    
+    // Extract owner from project data
+    // The repo_owner field should contain the GitHub username
+    const owner = project.repo_owner;
+    const repoName = project.repo_name;
+    
+    if (!owner || !repoName) {
+      console.error("Missing repository owner or name");
+      return;
+    }
+    
+    // Navigate to the project edit form with query parameters
+    window.location.href = `/post-project/project-form?repo=${encodeURIComponent(repoName)}&owner=${encodeURIComponent(owner)}`;
+  };
+
+  // Save edits
+  const handleEditSave = async (e) => {
+    e.preventDefault();
+    if (!isOwner) return;
+    try {
+      const { error } = await supabase
+        .from('project')
+        .update({
+          ...editData,
+          repo_name: editData.repo_name,
+          repo_description: editData.repo_description
+        })
+        .eq('id', project.id);
+      if (error) {
+        alert('Failed to update project.');
+        return;
+      }
+      setProject({
+        ...project,
+        ...editData,
+        repo_name: editData.repo_name,
+        repo_description: editData.repo_description
+      });
+      setIsEditing(false);
+    } catch (err) {
+      alert('Unexpected error updating project.');
+    }
+  };
+
   // First effect to get user info
   useEffect(() => {
     const getCurrentUser = async () => {
@@ -507,251 +561,353 @@ const ProjectDetails = () => {
   }
 
   return (
-    <div className="p-4 max-w-2xl mx-auto bg-red-400 shadow-md rounded-lg">
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold">{project.repo_name}</h1>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleLike}
-            className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
-              isLiked ? 'bg-blue-600' : 'bg-gray-600'
-            }`}
-            disabled={!currentUser}
-          >
-            <span>{isLiked ? '❤️' : '🤍'}</span>
-            <span>{likes}</span>
-          </button>
+    <div className="max-w-3xl mx-auto my-10 bg-[--primary-color] rounded-2xl shadow-lg border border-[--magenta-dark] p-0 overflow-hidden">
+      {/* Project Image */}
+      {project.image_url && (
+        <div className="w-full h-64 bg-gray-800 flex items-center justify-center overflow-hidden">
+          <img
+            src={project.image_url}
+            alt={project.repo_name}
+            className="object-cover w-full h-full"
+            style={{ maxHeight: 320 }}
+          />
+        </div>
+      )}
 
-          <button
-            onClick={() => openReportModal({ type: 'project' })}
-            className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded text-sm"
-            title="Report Project"
-          >
-            ⚠️
-          </button>
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        {Object.entries(project).map(([key, value]) => {
-          // Skip relations, handle below
-          if (['project_technologies', 'project_tags'].includes(key)) return null;
-          return (
-            <div key={key}>
-              <strong>{key.replace(/_/g, ' ')}:</strong> {typeof value === 'object' ? JSON.stringify(value) : String(value)}
-            </div>
-          );
-        })}
-        <div className="col-span-2">
-          <strong>Technologies:</strong>{" "}
-          {project.project_technologies && project.project_technologies.length > 0
-            ? project.project_technologies.map(pt =>
-                <span key={pt.technologies.id} className={pt.is_highlighted ? "font-bold text-blue-300" : ""}>
-                  {pt.technologies.name}{pt.is_highlighted ? " (highlighted)" : ""},{" "}
-                </span>
-              )
-            : "N/A"}
-        </div>
-        <div className="col-span-2">
-          <strong>Tags:</strong>{" "}
-          {project.project_tags && project.project_tags.length > 0
-            ? project.project_tags.map(pt =>
-                <span key={pt.tags.id}>{pt.tags.name}, </span>
-              )
-            : "N/A"}
-        </div>
-      </div>
-
-      <div className="flex justify-between items-center mt-8 mb-4">
-        <h2 className="text-xl font-bold">Comments</h2>
-        
-        <div className="flex items-center">
-          <label htmlFor="comment-filter" className="mr-2 text-sm">Filter by:</label>
-          <select
-            id="comment-filter"
-            className="bg-gray-700 text-white rounded px-3 py-1 text-sm"
-            value={commentFilter}
-            onChange={(e) => setCommentFilter(e.target.value)}
-          >
-            <option value="new">Newest</option>
-            <option value="top">Top Rated</option>
-            <option value="old">Oldest</option>
-          </select>
-        </div>
-      </div>
-      <div className="space-y-4">
-        {getFilteredComments().map((comment) => (
-          <div key={comment.id} className="p-4 bg-gray-900 rounded-lg shadow-sm">
-            <div className="flex justify-between items-start mb-1">
-              <p className="font-bold">{comment.profiles.display_name}</p>
-
+      <div className="p-6">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6 border-b border-[--muted-red] pb-4">
+          <div>
+            <h1 className="text-3xl inria-sans-bold text-[--title-red] mb-1">{project.repo_name}</h1>
+            <p className="text-sm text-[--off-white] opacity-70">{project.repo_description || "No description provided."}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleLike}
+              className={`px-4 py-2 rounded-lg flex items-center gap-2 transition-colors duration-200 shadow-sm ${
+                isLiked ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-700 hover:bg-gray-600'
+              }`}
+              disabled={!currentUser}
+            >
+              <span className="text-lg">{isLiked ? '❤️' : '🤍'}</span>
+              <span className="font-semibold">{likes}</span>
+            </button>
+            <button
+              onClick={() => openReportModal({ type: 'project' })}
+              className="px-3 py-2 bg-[--muted-red] hover:bg-[--title-red] rounded-lg text-sm shadow-sm transition-colors duration-200"
+              title="Report Project"
+            >
+              <span role="img" aria-label="Report">⚠️</span>
+            </button>
+            {isOwner && !isEditing && (
               <button
-                onClick={() => openReportModal({ type: 'comment', id: comment.id })}
-                className="text-xs bg-gray-700 hover:bg-gray-600 px-2 py-0.5 rounded"
-                title="Report Comment"
+                onClick={redirectToEditPage}
+                className="px-3 py-2 bg-green-700 hover:bg-green-800 rounded-lg text-sm shadow-sm transition-colors duration-200 ml-2"
+                title="Edit Project"
               >
-                ⚠️
+                ✏️ Edit
               </button>
-            </div>
-            <p>{comment.comment}</p>
-            <div className="flex items-center mt-2">
-              <div className="flex items-center mr-4">
-                <button
-                  onClick={() => handleVote(comment.id, 'up')}
-                  disabled={!currentUser}
-                  className={`px-2 py-1 rounded ${
-                    commentVotes[comment.id]?.userVote === 'up'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-700 hover:bg-gray-600'
-                  }`}
-                  title={currentUser ? "Upvote" : "Sign in to vote"}
-                >
-                  ▲
-                </button>
-                <span className="mx-2">{commentVotes[comment.id]?.score || 0}</span>
-                <button
-                  onClick={() => handleVote(comment.id, 'down')}
-                  disabled={!currentUser}
-                  className={`px-2 py-1 rounded ${
-                    commentVotes[comment.id]?.userVote === 'down'
-                      ? 'bg-red-600 text-white'
-                      : 'bg-gray-700 hover:bg-gray-600'
-                  }`}
-                  title={currentUser ? "Downvote" : "Sign in to vote"}
-                >
-                  ▼
-                </button>
+            )}
+          </div>
+        </div>
+
+        {/* Project Info */}
+        <div className="mb-6">
+          {isEditing ? (
+            <form onSubmit={handleEditSave} className="space-y-4">
+              <div>
+                <label className="block font-semibold text-[--orange] mb-1">Project Name</label>
+                <input
+                  type="text"
+                  name="repo_name"
+                  value={editData.repo_name}
+                  onChange={handleEditChange}
+                  className="w-full bg-gray-900 text-[--off-white] rounded px-3 py-2 border border-gray-700"
+                  required
+                />
               </div>
-              <p className="text-sm text-gray-500">
-                {new Date(comment.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-              </p>
-            </div>
-          </div>
-        ))}
-        {comments.length === 0 && (
-          <div className="text-center text-gray-400 py-4">
-            No comments found
-          </div>
-        )}
-        <div className="mt-8 p-4 bg-gray-800 rounded-lg">
-          <h3 className="text-lg font-semibold mb-4">Add a Comment</h3>
-          
-          {currentUser ? (
-            <form onSubmit={handleCommentSubmit}>
-              <textarea
-                className={`w-full bg-gray-700 p-3 rounded text-white mb-3 ${
-                  commentHasProfanity ? 'border-2 border-red-500' : ''
-                }`}
-                rows="3"
-                value={newComment}
-                onChange={handleCommentChange}
-                placeholder="Share your thoughts about this project..."
-                required
-              ></textarea>
-              {commentHasProfanity && (
-                <p className="text-red-500 text-sm mb-2">
-                  Please remove inappropriate language
-                </p>
-              )}
-              
-              <div className="flex justify-end">
+              <div>
+                <label className="block font-semibold text-[--orange] mb-1">Description</label>
+                <textarea
+                  name="repo_description"
+                  value={editData.repo_description}
+                  onChange={handleEditChange}
+                  className="w-full bg-gray-900 text-[--off-white] rounded px-3 py-2 border border-gray-700"
+                  rows={3}
+                />
+              </div>
+              {Object.entries(editData).map(([key, value]) => {
+                if (['repo_name', 'repo_description'].includes(key)) return null;
+                return (
+                  <div key={key}>
+                    <label className="block font-semibold text-[--orange] mb-1 capitalize">{key.replace(/_/g, ' ')}</label>
+                    <input
+                      type="text"
+                      name={key}
+                      value={value}
+                      onChange={handleEditChange}
+                      className="w-full bg-gray-900 text-[--off-white] rounded px-3 py-2 border border-gray-700"
+                    />
+                  </div>
+                );
+              })}
+              <div className="flex gap-2 justify-end">
+                <button
+                  type="button"
+                  onClick={() => setIsEditing(false)}
+                  className="px-4 py-2 rounded bg-gray-700 hover:bg-gray-600"
+                >
+                  Cancel
+                </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-white"
-                  disabled={isSubmittingComment || !newComment.trim()}
+                  className="px-4 py-2 rounded bg-green-700 hover:bg-green-800 font-semibold text-white"
                 >
-                  {isSubmittingComment ? 'Posting...' : 'Post Comment'}
+                  Save Changes
                 </button>
               </div>
             </form>
           ) : (
-            <div className="text-center p-4 bg-gray-700 rounded">
-              <p className="mb-2">You need to be logged in to comment</p>
-              <button
-                onClick={redirectToLogin}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-white"
-              >
-                Log In
-              </button>
+            <div className="space-y-4">
+              {/* Show each field on its own line */}
+              {Object.entries(project).map(([key, value]) => {
+                if (
+                  [
+                    'id', 'user_id', 'created_at', 'updated_at',
+                    'project_technologies', 'project_tags', 'repo_name',
+                    'repo_description', 'image_url'
+                  ].includes(key)
+                ) return null;
+                return (
+                  <div key={key} className="flex flex-col mb-2">
+                    <span className="font-semibold text-[--orange] capitalize">{key.replace(/_/g, ' ')}</span>
+                    <span className="text-[--off-white] break-all">{typeof value === 'object' ? JSON.stringify(value) : String(value)}</span>
+                  </div>
+                );
+              })}
+              <div className="flex flex-col mb-2">
+                <span className="font-semibold text-[--orange]">Technologies</span>
+                <div>
+                  {project.project_technologies && project.project_technologies.length > 0
+                    ? project.project_technologies.map(pt =>
+                        <span
+                          key={pt.technologies.id}
+                          className={`inline-block mr-2 mb-1 px-2 py-1 rounded bg-gray-800 text-sm ${
+                            pt.is_highlighted ? "font-bold text-blue-300 border border-blue-400" : "text-[--off-white]"
+                          }`}
+                        >
+                          {pt.technologies.name}{pt.is_highlighted ? " ★" : ""}
+                        </span>
+                      )
+                    : <span className="text-gray-400">N/A</span>}
+                </div>
+              </div>
+              <div className="flex flex-col mb-2">
+                <span className="font-semibold text-[--orange]">Tags</span>
+                <div>
+                  {project.project_tags && project.project_tags.length > 0
+                    ? project.project_tags.map(pt =>
+                        <span key={pt.tags.id} className="inline-block mr-2 mb-1 px-2 py-1 rounded bg-gray-800 text-sm text-[--off-white]">
+                          {pt.tags.name}
+                        </span>
+                      )
+                    : <span className="text-gray-400">N/A</span>}
+                </div>
+              </div>
             </div>
           )}
         </div>
-      </div>
 
-      {showReportModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md text-white">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold">
-                Report {reportTarget?.type === 'project' ? 'Project' : 'Comment'}
-              </h2>
-              <button onClick={() => setShowReportModal(false)} className="text-gray-400 hover:text-white text-2xl">
-                &times;
-              </button>
+        {/* Comments Section */}
+        <div className="mt-8">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 gap-2">
+            <h2 className="text-2xl inria-sans-bold text-[--title-red]">Comments</h2>
+            <div className="flex items-center">
+              <label htmlFor="comment-filter" className="mr-2 text-sm text-[--off-white]">Filter by:</label>
+              <select
+                id="comment-filter"
+                className="bg-gray-800 text-[--off-white] rounded px-3 py-1 text-sm border border-gray-700"
+                value={commentFilter}
+                onChange={(e) => setCommentFilter(e.target.value)}
+              >
+                <option value="new">Newest</option>
+                <option value="top">Top Rated</option>
+                <option value="old">Oldest</option>
+              </select>
             </div>
-
-            {reportSuccess ? (
-              <div className="text-green-500 text-center py-4">
-                Report submitted successfully. Thank you for helping keep our community safe.
-              </div>
-            ) : (
-              <form onSubmit={handleReportSubmit}>
-                <div className="mb-4">
-                  <label className="block mb-2">Reason:</label>
-                  <select
-                    className="w-full bg-gray-700 p-2 rounded text-white"
-                    value={reportReason}
-                    onChange={(e) => setReportReason(e.target.value)}
-                    required
+          </div>
+          <div className="space-y-4">
+            {getFilteredComments().map((comment) => (
+              <div key={comment.id} className="p-4 bg-gray-900 rounded-xl shadow-sm border border-gray-800">
+                <div className="flex justify-between items-start mb-1">
+                  <p className="font-bold text-[--orange]">{comment.profiles.display_name}</p>
+                  <button
+                    onClick={() => openReportModal({ type: 'comment', id: comment.id })}
+                    className="text-xs bg-[--muted-red] hover:bg-[--title-red] px-2 py-1 rounded transition-colors duration-200"
+                    title="Report Comment"
                   >
-                    <option value="">Select a reason</option>
-                    <option value="spam">Spam</option>
-                    <option value="inappropriate">Inappropriate content</option>
-                    <option value="offensive">Offensive language</option>
-                    <option value="harassment">Harassment</option>
-                    <option value="misinformation">Misinformation</option>
-                    <option value="other">Other</option>
-                  </select>
+                    ⚠️
+                  </button>
                 </div>
-
-                <div className="mb-4">
-                  <label className="block mb-2">Description (optional):</label>
+                <p className="text-[--off-white]">{comment.comment}</p>
+                <div className="flex items-center mt-2">
+                  <div className="flex items-center mr-4">
+                    <button
+                      onClick={() => handleVote(comment.id, 'up')}
+                      disabled={!currentUser}
+                      className={`px-2 py-1 rounded transition-colors duration-200 ${
+                        commentVotes[comment.id]?.userVote === 'up'
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-800 hover:bg-blue-700'
+                      }`}
+                      title={currentUser ? "Upvote" : "Sign in to vote"}
+                    >
+                      ▲
+                    </button>
+                    <span className="mx-2 font-semibold text-[--off-white]">{commentVotes[comment.id]?.score || 0}</span>
+                    <button
+                      onClick={() => handleVote(comment.id, 'down')}
+                      disabled={!currentUser}
+                      className={`px-2 py-1 rounded transition-colors duration-200 ${
+                        commentVotes[comment.id]?.userVote === 'down'
+                          ? 'bg-red-600 text-white'
+                          : 'bg-gray-800 hover:bg-red-700'
+                      }`}
+                      title={currentUser ? "Downvote" : "Sign in to vote"}
+                    >
+                      ▼
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-400">
+                    {new Date(comment.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                </div>
+              </div>
+            ))}
+            {comments.length === 0 && (
+              <div className="text-center text-gray-400 py-4">
+                No comments found
+              </div>
+            )}
+            {/* Add Comment */}
+            <div className="mt-8 p-4 bg-gray-800 rounded-xl border border-gray-700">
+              <h3 className="text-lg font-semibold mb-4 text-[--orange]">Add a Comment</h3>
+              {currentUser ? (
+                <form onSubmit={handleCommentSubmit}>
                   <textarea
-                    className={`w-full bg-gray-700 p-2 rounded text-white ${
-                      reportHasProfanity ? 'border-2 border-red-500' : ''
+                    className={`w-full bg-gray-900 p-3 rounded text-[--off-white] mb-3 resize-none border ${
+                      commentHasProfanity ? 'border-red-500' : 'border-gray-700'
                     }`}
                     rows="3"
-                    value={reportDescription}
-                    onChange={handleReportDescriptionChange}
-                    placeholder="Please provide additional details..."
+                    value={newComment}
+                    onChange={handleCommentChange}
+                    placeholder="Share your thoughts about this project..."
+                    required
                   ></textarea>
-                  {reportHasProfanity && (
-                    <p className="text-red-500 text-sm mt-1">
+                  {commentHasProfanity && (
+                    <p className="text-red-500 text-sm mb-2">
                       Please remove inappropriate language
                     </p>
                   )}
-                </div>
-
-                <div className="flex justify-end">
+                  <div className="flex justify-end">
+                    <button
+                      type="submit"
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-white font-semibold transition-colors duration-200"
+                      disabled={isSubmittingComment || !newComment.trim()}
+                    >
+                      {isSubmittingComment ? 'Posting...' : 'Post Comment'}
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <div className="text-center p-4 bg-gray-900 rounded">
+                  <p className="mb-2">You need to be logged in to comment</p>
                   <button
-                    type="button"
-                    onClick={() => setShowReportModal(false)}
-                    className="px-4 py-2 rounded mr-2 bg-gray-600 hover:bg-gray-500"
+                    onClick={redirectToLogin}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-white font-semibold"
                   >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 rounded bg-red-600 hover:bg-red-500"
-                    disabled={reportSubmitting}
-                  >
-                    {reportSubmitting ? 'Submitting...' : 'Submit Report'}
+                    Log In
                   </button>
                 </div>
-              </form>
-            )}
+              )}
+            </div>
           </div>
         </div>
-      )}
+
+        {/* Report Modal */}
+        {showReportModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+            <div className="bg-gray-900 rounded-2xl p-8 w-full max-w-md text-[--off-white] border border-[--muted-red] shadow-2xl">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold text-[--title-red]">
+                  Report {reportTarget?.type === 'project' ? 'Project' : 'Comment'}
+                </h2>
+                <button onClick={() => setShowReportModal(false)} className="text-gray-400 hover:text-white text-2xl">
+                  &times;
+                </button>
+              </div>
+              {reportSuccess ? (
+                <div className="text-green-500 text-center py-4">
+                  Report submitted successfully. Thank you for helping keep our community safe.
+                </div>
+              ) : (
+                <form onSubmit={handleReportSubmit}>
+                  <div className="mb-4">
+                    <label className="block mb-2">Reason:</label>
+                    <select
+                      className="w-full bg-gray-800 p-2 rounded text-[--off-white] border border-gray-700"
+                      value={reportReason}
+                      onChange={(e) => setReportReason(e.target.value)}
+                      required
+                    >
+                      <option value="">Select a reason</option>
+                      <option value="spam">Spam</option>
+                      <option value="inappropriate">Inappropriate content</option>
+                      <option value="offensive">Offensive language</option>
+                      <option value="harassment">Harassment</option>
+                      <option value="misinformation">Misinformation</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                  <div className="mb-4">
+                    <label className="block mb-2">Description (optional):</label>
+                    <textarea
+                      className={`w-full bg-gray-800 p-2 rounded text-[--off-white] border ${
+                        reportHasProfanity ? 'border-red-500' : 'border-gray-700'
+                      }`}
+                      rows="3"
+                      value={reportDescription}
+                      onChange={handleReportDescriptionChange}
+                      placeholder="Please provide additional details..."
+                    ></textarea>
+                    {reportHasProfanity && (
+                      <p className="text-red-500 text-sm mt-1">
+                        Please remove inappropriate language
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => setShowReportModal(false)}
+                      className="px-4 py-2 rounded mr-2 bg-gray-700 hover:bg-gray-600"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-4 py-2 rounded bg-[--title-red] hover:bg-[--muted-red] font-semibold"
+                      disabled={reportSubmitting}
+                    >
+                      {reportSubmitting ? 'Submitting...' : 'Submit Report'}
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
