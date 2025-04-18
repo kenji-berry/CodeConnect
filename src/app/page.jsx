@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import CodeConnectTitle from "./Components/CodeConnectTitle";
 import ProjectPreview from "./Components/ProjectPreview";
+import Notification from "@/app/Components/Notification";
 import { supabase } from '@/supabaseClient';
 import { getPopularProjects, getHybridRecommendations } from '@/services/recommendation-service';
 
@@ -54,6 +55,31 @@ function HomeContent() {
   const [loadingPopular, setLoadingPopular] = useState(true);
   const [beginnerProjects, setBeginnerProjects] = useState([]);
   const [loadingBeginner, setLoadingBeginner] = useState(true);
+  const [notification, setNotification] = useState(null);
+
+  useEffect(() => {
+    // Check for notification in localStorage
+    const storedNotification = localStorage.getItem('notification');
+    if (storedNotification) {
+      try {
+        const parsedNotification = JSON.parse(storedNotification);
+        
+        // Only show notifications that are less than 10 seconds old
+        if (parsedNotification.timestamp && (Date.now() - parsedNotification.timestamp < 10000)) {
+          setNotification({
+            message: parsedNotification.message,
+            type: parsedNotification.type
+          });
+        }
+        
+        // Remove the notification from localStorage
+        localStorage.removeItem('notification');
+      } catch (e) {
+        console.error('Error parsing notification:', e);
+        localStorage.removeItem('notification');
+      }
+    }
+  }, []);
 
   useEffect(() => {
     const checkUser = async () => {
@@ -538,6 +564,12 @@ function HomeContent() {
   return (
     <div className="w-screen min-h-screen justify-center flex flex-col items-center">
       <CodeConnectTitle />
+      {notification && (
+        <Notification
+          notification={notification}
+          onClose={() => setNotification(null)}
+        />
+      )}
       <div className="flex justify-center w-full">
         <div className="main-page-contents">
           <div className="w-full py-2.5">

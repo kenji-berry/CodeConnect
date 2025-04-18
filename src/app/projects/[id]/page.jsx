@@ -45,6 +45,10 @@ const ProjectDetails = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState({});
 
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
+  const [isDeletingProject, setIsDeletingProject] = useState(false);
+
   // Helper: check if current user owns the project
   const isOwner = currentUser && project && currentUser.id === project.user_id;
 
@@ -64,6 +68,44 @@ const ProjectDetails = () => {
     
     // Navigate to the project edit form with query parameters
     window.location.href = `/post-project/project-form?repo=${encodeURIComponent(repoName)}&owner=${encodeURIComponent(owner)}`;
+  };
+
+  // Update the handleProjectDelete function
+  const handleProjectDelete = async () => {
+    if (deleteConfirmation !== project.repo_name) {
+      return; // Don't proceed if confirmation text doesn't match
+    }
+    
+    setIsDeletingProject(true);
+    
+    try {
+      // Delete the project and all related data
+      const { error } = await supabase
+        .from('project')
+        .delete()
+        .eq('id', project.id);
+        
+      if (error) {
+        console.error('Error deleting project:', error);
+        alert('Failed to delete project. Please try again.');
+        setIsDeletingProject(false);
+        return;
+      }
+      
+      // Store notification data in localStorage to be displayed on the home page
+      localStorage.setItem('notification', JSON.stringify({
+        message: `Project "${project.repo_name}" was successfully deleted`,
+        type: 'success',
+        timestamp: Date.now() // Add timestamp to prevent stale notifications
+      }));
+      
+      // Redirect to home
+      window.location.href = '/';
+    } catch (err) {
+      console.error('Unexpected error deleting project:', err);
+      alert('An unexpected error occurred.');
+      setIsDeletingProject(false);
+    }
   };
 
   // Save edits
@@ -600,13 +642,22 @@ const ProjectDetails = () => {
               <span role="img" aria-label="Report">⚠️</span>
             </button>
             {isOwner && !isEditing && (
-              <button
-                onClick={redirectToEditPage}
-                className="px-3 py-2 bg-green-700 hover:bg-green-800 rounded-lg text-sm shadow-sm transition-colors duration-200 ml-2"
-                title="Edit Project"
-              >
-                ✏️ Edit
-              </button>
+              <>
+                <button
+                  onClick={redirectToEditPage}
+                  className="px-3 py-2 bg-green-700 hover:bg-green-800 rounded-lg text-sm shadow-sm transition-colors duration-200 ml-2"
+                  title="Edit Project"
+                >
+                  ✏️ Edit
+                </button>
+                <button
+                  onClick={() => setShowDeleteModal(true)}
+                  className="px-3 py-2 bg-red-700 hover:bg-red-800 rounded-lg text-sm shadow-sm transition-colors duration-200 ml-2"
+                  title="Delete Project"
+                >
+                  🗑️ Delete
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -904,6 +955,59 @@ const ProjectDetails = () => {
                   </div>
                 </form>
               )}
+            </div>
+          </div>
+        )}
+
+        {showDeleteModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+            <div className="bg-gray-900 rounded-2xl p-8 w-full max-w-md text-[--off-white] border border-red-500 shadow-2xl">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold text-red-500">Delete Project</h2>
+                <button 
+                  onClick={() => setShowDeleteModal(false)} 
+                  className="text-gray-400 hover:text-white text-2xl"
+                  aria-label="Close"
+                >
+                  &times;
+                </button>
+              </div>
+              <div className="mb-6">
+                <p className="text-[--off-white] mb-4">
+                  Are you sure you want to delete this project? This action <span className="font-bold">cannot be undone</span> and will remove all associated data including comments and likes.
+                </p>
+                <p className="font-semibold mb-2">
+                  Type <span className="text-red-400">"{project.repo_name}"</span> to confirm:
+                </p>
+                <input
+                  type="text"
+                  className="w-full bg-gray-800 p-2 rounded text-[--off-white] border border-gray-700"
+                  value={deleteConfirmation}
+                  onChange={(e) => setDeleteConfirmation(e.target.value)}
+                  placeholder="Enter project name to confirm"
+                />
+              </div>
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteModal(false)}
+                  className="px-4 py-2 rounded mr-2 bg-gray-700 hover:bg-gray-600"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleProjectDelete}
+                  className={`px-4 py-2 rounded font-semibold ${
+                    deleteConfirmation === project.repo_name 
+                      ? 'bg-red-600 hover:bg-red-700' 
+                      : 'bg-gray-600 cursor-not-allowed'
+                  }`}
+                  disabled={deleteConfirmation !== project.repo_name || isDeletingProject}
+                >
+                  {isDeletingProject ? 'Deleting...' : 'Delete Project'}
+                </button>
+              </div>
             </div>
           </div>
         )}
