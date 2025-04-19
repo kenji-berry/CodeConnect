@@ -177,3 +177,9 @@ async function processPullRequest(payload, projectId, supabase) {
     console.error('Error storing pull request:', err);
   }
 }
+
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
