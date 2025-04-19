@@ -177,11 +177,11 @@ export default function useProjectFilters(initialProjects = [], options = {}) {
     // Apply tag filter if enabled
     if (includeTags && selectedTags.length > 0) {
       filtered = filtered.filter(project => {
-        const projectTags = project.tags || [];
+        const projectTagNames = (project.tags || []).map(t => typeof t === "string" ? t : t.name);
         if (filterMode === 'AND') {
-          return selectedTags.every(tag => projectTags.includes(tag));
+          return selectedTags.every(tag => projectTagNames.includes(tag));
         } else {
-          return selectedTags.some(tag => projectTags.includes(tag));
+          return selectedTags.some(tag => projectTagNames.includes(tag));
         }
       });
     }
