@@ -202,7 +202,8 @@ export default async function handler(req, res) {
           mentorship: mentorship === "Yes",
           license: license || null,
           setup_time: isNaN(setupTime) ? null : setupTime,
-          image: null
+          image: null,
+          webhook_active: false 
         }])
         .select()
         .single();

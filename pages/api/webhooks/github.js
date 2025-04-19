@@ -6,38 +6,46 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
   
-  // Get the project ID from query params
-  const projectId = req.query.projectId;
+  // Get the webhook secret from environment variable
+  const secret = process.env.GITHUB_WEBHOOK_SECRET;
+  if (!secret) {
+    console.error('GITHUB_WEBHOOK_SECRET environment variable not set');
+    return res.status(500).json({ error: 'Server configuration error' });
+  }
   
-  // Verify webhook signature
+  const projectId = req.query.projectId;
+  if (!projectId) {
+    return res.status(400).json({ error: 'Missing projectId parameter' });
+  }
+  
   const signature = req.headers['x-hub-signature-256'];
   if (!signature) {
     return res.status(401).json({ error: 'No signature provided' });
   }
   
   try {
-    // Get the webhook secret from database
-    const supabase = createPagesServerClient({ req, res });
-    const { data: webhook, error } = await supabase
-      .from('project_webhooks')
-      .select('webhook_secret')
-      .eq('project_id', projectId)
-      .single();
-    
-    if (error || !webhook) {
-      return res.status(404).json({ error: 'Webhook not found' });
-    }
-    
-    // Verify signature
+    // Verify signature using the environment variable secret
     const payload = JSON.stringify(req.body);
-    const hmac = crypto.createHmac('sha256', webhook.webhook_secret);
+    const hmac = crypto.createHmac('sha256', secret);
     const calculatedSignature = `sha256=${hmac.update(payload).digest('hex')}`;
     
-    if (signature !== calculatedSignature) {
+    // Use constant-time comparison to prevent timing attacks
+    let isSignatureValid = false;
+    try {
+      isSignatureValid = crypto.timingSafeEqual(
+        Buffer.from(signature),
+        Buffer.from(calculatedSignature)
+      );
+    } catch (e) {
+      isSignatureValid = false;
+    }
+    
+    if (!isSignatureValid) {
       return res.status(401).json({ error: 'Invalid signature' });
     }
     
-    // Set webhook_active to true when we receive a valid webhook event
+    // Mark the project as having an active webhook
+    const supabase = createPagesServerClient({ req, res });
     await supabase
       .from('project')
       .update({ webhook_active: true })
@@ -61,12 +69,6 @@ export default async function handler(req, res) {
         break;
     }
     
-    // Update webhook last activity time
-    await supabase
-      .from('project_webhooks')
-      .update({ last_activity: new Date() })
-      .eq('project_id', projectId);
-    
     return res.status(200).json({ success: true });
   } catch (error) {
     console.error('Error processing webhook:', error);
@@ -75,7 +77,6 @@ export default async function handler(req, res) {
 }
 
 // Helper functions to process different event types
-
 async function handlePushEvent(payload, projectId, supabase) {
   // payload.commits is an array of commits
   if (!Array.isArray(payload.commits)) return;
