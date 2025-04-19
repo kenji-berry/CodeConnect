@@ -73,6 +73,30 @@ function NewestProjectsContent() {
           });
         }
 
+        // Fetch all commits for these projects
+        const { data: commitsData, error: commitsError } = await supabase
+          .from('project_commits')
+          .select('project_id, timestamp')
+          .in('project_id', projectIds);
+
+        if (commitsError) {
+          console.error('Error fetching commit timestamps:', commitsError);
+        }
+
+        // Build a map of project_id -> latest commit timestamp
+        const latestCommitMap = {};
+        if (commitsData) {
+          commitsData.forEach(commit => {
+            const ts = new Date(commit.timestamp);
+            if (
+              !latestCommitMap[commit.project_id] ||
+              ts > latestCommitMap[commit.project_id]
+            ) {
+              latestCommitMap[commit.project_id] = ts;
+            }
+          });
+        }
+
         // Process projects in smaller batches to avoid resource exhaustion
         const projectsWithData = [];
         const BATCH_SIZE = 5;

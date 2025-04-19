@@ -115,6 +115,47 @@ export default function useProjectFilters(initialProjects = [], options = {}) {
     fetchTags();
   }, []);
   
+  // Fetch latest commit timestamps and attach to projects
+  useEffect(() => {
+    const fetchLatestCommits = async () => {
+      const projectIds = projects.map(p => p.id);
+
+      const { data: commitData, error: commitError } = await supabase
+        .from('project_commits')
+        .select('project_id, timestamp')
+        .in('project_id', projectIds);
+
+      if (commitError) {
+        console.error('Error fetching commit timestamps:', commitError);
+        return;
+      }
+
+      // Build a map of project_id -> latest commit timestamp
+      const latestCommitMap = {};
+      if (commitData) {
+        commitData.forEach(commit => {
+          const ts = new Date(commit.timestamp);
+          if (
+            !latestCommitMap[commit.project_id] ||
+            ts > latestCommitMap[commit.project_id]
+          ) {
+            latestCommitMap[commit.project_id] = ts;
+          }
+        });
+      }
+
+      // Attach last_commit_at to each project
+      const projectsWithCommits = projects.map(project => ({
+        ...project,
+        last_commit_at: latestCommitMap[project.id] || null,
+      }));
+
+      setProjects(projectsWithCommits);
+    };
+
+    fetchLatestCommits();
+  }, [projects]);
+  
   // Apply filters when filter state or projects change
   useEffect(() => {
     if (!projects.length) return;
@@ -169,18 +210,18 @@ export default function useProjectFilters(initialProjects = [], options = {}) {
     if (selectedLastUpdated) {
       const now = new Date();
       let timeLimit;
-      
+
       if (selectedLastUpdated === "Last 24 hours") {
-        timeLimit = new Date(now.setDate(now.getDate() - 1));
+        timeLimit = new Date(now.getTime() - 24 * 60 * 60 * 1000);
       } else if (selectedLastUpdated === "Last 7 days") {
-        timeLimit = new Date(now.setDate(now.getDate() - 7));
+        timeLimit = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
       } else if (selectedLastUpdated === "Last 30 days") {
-        timeLimit = new Date(now.setDate(now.getDate() - 30));
+        timeLimit = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
       }
-      
+
       if (timeLimit) {
-        filtered = filtered.filter(project => 
-          new Date(project.created_at) >= timeLimit
+        filtered = filtered.filter(project =>
+          project.last_commit_at && new Date(project.last_commit_at) >= timeLimit
         );
       }
     }
