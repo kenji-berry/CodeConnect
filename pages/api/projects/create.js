@@ -152,6 +152,24 @@ export default async function handler(req, res) {
         }
       }
     }
+    // Check if banner image is provided
+    if (!isUpdate && (!data.files || !data.files.banner_image)) {
+      return res.status(400).json({ error: 'Project banner image is required' });
+    }
+
+    // For updates, check if there's an existing image
+    if (isUpdate && (!data.files || !data.files.banner_image)) {
+      // Check if the project already has an image
+      const { data: existingProject } = await supabase
+        .from('project')
+        .select('image')
+        .eq('id', project_id)
+        .single();
+
+      if (!existingProject || !existingProject.image) {
+        return res.status(400).json({ error: 'Project banner image is required' });
+      }
+    }
 
     // --- CREATE or UPDATE LOGIC ---
     let project;
@@ -237,7 +255,10 @@ export default async function handler(req, res) {
               upsert: true
             });
 
-          if (!uploadError) {
+          if (uploadError) {
+            console.error('Image upload error:', uploadError);
+
+          } else {
             const { data: { publicUrl } } = supabase.storage
               .from('project-images')
               .getPublicUrl(filename);
@@ -249,7 +270,16 @@ export default async function handler(req, res) {
               .eq('id', project.id);
           }
         } catch (error) {
-          // Optionally, you could delete the project if image upload fails
+          console.error('File processing error:', error);
+          // Better error handling - continue with the project creation
+          // but log the error for debugging
+        } finally {
+          // Clean up the temporary file
+          try {
+            fs.unlinkSync(file.filepath);
+          } catch (cleanupError) {
+            console.error('File cleanup error:', cleanupError);
+          }
         }
       }
     }

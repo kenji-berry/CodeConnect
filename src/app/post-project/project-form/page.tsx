@@ -559,6 +559,10 @@ function ProjectFormContent() {
     if (!hasRepoAccess) {
       throw new Error('You do not have permission to post this repository');
     }
+
+    if (!bannerImageFile && !bannerImage) {
+      throw new Error('Project banner image is required');
+    }
   
     if (descriptionOption === "Write your Own" && !customDescription.trim()) {
       throw new Error('Custom description is required when not using GitHub description');
@@ -698,7 +702,7 @@ function ProjectFormContent() {
       <form onSubmit={handleSubmitProject} className="w-full">
         <div className="bento-container w-full inria-sans-regular">
           <div className="bento-box full-width radial-background">
-            <h4>Project Banner Image (Optional):</h4>
+            <h4>Project Banner Image <span className="text-[--title-red]">*</span>:</h4>
             <div className="mt-2 flex flex-col items-center">
               {bannerImagePreview ? (
                 <div className="relative w-full aspect-[16/9]">
@@ -728,7 +732,7 @@ function ProjectFormContent() {
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-gray-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
-                    <p className="text-gray-400">Click to upload a banner image</p>
+                    <p className="text-gray-400">Click to upload a banner image <span className="text-[--title-red]">*</span></p>
                     <p className="text-xs text-gray-500 mt-1">Recommended: 16:9 aspect ratio (1280×720px or similar)</p>
                     <p className="text-xs text-gray-500">Images will be displayed in 16:9 format</p>
                   </div>
@@ -737,6 +741,7 @@ function ProjectFormContent() {
                     accept="image/jpeg,image/png,image/gif,image/webp"
                     onChange={handleImageChange}
                     className="hidden"
+                    required
                   />
                 </label>
               )}
