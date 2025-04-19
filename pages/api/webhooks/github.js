@@ -2,55 +2,35 @@ import { createPagesServerClient } from '@supabase/auth-helpers-nextjs';
 import crypto from 'crypto';
 
 export default async function handler(req, res) {
-  const rawBody = await new Promise((resolve) => {
-    let data = '';
-    req.on('data', (chunk) => {
-      data += chunk;
-    });
-    req.on('end', () => {
-      resolve(data);
-    });
-  });
-
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-  
-  // Add debug logging for environment variables
-  console.log('Debug - ENV variables:');
-  console.log('GITHUB_WEBHOOK_SECRET exists:', !!process.env.GITHUB_WEBHOOK_SECRET);
-  console.log('NEXT_PUBLIC_GITHUB_WEBHOOK_SECRET exists:', !!process.env.NEXT_PUBLIC_GITHUB_WEBHOOK_SECRET);
-  console.log('GITHUB_WEBHOOK_SECRET length:', process.env.GITHUB_WEBHOOK_SECRET?.length || 0);
-  console.log('NEXT_PUBLIC_GITHUB_WEBHOOK_SECRET length:', process.env.NEXT_PUBLIC_GITHUB_WEBHOOK_SECRET?.length || 0);
-  
-  // Try with either environment variable
-  const secret = process.env.GITHUB_WEBHOOK_SECRET || process.env.NEXT_PUBLIC_GITHUB_WEBHOOK_SECRET;
-  if (!secret) {
-    console.error('Neither GITHUB_WEBHOOK_SECRET nor NEXT_PUBLIC_GITHUB_WEBHOOK_SECRET are set');
-    return res.status(500).json({ error: 'Server configuration error' });
-  }
-  
-  const projectId = req.query.projectId;
-  if (!projectId) {
-    return res.status(400).json({ error: 'Missing projectId parameter' });
-  }
-  
-  const signature = req.headers['x-hub-signature-256'];
-  if (!signature) {
-    return res.status(401).json({ error: 'No signature provided' });
-  }
+  // First, respond to GitHub quickly to prevent timeout
+  // GitHub only cares that we received the webhook, not what we do with it
+  res.status(200).json({ success: true });
   
   try {
-    // Verify signature using the environment variable secret
+    // Get raw body for signature verification
+    const rawBody = await new Promise((resolve) => {
+      let data = '';
+      req.on('data', (chunk) => {
+        data += chunk;
+      });
+      req.on('end', () => {
+        resolve(data);
+      });
+    });
+    
+    // Basic validation
+    if (req.method !== 'POST') return;
+    
+    const projectId = req.query.projectId;
+    if (!projectId) return;
+    
+    const signature = req.headers['x-hub-signature-256'];
+    if (!signature) return;
+    
+    // Verify signature
     const hmac = crypto.createHmac('sha256', secret);
     const calculatedSignature = `sha256=${hmac.update(rawBody).digest('hex')}`;
     
-    // Debug logging for signature verification
-    console.log('Debug - Signatures:');
-    console.log('Received signature:', signature);
-    console.log('Calculated signature:', calculatedSignature);
-    
-    // Use constant-time comparison to prevent timing attacks
     let isSignatureValid = false;
     try {
       isSignatureValid = crypto.timingSafeEqual(
@@ -59,67 +39,65 @@ export default async function handler(req, res) {
       );
     } catch (e) {
       console.error('Signature comparison error:', e.message);
-      isSignatureValid = false;
+      return;
     }
     
-    console.log('Signature valid:', isSignatureValid);
+    if (!isSignatureValid) return;
     
-    if (!isSignatureValid) {
-      return res.status(401).json({ error: 'Invalid signature' });
-    }
-    
-    // Mark the project as having an active webhook
+    // Process the webhook asynchronously
     const supabase = createPagesServerClient({ req, res });
     await supabase
       .from('project')
       .update({ webhook_active: true })
       .eq('id', projectId);
     
-    // Process the webhook event based on type
+    // Process webhook events with lightweight operations
     const event = req.headers['x-github-event'];
+    const body = JSON.parse(rawBody);
     
     switch (event) {
       case 'push':
-        await handlePushEvent(req.body, projectId, supabase);
+        processCommits(body, projectId, supabase);
         break;
       case 'issues':
-        await handleIssueEvent(req.body, projectId, supabase);
+        processIssue(body, projectId, supabase);
         break;
       case 'pull_request':
-        await handlePullRequestEvent(req.body, projectId, supabase);
-        break;
-      default:
-        // Ignore unhandled events
+        processPullRequest(body, projectId, supabase);
         break;
     }
-    
-    return res.status(200).json({ success: true });
   } catch (error) {
-    console.error('Error processing webhook:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+    console.error('Webhook processing error:', error);
   }
 }
 
-// Helper functions to process different event types
-async function handlePushEvent(payload, projectId, supabase) {
-  // payload.commits is an array of commits
-  if (!Array.isArray(payload.commits)) return;
+// non async functions for processing events
+function processCommits(payload, projectId, supabase) {
+  // Only process the latest few commits to avoid timeout
+  const commits = Array.isArray(payload.commits) ? payload.commits.slice(0, 10) : [];
   const branch = payload.ref ? payload.ref.replace('refs/heads/', '') : null;
-  const rows = payload.commits.map(commit => ({
+  
+  if (commits.length === 0) return;
+  
+  const rows = commits.map(commit => ({
     project_id: projectId,
     commit_id: commit.id,
-    message: commit.message,
-    author: commit.author?.name || null,
+    message: commit.message?.substring(0, 1000) || null,
+    author: commit.author?.name?.substring(0, 100) || null,
     timestamp: commit.timestamp ? new Date(commit.timestamp) : null,
-    url: commit.url,
-    branch,
+    url: commit.url?.substring(0, 500) || null,
+    branch: branch?.substring(0, 100) || null,
   }));
-  if (rows.length > 0) {
-    await supabase.from('project_commits').insert(rows);
-  }
+  
+  // Fire and forget
+  supabase.from('project_commits').insert(rows).then(() => {
+    console.log(`Processed ${rows.length} commits for project ${projectId}`);
+  }).catch(err => {
+    console.error('Error storing commits:', err);
+  });
 }
 
-async function handleIssueEvent(payload, projectId, supabase) {
+function processIssue(payload, projectId, supabase) {
   // payload.action: opened, closed, edited, etc.
   // payload.issue: the issue object
   if (!payload.issue) return;
@@ -128,20 +106,24 @@ async function handleIssueEvent(payload, projectId, supabase) {
   const row = {
     project_id: projectId,
     issue_id: issue.id,
-    title: issue.title,
-    body: issue.body,
-    state: issue.state,
+    title: issue.title?.substring(0, 1000) || null,
+    body: issue.body?.substring(0, 10000) || null,
+    state: issue.state?.substring(0, 100) || null,
     created_at: issue.created_at ? new Date(issue.created_at) : null,
     updated_at: issue.updated_at ? new Date(issue.updated_at) : null,
     number: issue.number,
     labels,
-    url: issue.html_url,
+    url: issue.html_url?.substring(0, 500) || null,
   };
-  // Upsert by (project_id, issue_id)
-  await supabase.from('project_issues').upsert(row, { onConflict: ['project_id', 'issue_id'] });
+  // Fire and forget
+  supabase.from('project_issues').upsert(row, { onConflict: ['project_id', 'issue_id'] }).then(() => {
+    console.log(`Processed issue ${issue.id} for project ${projectId}`);
+  }).catch(err => {
+    console.error('Error storing issue:', err);
+  });
 }
 
-async function handlePullRequestEvent(payload, projectId, supabase) {
+function processPullRequest(payload, projectId, supabase) {
   // payload.action: opened, closed, edited, etc.
   // payload.pull_request: the PR object
   if (!payload.pull_request) return;
@@ -150,16 +132,20 @@ async function handlePullRequestEvent(payload, projectId, supabase) {
   const row = {
     project_id: projectId,
     pr_id: pr.id,
-    title: pr.title,
-    body: pr.body,
-    state: pr.state,
+    title: pr.title?.substring(0, 1000) || null,
+    body: pr.body?.substring(0, 10000) || null,
+    state: pr.state?.substring(0, 100) || null,
     created_at: pr.created_at ? new Date(pr.created_at) : null,
     updated_at: pr.updated_at ? new Date(pr.updated_at) : null,
     number: pr.number,
     labels,
-    url: pr.html_url,
+    url: pr.html_url?.substring(0, 500) || null,
     merged: !!pr.merged_at,
   };
-  // Upsert by (project_id, pr_id)
-  await supabase.from('project_pull_requests').upsert(row, { onConflict: ['project_id', 'pr_id'] });
+  // Fire and forget
+  supabase.from('project_pull_requests').upsert(row, { onConflict: ['project_id', 'pr_id'] }).then(() => {
+    console.log(`Processed pull request ${pr.id} for project ${projectId}`);
+  }).catch(err => {
+    console.error('Error storing pull request:', err);
+  });
 }
