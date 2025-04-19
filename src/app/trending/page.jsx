@@ -51,6 +51,8 @@ function TrendingProjectsContent() {
           return;
         }
 
+        const projectIds = trendingIds.map(item => item.project_id);
+
         // Fetch the actual project details for each trending ID
         const { data: projects, error: projectsError } = await supabase
           .from('project')
@@ -59,12 +61,48 @@ function TrendingProjectsContent() {
             custom_description, difficulty_level, created_at,
             license, mentorship, setup_time, image
           `)
-          .in('id', trendingIds.map(item => item.project_id));
+          .in('id', projectIds);
 
         if (projectsError || !projects || projects.length === 0) {
           console.error('Error fetching project details:', projectsError);
           if (isMounted) updateProjects([]);
           return;
+        }
+
+        // Fetch open issue counts for all project IDs in one query
+        const { data: issuesData } = await supabase
+          .from('project_issues')
+          .select('project_id, state')
+          .in('project_id', projectIds);
+
+        // Build a map of project_id -> open issue count
+        const openIssueCountMap = {};
+        if (issuesData) {
+          issuesData.forEach(issue => {
+            if (issue.state === 'open') {
+              openIssueCountMap[issue.project_id] = (openIssueCountMap[issue.project_id] || 0) + 1;
+            }
+          });
+        }
+
+        // Fetch all commits for these projects
+        const { data: commitsData } = await supabase
+          .from('project_commits')
+          .select('project_id, timestamp')
+          .in('project_id', projectIds);
+
+        // Build a map of project_id -> latest commit timestamp
+        const latestCommitMap = {};
+        if (commitsData) {
+          commitsData.forEach(commit => {
+            const ts = new Date(commit.timestamp);
+            if (
+              !latestCommitMap[commit.project_id] ||
+              ts > latestCommitMap[commit.project_id]
+            ) {
+              latestCommitMap[commit.project_id] = ts;
+            }
+          });
         }
 
         // Process projects in smaller batches to avoid resource exhaustion
@@ -98,14 +136,18 @@ function TrendingProjectsContent() {
                   tags: tagResult.data?.map(tag => ({
                     name: tag.tags.name,
                     is_highlighted: tag.is_highlighted
-                  })) || []
+                  })) || [],
+                  issueCount: openIssueCountMap[project.id] || 0,
+                  last_commit_at: latestCommitMap[project.id] || null
                 };
               } catch (error) {
                 console.error(`Error processing project ${project.id}:`, error);
                 return {
                   ...project,
                   technologies: [],
-                  tags: []
+                  tags: [],
+                  issueCount: openIssueCountMap[project.id] || 0,
+                  last_commit_at: latestCommitMap[project.id] || null
                 };
               }
             })
@@ -162,7 +204,7 @@ function TrendingProjectsContent() {
                 techStack={project.technologies
                   .filter(tech => tech.is_highlighted)
                   .map(tech => tech.name)}
-                issueCount={0}
+                issueCount={project.issueCount || 0}
                 recommended={false}
                 image={project.image}
               />

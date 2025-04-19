@@ -8,14 +8,14 @@ import { supabase } from '@/supabaseClient';
 function BeginnerProjectsContent() {
   const [loading, setLoading] = useState(true);
   const [availableTags, setAvailableTags] = useState([]);
-  
+
   // Updated useProjectFilters to include tags and numeric difficulty
   const filterProps = useProjectFilters([], {
     includeTags: true,
     numericDifficulty: true,
     defaultDifficulty: 1  // Default to beginner level
   });
-  
+
   const { filteredProjects, updateProjects } = filterProps;
 
   // Fetch available tags for filtering
@@ -25,14 +25,12 @@ function BeginnerProjectsContent() {
         const { data, error } = await supabase
           .from('tags')
           .select('name');
-          
         if (error) throw error;
         setAvailableTags(data.map(tag => tag.name));
       } catch (error) {
         console.error('Error fetching tags:', error);
       }
     };
-    
     fetchTags();
   }, []);
 
@@ -78,6 +76,42 @@ function BeginnerProjectsContent() {
           return;
         }
 
+        // Fetch open issue counts for all project IDs in one query
+        const { data: issuesData } = await supabase
+          .from('project_issues')
+          .select('project_id, state')
+          .in('project_id', projectIds);
+
+        // Build a map of project_id -> open issue count
+        const openIssueCountMap = {};
+        if (issuesData) {
+          issuesData.forEach(issue => {
+            if (issue.state === 'open') {
+              openIssueCountMap[issue.project_id] = (openIssueCountMap[issue.project_id] || 0) + 1;
+            }
+          });
+        }
+
+        // Fetch all commits for these projects
+        const { data: commitsData } = await supabase
+          .from('project_commits')
+          .select('project_id, timestamp')
+          .in('project_id', projectIds);
+
+        // Build a map of project_id -> latest commit timestamp
+        const latestCommitMap = {};
+        if (commitsData) {
+          commitsData.forEach(commit => {
+            const ts = new Date(commit.timestamp);
+            if (
+              !latestCommitMap[commit.project_id] ||
+              ts > latestCommitMap[commit.project_id]
+            ) {
+              latestCommitMap[commit.project_id] = ts;
+            }
+          });
+        }
+
         // Process projects in smaller batches to avoid resource exhaustion
         const projectsWithData = [];
         const BATCH_SIZE = 5;
@@ -96,7 +130,7 @@ function BeginnerProjectsContent() {
                     .eq('project_id', project.id),
                   supabase
                     .from('project_tags')  
-                    .select(`tag_id, tags!inner (name)`)
+                    .select(`tag_id, tags!inner (name), is_highlighted`)
                     .eq('project_id', project.id)
                 ]);
 
@@ -106,14 +140,21 @@ function BeginnerProjectsContent() {
                     name: tech.technologies.name,
                     is_highlighted: tech.is_highlighted
                   })) || [],
-                  tags: tagResult.data?.map(tag => tag.tags.name) || [] 
+                  tags: tagResult.data?.map(tag => ({
+                    name: tag.tags.name,
+                    is_highlighted: tag.is_highlighted
+                  })) || [],
+                  issueCount: openIssueCountMap[project.id] || 0,
+                  last_commit_at: latestCommitMap[project.id] || null
                 };
               } catch (error) {
                 console.error(`Error processing project ${project.id}:`, error);
                 return {
                   ...project,
                   technologies: [],
-                  tags: []
+                  tags: [],
+                  issueCount: openIssueCountMap[project.id] || 0,
+                  last_commit_at: latestCommitMap[project.id] || null
                 };
               }
             })
@@ -155,26 +196,30 @@ function BeginnerProjectsContent() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredProjects.map(project => (
-            <ProjectPreview
-              key={project.id}
-              id={project.id}
-              name={project.repo_name}
-              date={project.created_at}
-              tags={project.tags.slice(0, 3)}
-              description={
-                project.description_type === "Write your Own" 
-                  ? project.custom_description 
-                  : "GitHub project description"
-              }
-              techStack={project.technologies
-                .filter(tech => tech.is_highlighted)
-                .map(tech => tech.name)}
-              issueCount={0}
-              recommended={false}
-              image={project.image}
-            />
-          ))}
+          {filteredProjects.map(project => {
+            const highlightedTags = project.tags.filter(tag => tag.is_highlighted);
+            const tagsToShow = highlightedTags.length > 0 ? highlightedTags : project.tags.slice(0, 3);
+            return (
+              <ProjectPreview
+                key={project.id}
+                id={project.id}
+                name={project.repo_name}
+                date={project.created_at}
+                tags={tagsToShow}
+                description={
+                  project.description_type === "Write your Own" 
+                    ? project.custom_description 
+                    : "GitHub project description"
+                }
+                techStack={project.technologies
+                  .filter(tech => tech.is_highlighted)
+                  .map(tech => tech.name)}
+                issueCount={project.issueCount || 0}
+                recommended={false}
+                image={project.image}
+              />
+            );
+          })}
         </div>
       )}
     </ProjectPageLayout>

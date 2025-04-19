@@ -291,27 +291,19 @@ function HomeContent() {
     const fetchNewestProjects = async () => {
       setLoadingNewest(true);
       try {
-        const cachedNewest = getCachedData('newest_projects');
-        if (cachedNewest) {
-          console.log('Using cached newest projects');
-          setNewestProjects(cachedNewest);
-          setLoadingNewest(false);
-          return;
-        }
-
         // Get newest projects
         const { data: newestIds, error } = await supabase.rpc('get_newest_projects', {
           results_limit: 3
         });
-        
-        if (error) {
-          console.error('Error fetching newest projects:', error);
+
+        if (error || !newestIds || newestIds.length === 0) {
           setNewestProjects([]);
           setLoadingNewest(false);
           return;
         }
-        
-        if (!newestIds || newestIds.length === 0) {
+
+        const projectIds = newestIds.map(item => item.project_id).filter(Boolean);
+        if (projectIds.length === 0) {
           setNewestProjects([]);
           setLoadingNewest(false);
           return;
@@ -330,8 +322,44 @@ function HomeContent() {
             created_at,
             image
           `)
-          .in('id', newestIds.map(item => item.project_id));
-        
+          .in('id', projectIds);
+
+        // Fetch open issue counts for all project IDs in one query
+        const { data: issuesData } = await supabase
+          .from('project_issues')
+          .select('project_id, state')
+          .in('project_id', projectIds);
+
+        // Build a map of project_id -> open issue count
+        const openIssueCountMap = {};
+        if (issuesData) {
+          issuesData.forEach(issue => {
+            if (issue.state === 'open') {
+              openIssueCountMap[issue.project_id] = (openIssueCountMap[issue.project_id] || 0) + 1;
+            }
+          });
+        }
+
+        // Fetch all commits for these projects
+        const { data: commitsData } = await supabase
+          .from('project_commits')
+          .select('project_id, timestamp')
+          .in('project_id', projectIds);
+
+        // Build a map of project_id -> latest commit timestamp
+        const latestCommitMap = {};
+        if (commitsData) {
+          commitsData.forEach(commit => {
+            const ts = new Date(commit.timestamp);
+            if (
+              !latestCommitMap[commit.project_id] ||
+              ts > latestCommitMap[commit.project_id]
+            ) {
+              latestCommitMap[commit.project_id] = ts;
+            }
+          });
+        }
+
         // Fetch technologies and tags for each project
         const projectsWithData = await Promise.all(
           projects.map(async (project) => {
@@ -350,7 +378,8 @@ function HomeContent() {
                 tags!inner (  
                   name,
                   colour
-                )
+                ),
+                is_highlighted
               `)
               .eq('project_id', project.id);
 
@@ -364,24 +393,21 @@ function HomeContent() {
                 name: tag.tags.name,
                 colour: tag.tags.colour,
                 is_highlighted: tag.is_highlighted
-              })) || [] 
+              })) || [],
+              issueCount: openIssueCountMap[project.id] || 0,
+              last_commit_at: latestCommitMap[project.id] || null
             };
           })
         );
-        
-        if (projectsWithData?.length > 0) {
-          setCachedData('newest_projects', projectsWithData);
-        }
-        
+
         setNewestProjects(projectsWithData);
       } catch (error) {
-        console.error('Error in fetchNewestProjects:', error);
         setNewestProjects([]);
       } finally {
         setLoadingNewest(false);
       }
     };
-    
+
     fetchNewestProjects();
   }, []);
 
@@ -755,7 +781,7 @@ function HomeContent() {
                     techStack={project.technologies
                       .filter(tech => tech.is_highlighted)
                       .map(tech => tech.name)}
-                    issueCount={0}
+                    issueCount={project.issueCount || 0}
                     recommended={false}
                     image={project.image}
                   />
