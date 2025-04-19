@@ -2,9 +2,6 @@ import { createPagesServerClient } from '@supabase/auth-helpers-nextjs';
 import crypto from 'crypto';
 
 export default async function handler(req, res) {
-  // Respond to GitHub quickly to prevent timeout
-  res.status(200).json({ success: true });
-
   try {
     // Get raw body for signature verification
     const rawBody = await new Promise((resolve) => {
@@ -20,18 +17,21 @@ export default async function handler(req, res) {
     // Basic validation with logging
     if (req.method !== 'POST') {
       console.log('Webhook: Ignoring non-POST request');
+      res.status(200).json({ success: true });
       return;
     }
 
     const projectId = req.query.projectId;
     if (!projectId) {
       console.log('Webhook: Missing projectId parameter');
+      res.status(200).json({ success: true });
       return;
     }
 
     const signature = req.headers['x-hub-signature-256'];
     if (!signature) {
       console.log('Webhook: Missing signature header');
+      res.status(200).json({ success: true });
       return;
     }
 
@@ -39,6 +39,7 @@ export default async function handler(req, res) {
     const secret = process.env.NEXT_PUBLIC_GITHUB_WEBHOOK_SECRET;
     if (!secret) {
       console.error('Webhook: Missing GITHUB_WEBHOOK_SECRET environment variable');
+      res.status(200).json({ success: true });
       return;
     }
 
@@ -53,11 +54,13 @@ export default async function handler(req, res) {
       );
     } catch (e) {
       console.error('Signature comparison error:', e.message);
+      res.status(200).json({ success: true });
       return;
     }
 
     if (!isSignatureValid) {
       console.error('Webhook: Invalid signature');
+      res.status(200).json({ success: true });
       return;
     }
 
@@ -90,8 +93,12 @@ export default async function handler(req, res) {
       default:
         console.log(`Unhandled event type: ${event}`);
     }
+
+    // At the very end, after all processing:
+    res.status(200).json({ success: true });
   } catch (error) {
     console.error('Webhook processing error:', error);
+    res.status(500).json({ success: false, error: error.message });
   }
 }
 
