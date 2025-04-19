@@ -6,10 +6,17 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
   
-  // Get the webhook secret from environment variable
-  const secret = process.env.GITHUB_WEBHOOK_SECRET;
+  // Add debug logging for environment variables
+  console.log('Debug - ENV variables:');
+  console.log('GITHUB_WEBHOOK_SECRET exists:', !!process.env.GITHUB_WEBHOOK_SECRET);
+  console.log('NEXT_PUBLIC_GITHUB_WEBHOOK_SECRET exists:', !!process.env.NEXT_PUBLIC_GITHUB_WEBHOOK_SECRET);
+  console.log('GITHUB_WEBHOOK_SECRET length:', process.env.GITHUB_WEBHOOK_SECRET?.length || 0);
+  console.log('NEXT_PUBLIC_GITHUB_WEBHOOK_SECRET length:', process.env.NEXT_PUBLIC_GITHUB_WEBHOOK_SECRET?.length || 0);
+  
+  // Try with either environment variable
+  const secret = process.env.GITHUB_WEBHOOK_SECRET || process.env.NEXT_PUBLIC_GITHUB_WEBHOOK_SECRET;
   if (!secret) {
-    console.error('GITHUB_WEBHOOK_SECRET environment variable not set');
+    console.error('Neither GITHUB_WEBHOOK_SECRET nor NEXT_PUBLIC_GITHUB_WEBHOOK_SECRET are set');
     return res.status(500).json({ error: 'Server configuration error' });
   }
   
@@ -29,6 +36,11 @@ export default async function handler(req, res) {
     const hmac = crypto.createHmac('sha256', secret);
     const calculatedSignature = `sha256=${hmac.update(payload).digest('hex')}`;
     
+    // Debug logging for signature verification
+    console.log('Debug - Signatures:');
+    console.log('Received signature:', signature);
+    console.log('Calculated signature:', calculatedSignature);
+    
     // Use constant-time comparison to prevent timing attacks
     let isSignatureValid = false;
     try {
@@ -37,8 +49,11 @@ export default async function handler(req, res) {
         Buffer.from(calculatedSignature)
       );
     } catch (e) {
+      console.error('Signature comparison error:', e.message);
       isSignatureValid = false;
     }
+    
+    console.log('Signature valid:', isSignatureValid);
     
     if (!isSignatureValid) {
       return res.status(401).json({ error: 'Invalid signature' });
