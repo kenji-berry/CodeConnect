@@ -129,6 +129,48 @@ function HomeContent() {
     }
   };
 
+  const fetchOpenIssueCounts = async (projectIds) => {
+    if (!projectIds.length) return {};
+    const { data: issuesData } = await supabase
+      .from('project_issues')
+      .select('project_id, state')
+      .in('project_id', projectIds);
+
+    const openIssueCountMap = {};
+    if (issuesData) {
+      issuesData.forEach(issue => {
+        if (issue.state === 'open') {
+          openIssueCountMap[issue.project_id] = (openIssueCountMap[issue.project_id] || 0) + 1;
+        }
+      });
+    }
+    return openIssueCountMap;
+  };
+
+  const fetchTagsAndTech = async (projectId) => {
+    const [{ data: techData }, { data: tagData }] = await Promise.all([
+      supabase
+        .from('project_technologies')
+        .select(`technologies (name), is_highlighted`)
+        .eq('project_id', projectId),
+      supabase
+        .from('project_tags')
+        .select(`tag_id, tags!inner (name, colour), is_highlighted`)
+        .eq('project_id', projectId)
+    ]);
+    return {
+      technologies: techData?.map(tech => ({
+        name: tech.technologies.name,
+        is_highlighted: tech.is_highlighted
+      })) || [],
+      tags: tagData?.map(tag => ({
+        name: tag.tags.name,
+        colour: tag.tags.colour,
+        is_highlighted: tag.is_highlighted
+      })) || []
+    };
+  };
+
   useEffect(() => {
     const fetchRecommendations = async () => {
       setLoadingRecommendations(true);
@@ -177,113 +219,46 @@ function HomeContent() {
           return;
         }
 
-        // Get trending projects based on combined likes and comments
         const trendingIds = await getTrendingProjects(5);
-        console.log('Trending project IDs returned:', trendingIds);
-        
         if (!trendingIds || trendingIds.length === 0) {
-          console.log('No trending projects found');
           setTrendingProjects([]);
           setLoadingTrending(false);
           return;
         }
-        
-        // Get activity data for each trending project
-        for (const item of trendingIds) {
-          // Log likes count
-          const { data: likes, error: likeError } = await supabase
-            .from('project_likes')
-            .select('created_at', { count: 'exact' })
-            .eq('project_id', item.project_id)
-            .gt('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
-          
-          // Log comments count
-          const { data: comments, error: commentError } = await supabase
-            .from('project_comments')
-            .select('created_at', { count: 'exact' })
-            .eq('project_id', item.project_id)
-            .gt('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
-          
-          console.log(`Project ${item.project_id} activity:`, {
-            likes: likes?.length || 0,
-            comments: comments?.length || 0,
-            total: (likes?.length || 0) + (comments?.length || 0)
-          });
-        }
-        
-        // Fetch the actual project details for each trending ID
-        const { data: projects, error: projectsError } = await supabase
-          .from('project')
-          .select(`
-            id,
-            repo_name,
-            repo_owner,
-            description_type,
-            custom_description,
-            difficulty_level,
-            created_at,
-            image
-          `)
-          .in('id', trendingIds.map(item => item.project_id));
-          
-        if (projectsError) {
-          console.error('Error fetching project details:', projectsError);
+        const projectIds = trendingIds.map(item => item.project_id).filter(Boolean);
+        if (!projectIds.length) {
+          setTrendingProjects([]);
+          setLoadingTrending(false);
           return;
         }
-        
-        // Now fetch technologies and tags for each project
+        const { data: projects } = await supabase
+          .from('project')
+          .select(`
+            id, repo_name, repo_owner, description_type, 
+            custom_description, difficulty_level, created_at, image
+          `)
+          .in('id', projectIds);
+
+        const openIssueCountMap = await fetchOpenIssueCounts(projectIds);
+
         const projectsWithData = await Promise.all(
           projects.map(async (project) => {
-            const { data: techData, error: techError } = await supabase
-              .from('project_technologies')
-              .select(`
-                technologies (name),
-                is_highlighted
-              `)
-              .eq('project_id', project.id);
-
-            const { data: tagData, error: tagError } = await supabase
-              .from('project_tags')  
-              .select(`
-                tag_id, 
-                tags!inner (  
-                  name,
-                  colour
-                )
-              `)
-              .eq('project_id', project.id);
-
-            if (techError) console.error('Error fetching technologies:', techError);
-            if (tagError) console.error('Error fetching tags:', tagError);
-
+            const { technologies, tags } = await fetchTagsAndTech(project.id);
             return {
               ...project,
-              technologies: techData?.map(tech => ({
-                name: tech.technologies.name,
-                is_highlighted: tech.is_highlighted
-              })) || [],
-              tags: tagData?.map(tag => ({
-                name: tag.tags.name,
-                colour: tag.tags.colour,
-                is_highlighted: tag.is_highlighted
-              })) || [] 
+              technologies,
+              tags,
+              issueCount: openIssueCountMap[project.id] || 0
             };
           })
         );
-        
-        if (projectsWithData?.length > 0) {
-          setCachedData('trending_projects', projectsWithData);
-        }
-        
         setTrendingProjects(projectsWithData);
       } catch (error) {
-        console.error('Error fetching trending projects:', error);
         setTrendingProjects([]);
       } finally {
         setLoadingTrending(false);
       }
     };
-    
     fetchTrendingProjects();
   }, []);
 
@@ -291,115 +266,41 @@ function HomeContent() {
     const fetchNewestProjects = async () => {
       setLoadingNewest(true);
       try {
-        // Get newest projects
         const { data: newestIds, error } = await supabase.rpc('get_newest_projects', {
           results_limit: 3
         });
-
         if (error || !newestIds || newestIds.length === 0) {
           setNewestProjects([]);
           setLoadingNewest(false);
           return;
         }
-
         const projectIds = newestIds.map(item => item.project_id).filter(Boolean);
-        if (projectIds.length === 0) {
+        if (!projectIds.length) {
           setNewestProjects([]);
           setLoadingNewest(false);
           return;
         }
-
-        // Fetch project details
         const { data: projects } = await supabase
           .from('project')
           .select(`
-            id,
-            repo_name,
-            repo_owner,
-            description_type,
-            custom_description,
-            difficulty_level,
-            created_at,
-            image
+            id, repo_name, repo_owner, description_type, 
+            custom_description, difficulty_level, created_at, image
           `)
           .in('id', projectIds);
 
-        // Fetch open issue counts for all project IDs in one query
-        const { data: issuesData } = await supabase
-          .from('project_issues')
-          .select('project_id, state')
-          .in('project_id', projectIds);
+        const openIssueCountMap = await fetchOpenIssueCounts(projectIds);
 
-        // Build a map of project_id -> open issue count
-        const openIssueCountMap = {};
-        if (issuesData) {
-          issuesData.forEach(issue => {
-            if (issue.state === 'open') {
-              openIssueCountMap[issue.project_id] = (openIssueCountMap[issue.project_id] || 0) + 1;
-            }
-          });
-        }
-
-        // Fetch all commits for these projects
-        const { data: commitsData } = await supabase
-          .from('project_commits')
-          .select('project_id, timestamp')
-          .in('project_id', projectIds);
-
-        // Build a map of project_id -> latest commit timestamp
-        const latestCommitMap = {};
-        if (commitsData) {
-          commitsData.forEach(commit => {
-            const ts = new Date(commit.timestamp);
-            if (
-              !latestCommitMap[commit.project_id] ||
-              ts > latestCommitMap[commit.project_id]
-            ) {
-              latestCommitMap[commit.project_id] = ts;
-            }
-          });
-        }
-
-        // Fetch technologies and tags for each project
         const projectsWithData = await Promise.all(
           projects.map(async (project) => {
-            const { data: techData } = await supabase
-              .from('project_technologies')
-              .select(`
-                technologies (name),
-                is_highlighted
-              `)
-              .eq('project_id', project.id);
-
-            const { data: tagData } = await supabase
-              .from('project_tags')  
-              .select(`
-                tag_id, 
-                tags!inner (  
-                  name,
-                  colour
-                ),
-                is_highlighted
-              `)
-              .eq('project_id', project.id);
-
+            const { technologies, tags } = await fetchTagsAndTech(project.id);
             return {
               ...project,
-              technologies: techData?.map(tech => ({
-                name: tech.technologies.name,
-                is_highlighted: tech.is_highlighted
-              })) || [],
-              tags: tagData?.map(tag => ({
-                name: tag.tags.name,
-                colour: tag.tags.colour,
-                is_highlighted: tag.is_highlighted
-              })) || [],
-              issueCount: openIssueCountMap[project.id] || 0,
-              last_commit_at: latestCommitMap[project.id] || null
+              technologies,
+              tags,
+              issueCount: openIssueCountMap[project.id] || 0
             };
           })
         );
-
         setNewestProjects(projectsWithData);
       } catch (error) {
         setNewestProjects([]);
@@ -407,7 +308,6 @@ function HomeContent() {
         setLoadingNewest(false);
       }
     };
-
     fetchNewestProjects();
   }, []);
 
@@ -415,97 +315,48 @@ function HomeContent() {
     const fetchPopularProjects = async () => {
       setLoadingPopular(true);
       try {
-        const cachedPopular = getCachedData('popular_projects');
-        if (cachedPopular) {
-          console.log('Using cached popular projects');
-          setPopularProjects(cachedPopular);
-          setLoadingPopular(false);
-          return;
-        }
-
-        // Get popular projects
         const { data: popularIds, error } = await supabase.rpc('get_popular_projects', {
           results_limit: 3
         });
-        
-        if (error) {
-          console.error('Error fetching popular projects:', error);
+        if (error || !popularIds || popularIds.length === 0) {
           setPopularProjects([]);
           setLoadingPopular(false);
           return;
         }
-        
-        if (!popularIds || popularIds.length === 0) {
+        const projectIds = popularIds.map(item => item.project_id).filter(Boolean);
+        if (!projectIds.length) {
           setPopularProjects([]);
           setLoadingPopular(false);
           return;
         }
-
-        // Fetch project details
         const { data: projects } = await supabase
           .from('project')
           .select(`
-            id,
-            repo_name,
-            repo_owner,
-            description_type,
-            custom_description,
-            difficulty_level,
-            created_at,
-            image
+            id, repo_name, repo_owner, description_type, 
+            custom_description, difficulty_level, created_at, image
           `)
-          .in('id', popularIds.map(item => item.project_id));
-        
-        // Fetch technologies and tags for each project
+          .in('id', projectIds);
+
+        const openIssueCountMap = await fetchOpenIssueCounts(projectIds);
+
         const projectsWithData = await Promise.all(
           projects.map(async (project) => {
-            const { data: techData } = await supabase
-              .from('project_technologies')
-              .select(`
-                technologies (name),
-                is_highlighted
-              `)
-              .eq('project_id', project.id);
-
-            const { data: tagData } = await supabase
-              .from('project_tags')  
-              .select(`
-                tag_id, 
-                tags!inner (  
-                  name,
-                  colour
-                )
-              `)
-              .eq('project_id', project.id);
-
+            const { technologies, tags } = await fetchTagsAndTech(project.id);
             return {
               ...project,
-              technologies: techData?.map(tech => ({
-                name: tech.technologies.name,
-                is_highlighted: tech.is_highlighted
-              })) || [],
-              tags: tagData?.map(tag => ({
-                name: tag.tags.name,
-                colour: tag.tags.colour,
-                is_highlighted: tag.is_highlighted
-              })) || [] 
+              technologies,
+              tags,
+              issueCount: openIssueCountMap[project.id] || 0
             };
           })
         );
-        
-        if (projectsWithData?.length > 0) {
-          setCachedData('popular_projects', projectsWithData);
-        }
-        
         setPopularProjects(projectsWithData);
       } catch (error) {
-        console.error('Error in fetchPopularProjects:', error);
         setPopularProjects([]);
       } finally {
         setLoadingPopular(false);
       }
     };
-    
     fetchPopularProjects();
   }, []);
 
@@ -513,102 +364,53 @@ function HomeContent() {
     const fetchBeginnerProjects = async () => {
       setLoadingBeginner(true);
       try {
-        const cachedBeginner = getCachedData('beginner_projects');
-        if (cachedBeginner) {
-          console.log('Using cached beginner projects');
-          setBeginnerProjects(cachedBeginner);
-          setLoadingBeginner(false);
-          return;
-        }
-
-        // Call our SQL function to get beginner projects
         const { data: beginnerIds, error } = await supabase.rpc('get_beginner_projects', {
           results_limit: 3
         });
-        
-        if (error) {
-          console.error('Error fetching beginner projects:', error);
+        if (error || !beginnerIds || beginnerIds.length === 0) {
           setBeginnerProjects([]);
           setLoadingBeginner(false);
           return;
         }
-        
-        if (!beginnerIds || beginnerIds.length === 0) {
+        const projectIds = beginnerIds.map(item => item.project_id).filter(Boolean);
+        if (!projectIds.length) {
           setBeginnerProjects([]);
           setLoadingBeginner(false);
           return;
         }
-
-        // Fetch project details
         const { data: projects } = await supabase
           .from('project')
           .select(`
-            id,
-            repo_name,
-            repo_owner,
-            description_type,
-            custom_description,
-            difficulty_level,
-            created_at,
-            image
+            id, repo_name, repo_owner, description_type, 
+            custom_description, difficulty_level, created_at, image
           `)
-          .in('id', beginnerIds.map(item => item.project_id));
-        
-        // Fetch technologies and tags for each project
+          .in('id', projectIds);
+
+        const openIssueCountMap = await fetchOpenIssueCounts(projectIds);
+
         const projectsWithData = await Promise.all(
           projects.map(async (project) => {
-            const { data: techData } = await supabase
-              .from('project_technologies')
-              .select(`
-                technologies (name),
-                is_highlighted
-              `)
-              .eq('project_id', project.id);
-
-            const { data: tagData } = await supabase
-              .from('project_tags')  
-              .select(`
-                tag_id, 
-                tags!inner (  
-                  name,
-                  colour
-                )
-              `)
-              .eq('project_id', project.id);
-
+            const { technologies, tags } = await fetchTagsAndTech(project.id);
             return {
               ...project,
-              technologies: techData?.map(tech => ({
-                name: tech.technologies.name,
-                is_highlighted: tech.is_highlighted
-              })) || [],
-              tags: tagData?.map(tag => ({
-                name: tag.tags.name,
-                colour: tag.tags.colour,
-                is_highlighted: tag.is_highlighted
-              })) || [] 
+              technologies,
+              tags,
+              issueCount: openIssueCountMap[project.id] || 0
             };
           })
         );
-        
-        if (projectsWithData?.length > 0) {
-          setCachedData('beginner_projects', projectsWithData);
-        }
-        
         setBeginnerProjects(projectsWithData);
       } catch (error) {
-        console.error('Error in fetchBeginnerProjects:', error);
         setBeginnerProjects([]);
       } finally {
         setLoadingBeginner(false);
       }
     };
-    
     fetchBeginnerProjects();
   }, []);
 
   return (
-    <div className="w-screen min-h-screen justify-center flex flex-col items-center">
+    <div className="w-full min-h-screen flex flex-col items-center bg-[--primary-color]">
       <CodeConnectTitle />
       {notification && (
         <Notification
@@ -616,14 +418,30 @@ function HomeContent() {
           onClose={() => setNotification(null)}
         />
       )}
-      <div className="flex justify-center w-full">
-        <div className="main-page-contents">
-          <div className="w-full py-2.5">
-            <div className="flex justify-between items-center">
+      <div
+        className="
+          flex justify-center w-full
+          px-2 sm:px-4
+        "
+      >
+        <div
+          className="
+            main-page-contents
+            w-full
+            max-w-[1200px]
+            xl:max-w-[1400px]
+            2xl:max-w-[1600px]
+            mx-auto
+            py-6
+            space-y-8
+          "
+        >
+          {/* --- Recommended Section --- */}
+          <div className="w-full">
+            <div className="flex justify-between items-center mb-2">
               <h3 className="inter-bold main-subtitle">Recommended For You:</h3>
               <Link href="/recommended" className="text-sm inria-sans-bold title-red hover:underline">View more</Link>
             </div>
-            
             {loadingRecommendations ? (
               <div className="flex items-center justify-center p-8">
                 <div className="text-center">
@@ -651,7 +469,7 @@ function HomeContent() {
                   ))}
                 </div>
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <div className=" bg-opacity-70 p-6 text-center ">
+                  <div className="bg-gray-900 bg-opacity-80 rounded-lg p-6 text-center">
                     <h3 className="text-lg font-bold mb-2">Log in for personalized recommendations</h3>
                     <p>See projects tailored to your interests and skills</p>
                   </div>
@@ -663,7 +481,7 @@ function HomeContent() {
                 <p className="mb-3 text-sm">Explore and interact with more projects to help us understand your interests!</p>
               </div>
             ) : (
-              <div className="flex flex-wrap justify-around gap-4">
+              <div className="flex flex-wrap justify-start gap-6">
                 {recommendedProjects.map((project, index) => (
                   <ProjectPreview
                     key={`recommended-${project.id}-${index}`}
@@ -692,12 +510,12 @@ function HomeContent() {
             )}
           </div>
 
-          <div className="w-full py-2.5">
-            <div className="flex justify-between items-center">
+          {/* --- Trending Section --- */}
+          <div className="w-full">
+            <div className="flex justify-between items-center mb-2">
               <h3 className="inter-bold main-subtitle">Trending Projects:</h3>
               <Link href="/trending" className="text-sm inria-sans-bold title-red hover:underline">View more</Link>
             </div>
-            
             {loadingTrending ? (
               <div className="flex items-center justify-center p-8">
                 <div className="text-center">
@@ -712,41 +530,41 @@ function HomeContent() {
                 No trending projects found
               </div>
             ) : (
-              <div className="flex flex-wrap justify-around gap-4">
-                {trendingProjects.map(project => (
-                  <ProjectPreview
-                    key={`trending-${project.id}`}
-                    id={project.id}
-                    name={project.repo_name}
-                    date={project.created_at}
-                    tags={
-                      project.tags && project.tags.filter(tag => tag.is_highlighted).length > 0
-                        ? project.tags.filter(tag => tag.is_highlighted)
-                        : project.tags.slice(0, 3)
-                    }
-                    description={
-                      project.description_type === "Write your Own" 
-                        ? project.custom_description 
-                        : "GitHub project description"
-                    }
-                    techStack={project.technologies
-                      .filter(tech => tech.is_highlighted)
-                      .map(tech => tech.name)}
-                    issueCount={0}
-                    recommended={false}
-                    image={project.image}
-                  />
-                ))}
+              <div className="flex flex-wrap justify-start gap-6">
+                {trendingProjects.map(project => {
+                  const highlightedTags = project.tags.filter(tag => tag.is_highlighted);
+                  const tagsToShow = highlightedTags.length > 0 ? highlightedTags : project.tags.slice(0, 3);
+                  return (
+                    <ProjectPreview
+                      key={`trending-${project.id}`}
+                      id={project.id}
+                      name={project.repo_name}
+                      date={project.created_at}
+                      tags={tagsToShow}
+                      description={
+                        project.description_type === "Write your Own"
+                          ? project.custom_description
+                          : "GitHub project description"
+                      }
+                      techStack={project.technologies
+                        .filter(tech => tech.is_highlighted)
+                        .map(tech => tech.name)}
+                      issueCount={project.issueCount || 0}
+                      recommended={false}
+                      image={project.image}
+                    />
+                  );
+                })}
               </div>
             )}
           </div>
 
-          <div className="w-full py-2.5">
-            <div className="flex justify-between items-center">
+          {/* --- Newest Section --- */}
+          <div className="w-full">
+            <div className="flex justify-between items-center mb-2">
               <h3 className="inter-bold main-subtitle">Newest Projects:</h3>
               <Link href="/newest" className="text-sm inria-sans-bold title-red hover:underline">View more</Link>
             </div>
-            
             {loadingNewest ? (
               <div className="flex items-center justify-center p-8">
                 <div className="text-center">
@@ -761,41 +579,41 @@ function HomeContent() {
                 No new projects found
               </div>
             ) : (
-              <div className="flex flex-wrap justify-around gap-4">
-                {newestProjects.map(project => (
-                  <ProjectPreview
-                    key={`newest-${project.id}`}
-                    id={project.id}
-                    name={project.repo_name}
-                    date={project.created_at}
-                    tags={
-                      project.tags && project.tags.filter(tag => tag.is_highlighted).length > 0
-                        ? project.tags.filter(tag => tag.is_highlighted)
-                        : project.tags.slice(0, 3)
-                    }
-                    description={
-                      project.description_type === "Write your Own" 
-                        ? project.custom_description 
-                        : "GitHub project description"
-                    }
-                    techStack={project.technologies
-                      .filter(tech => tech.is_highlighted)
-                      .map(tech => tech.name)}
-                    issueCount={project.issueCount || 0}
-                    recommended={false}
-                    image={project.image}
-                  />
-                ))}
+              <div className="flex flex-wrap justify-start gap-6">
+                {newestProjects.map(project => {
+                  const highlightedTags = project.tags.filter(tag => tag.is_highlighted);
+                  const tagsToShow = highlightedTags.length > 0 ? highlightedTags : project.tags.slice(0, 3);
+                  return (
+                    <ProjectPreview
+                      key={`newest-${project.id}`}
+                      id={project.id}
+                      name={project.repo_name}
+                      date={project.created_at}
+                      tags={tagsToShow}
+                      description={
+                        project.description_type === "Write your Own"
+                          ? project.custom_description
+                          : "GitHub project description"
+                      }
+                      techStack={project.technologies
+                        .filter(tech => tech.is_highlighted)
+                        .map(tech => tech.name)}
+                      issueCount={project.issueCount || 0}
+                      recommended={false}
+                      image={project.image}
+                    />
+                  );
+                })}
               </div>
             )}
           </div>
 
-          <div className="w-full py-2.5">
-            <div className="flex justify-between items-center">
+          {/* --- Popular Section --- */}
+          <div className="w-full">
+            <div className="flex justify-between items-center mb-2">
               <h3 className="inter-bold main-subtitle">Popular Projects:</h3>
               <Link href="/popular" className="text-sm inria-sans-bold title-red hover:underline">View more</Link>
             </div>
-            
             {loadingPopular ? (
               <div className="flex items-center justify-center p-8">
                 <div className="text-center">
@@ -810,41 +628,41 @@ function HomeContent() {
                 No popular projects found
               </div>
             ) : (
-              <div className="flex flex-wrap justify-around gap-4">
-                {popularProjects.map(project => (
-                  <ProjectPreview
-                    key={`popular-${project.id}`}
-                    id={project.id}
-                    name={project.repo_name}
-                    date={project.created_at}
-                    tags={
-                      project.tags && project.tags.filter(tag => tag.is_highlighted).length > 0
-                        ? project.tags.filter(tag => tag.is_highlighted)
-                        : project.tags.slice(0, 3)
-                    }
-                    description={
-                      project.description_type === "Write your Own" 
-                        ? project.custom_description 
-                        : "GitHub project description"
-                    }
-                    techStack={project.technologies
-                      .filter(tech => tech.is_highlighted)
-                      .map(tech => tech.name)}
-                    issueCount={0}
-                    recommended={false}
-                    image={project.image}
-                  />
-                ))}
+              <div className="flex flex-wrap justify-start gap-6">
+                {popularProjects.map(project => {
+                  const highlightedTags = project.tags.filter(tag => tag.is_highlighted);
+                  const tagsToShow = highlightedTags.length > 0 ? highlightedTags : project.tags.slice(0, 3);
+                  return (
+                    <ProjectPreview
+                      key={`popular-${project.id}`}
+                      id={project.id}
+                      name={project.repo_name}
+                      date={project.created_at}
+                      tags={tagsToShow}
+                      description={
+                        project.description_type === "Write your Own"
+                          ? project.custom_description
+                          : "GitHub project description"
+                      }
+                      techStack={project.technologies
+                        .filter(tech => tech.is_highlighted)
+                        .map(tech => tech.name)}
+                      issueCount={project.issueCount || 0}
+                      recommended={false}
+                      image={project.image}
+                    />
+                  );
+                })}
               </div>
             )}
           </div>
 
-          <div className="w-full py-2.5">
-            <div className="flex justify-between items-center">
+          {/* --- Beginner Section --- */}
+          <div className="w-full">
+            <div className="flex justify-between items-center mb-2">
               <h3 className="inter-bold main-subtitle">Beginner Projects:</h3>
               <Link href="/beginner" className="text-sm inria-sans-bold title-red hover:underline">View more</Link>
             </div>
-            
             {loadingBeginner ? (
               <div className="flex items-center justify-center p-8">
                 <div className="text-center">
@@ -859,31 +677,31 @@ function HomeContent() {
                 No beginner projects found
               </div>
             ) : (
-              <div className="flex flex-wrap justify-around gap-4">
-                {beginnerProjects.map(project => (
-                  <ProjectPreview
-                    key={`beginner-${project.id}`}
-                    id={project.id}
-                    name={project.repo_name}
-                    date={project.created_at}
-                    tags={
-                      project.tags && project.tags.filter(tag => tag.is_highlighted).length > 0
-                        ? project.tags.filter(tag => tag.is_highlighted)
-                        : project.tags.slice(0, 3)
-                    }
-                    description={
-                      project.description_type === "Write your Own" 
-                        ? project.custom_description 
-                        : "GitHub project description"
-                    }
-                    techStack={project.technologies
-                      .filter(tech => tech.is_highlighted)
-                      .map(tech => tech.name)}
-                    issueCount={0}
-                    recommended={false}
-                    image={project.image}
-                  />
-                ))}
+              <div className="flex flex-wrap justify-start gap-6">
+                {beginnerProjects.map(project => {
+                  const highlightedTags = project.tags.filter(tag => tag.is_highlighted);
+                  const tagsToShow = highlightedTags.length > 0 ? highlightedTags : project.tags.slice(0, 3);
+                  return (
+                    <ProjectPreview
+                      key={`beginner-${project.id}`}
+                      id={project.id}
+                      name={project.repo_name}
+                      date={project.created_at}
+                      tags={tagsToShow}
+                      description={
+                        project.description_type === "Write your Own"
+                          ? project.custom_description
+                          : "GitHub project description"
+                      }
+                      techStack={project.technologies
+                        .filter(tech => tech.is_highlighted)
+                        .map(tech => tech.name)}
+                      issueCount={project.issueCount || 0}
+                      recommended={false}
+                      image={project.image}
+                    />
+                  );
+                })}
               </div>
             )}
           </div>
