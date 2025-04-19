@@ -410,7 +410,7 @@ function HomeContent() {
   }, []);
 
   return (
-    <div className="w-full min-h-screen flex flex-col items-center bg-[--primary-color]">
+    <div className="w-full min-h-screen flex flex-col items-center">
       <CodeConnectTitle />
       {notification && (
         <Notification
@@ -418,19 +418,11 @@ function HomeContent() {
           onClose={() => setNotification(null)}
         />
       )}
-      <div
-        className="
-          flex justify-center w-full
-          px-2 sm:px-4
-        "
-      >
+      <div className="flex justify-center w-full px-2 sm:px-4 max-w-[1200px]">
         <div
           className="
             main-page-contents
             w-full
-            max-w-[1200px]
-            xl:max-w-[1400px]
-            2xl:max-w-[1600px]
             mx-auto
             py-6
             space-y-8
@@ -481,7 +473,7 @@ function HomeContent() {
                 <p className="mb-3 text-sm">Explore and interact with more projects to help us understand your interests!</p>
               </div>
             ) : (
-              <div className="flex flex-wrap justify-start gap-6">
+              <div className="flex flex-wrap justify-center gap-6">
                 {recommendedProjects.map((project, index) => (
                   <ProjectPreview
                     key={`recommended-${project.id}-${index}`}
@@ -530,7 +522,7 @@ function HomeContent() {
                 No trending projects found
               </div>
             ) : (
-              <div className="flex flex-wrap justify-start gap-6">
+              <div className="flex flex-wrap justify-center gap-6">
                 {trendingProjects.map(project => {
                   const highlightedTags = project.tags.filter(tag => tag.is_highlighted);
                   const tagsToShow = highlightedTags.length > 0 ? highlightedTags : project.tags.slice(0, 3);
@@ -579,7 +571,7 @@ function HomeContent() {
                 No new projects found
               </div>
             ) : (
-              <div className="flex flex-wrap justify-start gap-6">
+              <div className="flex flex-wrap justify-center gap-6">
                 {newestProjects.map(project => {
                   const highlightedTags = project.tags.filter(tag => tag.is_highlighted);
                   const tagsToShow = highlightedTags.length > 0 ? highlightedTags : project.tags.slice(0, 3);
@@ -628,7 +620,7 @@ function HomeContent() {
                 No popular projects found
               </div>
             ) : (
-              <div className="flex flex-wrap justify-start gap-6">
+              <div className="flex flex-wrap justify-center gap-6">
                 {popularProjects.map(project => {
                   const highlightedTags = project.tags.filter(tag => tag.is_highlighted);
                   const tagsToShow = highlightedTags.length > 0 ? highlightedTags : project.tags.slice(0, 3);
@@ -677,7 +669,7 @@ function HomeContent() {
                 No beginner projects found
               </div>
             ) : (
-              <div className="flex flex-wrap justify-start gap-6">
+              <div className="flex flex-wrap justify-center gap-6">
                 {beginnerProjects.map(project => {
                   const highlightedTags = project.tags.filter(tag => tag.is_highlighted);
                   const tagsToShow = highlightedTags.length > 0 ? highlightedTags : project.tags.slice(0, 3);
