@@ -14,12 +14,15 @@ function parseField(field) {
 }
 
 export default async function handler(req, res) {
+  console.log('📥 API: Project create/update request received', { method: req.method, url: req.url });
   try {
     if (req.method !== 'POST') {
+      console.log('❌ API: Method not allowed', { method: req.method });
       return res.status(405).json({ error: 'Method not allowed' });
     }
 
     // Parse FormData
+    console.log('🔄 API: Starting form parsing');
     const form = new IncomingForm({
       keepExtensions: true,
       maxFileSize: 50 * 1024 * 1024,
@@ -28,25 +31,40 @@ export default async function handler(req, res) {
 
     const data = await new Promise((resolve, reject) => {
       form.parse(req, (err, fields, files) => {
-        if (err) reject(err);
-        else resolve({ fields, files });
+        if (err) {
+          console.error('❌ API: Form parsing error', err);
+          reject(err);
+        } else {
+          console.log('✅ API: Form parsed successfully', { 
+            fieldsReceived: Object.keys(fields),
+            filesReceived: Object.keys(files)
+          });
+          resolve({ fields, files });
+        }
       });
     });
 
     // Check Supabase session
+    console.log('🔄 API: Checking Supabase session');
     const supabase = createPagesServerClient({ req, res });
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
+      console.log('❌ API: No Supabase session found');
       return res.status(401).json({ error: 'Unauthorized' });
     }
+    console.log('✅ API: Supabase session valid', { userId: session.user.id, email: session.user.email });
 
     // Check GitHub token
+    console.log('🔄 API: Checking GitHub token');
     const githubToken = req.cookies.github_access_token;
     if (!githubToken) {
+      console.log('❌ API: No GitHub token found');
       return res.status(401).json({ error: 'GitHub authentication required' });
     }
+    console.log('✅ API: GitHub token found');
 
     // Parse all fields
+    console.log('🔄 API: Parsing form fields');
     const project_id = parseField(data.fields.project_id); 
     const repoName = parseField(data.fields.repoName);
     const owner = parseField(data.fields.owner);
@@ -66,8 +84,21 @@ export default async function handler(req, res) {
     const setup_time = parseField(data.fields.setup_time);
 
     let isUpdate = !!project_id;
+    console.log('✅ API: Fields parsed successfully', { 
+      isUpdate,
+      project_id,
+      repoName,
+      owner,
+      github_link,
+      description_type,
+      difficulty_level,
+      tagsCount: tags.length,
+      techCount: technologies.length,
+      status
+    });
 
     // If description_type is "Use existing description", fetch from GitHub
+    console.log('🔄 API: Processing description', { type: description_type });
     let finalDescription = custom_description;
     const descType = description_type;
     if (
@@ -76,6 +107,7 @@ export default async function handler(req, res) {
       github_link
     ) {
       try {
+        console.log('🔄 API: Fetching description from GitHub', { github_link });
         let repoOwner = owner;
         let repoNameValue = repoName;
         const match = github_link.match(/github\.com\/([^\/]+)\/([^\/]+)/);
@@ -83,17 +115,30 @@ export default async function handler(req, res) {
           repoOwner = match[1];
           repoNameValue = match[2];
         }
+        console.log('🔄 API: GitHub repo info', { repoOwner, repoNameValue });
+        
         const response = await fetch(`https://api.github.com/repos/${repoOwner}/${repoNameValue}`, {
           headers: {
             'Authorization': `token ${githubToken}`,
             'Accept': 'application/vnd.github.v3+json'
           }
         });
+        
+        console.log('🔄 API: GitHub API response status:', response.status);
         if (response.ok) {
           const repoData = await response.json();
           finalDescription = repoData.description || '';
+          console.log('✅ API: GitHub description fetched successfully', { 
+            description: finalDescription ? (finalDescription.length > 50 ? finalDescription.substring(0, 50) + '...' : finalDescription) : '(empty)'
+          });
+        } else {
+          console.log('⚠️ API: Failed to fetch GitHub description', { 
+            status: response.status, 
+            statusText: response.statusText 
+          });
         }
       } catch (err) {
+        console.error('❌ API: Error fetching GitHub description', err);
         // fallback to custom_description if fetch fails
       }
     }
@@ -103,6 +148,7 @@ export default async function handler(req, res) {
 
     let imageUrl = null;
     if (data.files && data.files.banner_image) {
+      console.log('🔄 API: Processing banner image');
       const file = Array.isArray(data.files.banner_image)
         ? data.files.banner_image[0]
         : data.files.banner_image;
@@ -111,7 +157,15 @@ export default async function handler(req, res) {
         try {
           const fileExt = file.originalFilename.split('.').pop();
           const fileType = file.mimetype;
+          console.log('🔄 API: Image details', { 
+            originalFilename: file.originalFilename, 
+            fileType, 
+            fileExt,
+            size: fs.statSync(file.filepath).size 
+          });
+          
           const buffer = fs.readFileSync(file.filepath);
+          console.log('🔄 API: Image buffer loaded, starting moderation');
 
           // Sightengine moderation
           const formData = new FormData();
@@ -123,6 +177,7 @@ export default async function handler(req, res) {
             contentType: fileType,
           });
 
+          console.log('🔄 API: Sending image to Sightengine for moderation');
           const sightengineResponse = await axios.post(
             'https://api.sightengine.com/1.0/check.json',
             formData,
@@ -130,6 +185,13 @@ export default async function handler(req, res) {
           );
 
           const result = sightengineResponse.data;
+          console.log('✅ API: Sightengine moderation result', { 
+            nudity_safe: result.nudity?.safe, 
+            weapon: result.weapon?.weapon,
+            offensive_prob: result.offensive?.prob,
+            gore_prob: result.gore?.prob
+          });
+          
           if (
             result.nudity?.safe === false ||
             result.weapon?.weapon === true ||
@@ -141,9 +203,11 @@ export default async function handler(req, res) {
             result.self_harm?.self_harm === true ||
             result.gambling?.gambling === true
           ) {
+            console.log('❌ API: Image failed moderation');
             return res.status(400).json({ error: "Image failed moderation: contains inappropriate or restricted content." });
           }
         } catch (error) {
+          console.error('❌ API: Image moderation failed', error);
           let errorMsg = "Image moderation failed.";
           if (error.response && error.response.data && error.response.data.error) {
             errorMsg = typeof error.response.data.error === "string"
@@ -155,30 +219,42 @@ export default async function handler(req, res) {
       }
     }
     // Check if banner image is provided
+    console.log('🔄 API: Validating image requirements', { isUpdate, hasImage: !!(data.files && data.files.banner_image) });
     if (!isUpdate && (!data.files || !data.files.banner_image)) {
+      console.log('❌ API: Missing banner image for new project');
       return res.status(400).json({ error: 'Project banner image is required' });
     }
 
     // For updates, check if there's an existing image
     if (isUpdate && (!data.files || !data.files.banner_image)) {
+      console.log('🔄 API: No new image provided for update, checking if existing image exists');
       // Check if the project already has an image
-      const { data: existingProject } = await supabase
+      const { data: existingProject, error: existingProjectError } = await supabase
         .from('project')
         .select('image')
         .eq('id', project_id)
         .single();
 
+      if (existingProjectError) {
+        console.error('❌ API: Error checking existing project', existingProjectError);
+      }
+
       if (!existingProject || !existingProject.image) {
+        console.log('❌ API: No existing image found for project update');
         return res.status(400).json({ error: 'Project banner image is required' });
       }
+      
+      console.log('✅ API: Existing image found, proceeding with update');
     }
 
     // --- CREATE or UPDATE LOGIC ---
+    console.log(`🔄 API: ${isUpdate ? 'Updating' : 'Creating'} project`);
     let project;
     let projectError;
 
     if (isUpdate) {
       // UPDATE existing project
+      console.log('🔄 API: Updating project in database', { project_id });
       const { data: updated, error: updateError } = await supabase
         .from('project')
         .update({
@@ -202,8 +278,15 @@ export default async function handler(req, res) {
         .single();
       project = updated;
       projectError = updateError;
+      
+      if (updateError) {
+        console.error('❌ API: Project update error', updateError);
+      } else {
+        console.log('✅ API: Project updated successfully', { project_id: project.id });
+      }
     } else {
       // CREATE new project
+      console.log('🔄 API: Creating new project in database');
       const { data: created, error: createError } = await supabase
         .from('project')
         .insert([{
@@ -228,6 +311,12 @@ export default async function handler(req, res) {
         .single();
       project = created;
       projectError = createError;
+      
+      if (createError) {
+        console.error('❌ API: Project creation error', createError);
+      } else {
+        console.log('✅ API: Project created successfully', { project_id: project.id });
+      }
     }
 
     if (projectError) {
@@ -236,6 +325,7 @@ export default async function handler(req, res) {
 
     // --- IMAGE UPLOAD (for both create and update) ---
     if (data.files && data.files.banner_image) {
+      console.log('🔄 API: Processing image upload');
       const file = Array.isArray(data.files.banner_image)
         ? data.files.banner_image[0]
         : data.files.banner_image;
@@ -247,6 +337,7 @@ export default async function handler(req, res) {
           const buffer = fs.readFileSync(file.filepath);
 
           const filename = `${session.user.id}/project_banners/${project.id}.${fileExt}`;
+          console.log('🔄 API: Uploading image to storage', { filename, fileType });
 
           const { data: uploadData, error: uploadError } = await supabase.storage
             .from('project-images')
@@ -257,59 +348,77 @@ export default async function handler(req, res) {
             });
 
           if (uploadError) {
-            console.error('Image upload error:', uploadError);
-
+            console.error('❌ API: Image upload error:', uploadError);
           } else {
+            console.log('✅ API: Image uploaded successfully');
             const { data: { publicUrl } } = supabase.storage
               .from('project-images')
               .getPublicUrl(filename);
 
             imageUrl = publicUrl;
-            await supabase
+            console.log('🔄 API: Updating project with image URL', { imageUrl });
+            
+            const { error: imageUpdateError } = await supabase
               .from('project')
               .update({ image: imageUrl })
               .eq('id', project.id);
+              
+            if (imageUpdateError) {
+              console.error('❌ API: Error updating project with image URL', imageUpdateError);
+            } else {
+              console.log('✅ API: Project updated with image URL');
+            }
           }
         } catch (error) {
-          console.error('File processing error:', error);
+          console.error('❌ API: File processing error:', error);
           // Better error handling - continue with the project creation
           // but log the error for debugging
         } finally {
           // Clean up the temporary file
           try {
             fs.unlinkSync(file.filepath);
+            console.log('✅ API: Temporary file cleaned up');
           } catch (cleanupError) {
-            console.error('File cleanup error:', cleanupError);
+            console.error('❌ API: File cleanup error:', cleanupError);
           }
         }
       }
     }
 
     // --- TECHNOLOGIES & TAGS ---
+    console.log('🔄 API: Processing technologies and tags');
     // Remove old project_technologies/project_tags if updating
     if (isUpdate) {
-      await supabase.from('project_technologies').delete().eq('project_id', project.id);
-      await supabase.from('project_tags').delete().eq('project_id', project.id);
+      console.log('🔄 API: Removing old technologies and tags associations');
+      const { error: techDeleteError } = await supabase.from('project_technologies').delete().eq('project_id', project.id);
+      const { error: tagDeleteError } = await supabase.from('project_tags').delete().eq('project_id', project.id);
+      
+      if (techDeleteError) console.error('❌ API: Error deleting old technologies', techDeleteError);
+      if (tagDeleteError) console.error('❌ API: Error deleting old tags', tagDeleteError);
     }
 
     // Map technology names to IDs
     let technologyIds = [];
     if (technologies.length > 0) {
+      console.log('🔄 API: Fetching technology IDs', { technologies });
       const { data: techRows, error: techFetchError } = await supabase
         .from('technologies')
         .select('id, name')
         .in('name', technologies);
 
       if (techFetchError) {
+        console.error('❌ API: Error fetching technologies', techFetchError);
         return res.status(500).json({ error: techFetchError.message });
       }
 
+      console.log('✅ API: Technology rows fetched', { count: techRows?.length });
       const techNameToId = {};
       techRows.forEach(row => {
         techNameToId[row.name.toLowerCase()] = row.id;
       });
 
       technologyIds = technologies.map(name => techNameToId[name.toLowerCase()]).filter(Boolean);
+      console.log('🔄 API: Technology IDs mapped', { count: technologyIds.length });
 
       // Insert project_technologies
       const techRowsToInsert = technologyIds.map(techId => ({
@@ -323,17 +432,21 @@ export default async function handler(req, res) {
       }));
 
       if (techRowsToInsert.length > 0) {
+        console.log('🔄 API: Inserting project technologies', { count: techRowsToInsert.length });
         const { error: techError } = await supabase
           .from('project_technologies')
           .insert(techRowsToInsert);
         if (techError) {
+          console.error('❌ API: Error inserting technologies', techError);
           return res.status(500).json({ error: techError.message });
         }
+        console.log('✅ API: Project technologies inserted');
       }
     }
 
     // Insert project_tags
     if (tags.length > 0) {
+      console.log('🔄 API: Fetching tag IDs', { tags });
       // Get tag IDs
       const { data: tagRows, error: tagFetchError } = await supabase
         .from('tags')
@@ -341,15 +454,18 @@ export default async function handler(req, res) {
         .in('name', tags);
 
       if (tagFetchError) {
+        console.error('❌ API: Error fetching tags', tagFetchError);
         return res.status(500).json({ error: tagFetchError.message });
       }
 
+      console.log('✅ API: Tag rows fetched', { count: tagRows?.length });
       const tagNameToId = {};
       tagRows.forEach(row => {
         tagNameToId[row.name.toLowerCase()] = row.id;
       });
 
       const tagIds = tags.map(name => tagNameToId[name.toLowerCase()]).filter(Boolean);
+      console.log('🔄 API: Tag IDs mapped', { count: tagIds.length });
 
       const tagRowsToInsert = tagIds.map(tagId => ({
         project_id: project.id,
@@ -362,23 +478,30 @@ export default async function handler(req, res) {
       }));
 
       if (tagRowsToInsert.length > 0) {
+        console.log('🔄 API: Inserting project tags', { count: tagRowsToInsert.length });
         const { error: tagError } = await supabase
           .from('project_tags')
           .insert(tagRowsToInsert);
         if (tagError) {
+          console.error('❌ API: Error inserting tags', tagError);
           return res.status(500).json({ error: tagError.message });
         }
+        console.log('✅ API: Project tags inserted');
       }
     }
 
     // --- CONTRIBUTION TYPES ---
+    console.log('🔄 API: Processing contribution types');
     // Remove old project_contribution_type if updating
     if (isUpdate) {
-      await supabase.from('project_contribution_type').delete().eq('project_id', project.id);
+      console.log('🔄 API: Removing old contribution types');
+      const { error: contTypeDeleteError } = await supabase.from('project_contribution_type').delete().eq('project_id', project.id);
+      if (contTypeDeleteError) console.error('❌ API: Error deleting contribution types', contTypeDeleteError);
     }
 
     // Insert project_contribution_type
     if (contribution_types.length > 0) {
+      console.log('🔄 API: Fetching contribution type IDs', { contribution_types });
       // Get contribution type IDs
       const { data: contTypeRows, error: contTypeFetchError } = await supabase
         .from('contribution_type')
@@ -386,15 +509,18 @@ export default async function handler(req, res) {
         .in('name', contribution_types);
 
       if (contTypeFetchError) {
+        console.error('❌ API: Error fetching contribution types', contTypeFetchError);
         return res.status(500).json({ error: contTypeFetchError.message });
       }
 
+      console.log('✅ API: Contribution type rows fetched', { count: contTypeRows?.length });
       const contTypeNameToId = {};
       contTypeRows.forEach(row => {
         contTypeNameToId[row.name.toLowerCase()] = row.id;
       });
 
       const contTypeIds = contribution_types.map(name => contTypeNameToId[name.toLowerCase()]).filter(Boolean);
+      console.log('🔄 API: Contribution type IDs mapped', { count: contTypeIds.length });
 
       const contTypeRowsToInsert = contTypeIds.map(contTypeId => ({
         project_id: project.id,
@@ -402,17 +528,22 @@ export default async function handler(req, res) {
       }));
 
       if (contTypeRowsToInsert.length > 0) {
+        console.log('🔄 API: Inserting contribution types', { count: contTypeRowsToInsert.length });
         const { error: contTypeError } = await supabase
           .from('project_contribution_type')
           .insert(contTypeRowsToInsert);
         if (contTypeError) {
+          console.error('❌ API: Error inserting contribution types', contTypeError);
           return res.status(500).json({ error: contTypeError.message });
         }
+        console.log('✅ API: Project contribution types inserted');
       }
     }
 
+    console.log('✅ API: Project process completed successfully', { projectId: project.id, isUpdate });
     return res.status(isUpdate ? 200 : 201).json({ projectId: project.id });
   } catch (error) {
+    console.error('❌ API: Unhandled error in project create/update', error);
     return res.status(500).json({ error: error.message || 'Internal server error' });
   }
 }
