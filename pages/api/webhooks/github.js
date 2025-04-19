@@ -2,6 +2,16 @@ import { createPagesServerClient } from '@supabase/auth-helpers-nextjs';
 import crypto from 'crypto';
 
 export default async function handler(req, res) {
+  const rawBody = await new Promise((resolve) => {
+    let data = '';
+    req.on('data', (chunk) => {
+      data += chunk;
+    });
+    req.on('end', () => {
+      resolve(data);
+    });
+  });
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -32,9 +42,8 @@ export default async function handler(req, res) {
   
   try {
     // Verify signature using the environment variable secret
-    const payload = JSON.stringify(req.body);
     const hmac = crypto.createHmac('sha256', secret);
-    const calculatedSignature = `sha256=${hmac.update(payload).digest('hex')}`;
+    const calculatedSignature = `sha256=${hmac.update(rawBody).digest('hex')}`;
     
     // Debug logging for signature verification
     console.log('Debug - Signatures:');
