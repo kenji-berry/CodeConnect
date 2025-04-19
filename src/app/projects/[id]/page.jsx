@@ -613,8 +613,8 @@ const ProjectDetails = () => {
             <div>
               <h3 className="font-bold text-lg mb-1">GitHub Webhook Required</h3>
               <p className="mb-2">
-                Your project isn't visible to other users because you haven't set up a GitHub webhook.
-                Projects without active webhooks won't appear in recommendations or search results.
+                Your project isn&#39;t visible to other users because you haven&#39;t set up a GitHub webhook.
+                Projects without active webhooks won&#39;t appear in recommendations or search results.
               </p>
               <details className="bg-amber-700 rounded p-2 mt-1">
                 <summary className="font-semibold cursor-pointer">How to set up your webhook</summary>
