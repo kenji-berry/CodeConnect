@@ -47,7 +47,7 @@ export default async function handler(req, res) {
     }
 
     // Parse all fields
-    const project_id = parseField(data.fields.project_id); // <-- NEW
+    const project_id = parseField(data.fields.project_id); 
     const repoName = parseField(data.fields.repoName);
     const owner = parseField(data.fields.owner);
     const github_link = parseField(data.fields.github_link);
@@ -64,6 +64,8 @@ export default async function handler(req, res) {
     const mentorship = parseField(data.fields.mentorship);
     const license = parseField(data.fields.license);
     const setup_time = parseField(data.fields.setup_time);
+
+    let isUpdate = !!project_id;
 
     // If description_type is "Use existing description", fetch from GitHub
     let finalDescription = custom_description;
@@ -174,7 +176,6 @@ export default async function handler(req, res) {
     // --- CREATE or UPDATE LOGIC ---
     let project;
     let projectError;
-    let isUpdate = !!project_id;
 
     if (isUpdate) {
       // UPDATE existing project
