@@ -2,10 +2,9 @@ import { createPagesServerClient } from '@supabase/auth-helpers-nextjs';
 import crypto from 'crypto';
 
 export default async function handler(req, res) {
-  // First, respond to GitHub quickly to prevent timeout
-  // GitHub only cares that we received the webhook, not what we do with it
+  // Respond to GitHub quickly to prevent timeout
   res.status(200).json({ success: true });
-  
+
   try {
     // Get raw body for signature verification
     const rawBody = await new Promise((resolve) => {
@@ -17,20 +16,35 @@ export default async function handler(req, res) {
         resolve(data);
       });
     });
-    
-    // Basic validation
-    if (req.method !== 'POST') return;
-    
+
+    // Basic validation with logging
+    if (req.method !== 'POST') {
+      console.log('Webhook: Ignoring non-POST request');
+      return;
+    }
+
     const projectId = req.query.projectId;
-    if (!projectId) return;
-    
+    if (!projectId) {
+      console.log('Webhook: Missing projectId parameter');
+      return;
+    }
+
     const signature = req.headers['x-hub-signature-256'];
-    if (!signature) return;
-    
+    if (!signature) {
+      console.log('Webhook: Missing signature header');
+      return;
+    }
+
     // Verify signature
+    const secret = process.env.GITHUB_WEBHOOK_SECRET;
+    if (!secret) {
+      console.error('Webhook: Missing GITHUB_WEBHOOK_SECRET environment variable');
+      return;
+    }
+
     const hmac = crypto.createHmac('sha256', secret);
     const calculatedSignature = `sha256=${hmac.update(rawBody).digest('hex')}`;
-    
+
     let isSignatureValid = false;
     try {
       isSignatureValid = crypto.timingSafeEqual(
@@ -41,20 +55,25 @@ export default async function handler(req, res) {
       console.error('Signature comparison error:', e.message);
       return;
     }
-    
-    if (!isSignatureValid) return;
-    
+
+    if (!isSignatureValid) {
+      console.error('Webhook: Invalid signature');
+      return;
+    }
+
     // Process the webhook asynchronously
     const supabase = createPagesServerClient({ req, res });
     await supabase
       .from('project')
       .update({ webhook_active: true })
       .eq('id', projectId);
-    
+
     // Process webhook events with lightweight operations
     const event = req.headers['x-github-event'];
     const body = JSON.parse(rawBody);
-    
+
+    console.log(`Webhook received: ${event} for project ${projectId}`);
+
     switch (event) {
       case 'push':
         processCommits(body, projectId, supabase);
@@ -65,6 +84,11 @@ export default async function handler(req, res) {
       case 'pull_request':
         processPullRequest(body, projectId, supabase);
         break;
+      case 'ping':
+        console.log(`Received ping event for project ${projectId}`);
+        break;
+      default:
+        console.log(`Unhandled event type: ${event}`);
     }
   } catch (error) {
     console.error('Webhook processing error:', error);
@@ -73,12 +97,11 @@ export default async function handler(req, res) {
 
 // non async functions for processing events
 function processCommits(payload, projectId, supabase) {
-  // Only process the latest few commits to avoid timeout
   const commits = Array.isArray(payload.commits) ? payload.commits.slice(0, 10) : [];
   const branch = payload.ref ? payload.ref.replace('refs/heads/', '') : null;
-  
+
   if (commits.length === 0) return;
-  
+
   const rows = commits.map(commit => ({
     project_id: projectId,
     commit_id: commit.id,
@@ -88,8 +111,7 @@ function processCommits(payload, projectId, supabase) {
     url: commit.url?.substring(0, 500) || null,
     branch: branch?.substring(0, 100) || null,
   }));
-  
-  // Fire and forget
+
   supabase.from('project_commits').insert(rows).then(() => {
     console.log(`Processed ${rows.length} commits for project ${projectId}`);
   }).catch(err => {
@@ -98,8 +120,6 @@ function processCommits(payload, projectId, supabase) {
 }
 
 function processIssue(payload, projectId, supabase) {
-  // payload.action: opened, closed, edited, etc.
-  // payload.issue: the issue object
   if (!payload.issue) return;
   const issue = payload.issue;
   const labels = Array.isArray(issue.labels) ? issue.labels.map(l => l.name) : [];
@@ -115,7 +135,6 @@ function processIssue(payload, projectId, supabase) {
     labels,
     url: issue.html_url?.substring(0, 500) || null,
   };
-  // Fire and forget
   supabase.from('project_issues').upsert(row, { onConflict: ['project_id', 'issue_id'] }).then(() => {
     console.log(`Processed issue ${issue.id} for project ${projectId}`);
   }).catch(err => {
@@ -124,8 +143,6 @@ function processIssue(payload, projectId, supabase) {
 }
 
 function processPullRequest(payload, projectId, supabase) {
-  // payload.action: opened, closed, edited, etc.
-  // payload.pull_request: the PR object
   if (!payload.pull_request) return;
   const pr = payload.pull_request;
   const labels = Array.isArray(pr.labels) ? pr.labels.map(l => l.name) : [];
@@ -142,7 +159,6 @@ function processPullRequest(payload, projectId, supabase) {
     url: pr.html_url?.substring(0, 500) || null,
     merged: !!pr.merged_at,
   };
-  // Fire and forget
   supabase.from('project_pull_requests').upsert(row, { onConflict: ['project_id', 'pr_id'] }).then(() => {
     console.log(`Processed pull request ${pr.id} for project ${projectId}`);
   }).catch(err => {
