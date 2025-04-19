@@ -76,13 +76,13 @@ export default async function handler(req, res) {
 
     switch (event) {
       case 'push':
-        processCommits(body, projectId, supabase);
+        await processCommits(body, projectId, supabase);
         break;
       case 'issues':
-        processIssue(body, projectId, supabase);
+        await processIssue(body, projectId, supabase);
         break;
       case 'pull_request':
-        processPullRequest(body, projectId, supabase);
+        await processPullRequest(body, projectId, supabase);
         break;
       case 'ping':
         console.log(`Received ping event for project ${projectId}`);
@@ -95,8 +95,7 @@ export default async function handler(req, res) {
   }
 }
 
-// non async functions for processing events
-function processCommits(payload, projectId, supabase) {
+async function processCommits(payload, projectId, supabase) {
   const commits = Array.isArray(payload.commits) ? payload.commits.slice(0, 10) : [];
   const branch = payload.ref ? payload.ref.replace('refs/heads/', '') : null;
 
@@ -112,14 +111,16 @@ function processCommits(payload, projectId, supabase) {
     branch: branch?.substring(0, 100) || null,
   }));
 
-  supabase.from('project_commits').insert(rows).then(() => {
+  try {
+    const { error } = await supabase.from('project_commits').insert(rows);
+    if (error) throw error;
     console.log(`Processed ${rows.length} commits for project ${projectId}`);
-  }).catch(err => {
+  } catch (err) {
     console.error('Error storing commits:', err);
-  });
+  }
 }
 
-function processIssue(payload, projectId, supabase) {
+async function processIssue(payload, projectId, supabase) {
   if (!payload.issue) return;
   const issue = payload.issue;
   const labels = Array.isArray(issue.labels) ? issue.labels.map(l => l.name) : [];
@@ -135,14 +136,16 @@ function processIssue(payload, projectId, supabase) {
     labels,
     url: issue.html_url?.substring(0, 500) || null,
   };
-  supabase.from('project_issues').upsert(row, { onConflict: ['project_id', 'issue_id'] }).then(() => {
+  try {
+    const { error } = await supabase.from('project_issues').upsert(row, { onConflict: ['project_id', 'issue_id'] });
+    if (error) throw error;
     console.log(`Processed issue ${issue.id} for project ${projectId}`);
-  }).catch(err => {
+  } catch (err) {
     console.error('Error storing issue:', err);
-  });
+  }
 }
 
-function processPullRequest(payload, projectId, supabase) {
+async function processPullRequest(payload, projectId, supabase) {
   if (!payload.pull_request) return;
   const pr = payload.pull_request;
   const labels = Array.isArray(pr.labels) ? pr.labels.map(l => l.name) : [];
@@ -159,9 +162,11 @@ function processPullRequest(payload, projectId, supabase) {
     url: pr.html_url?.substring(0, 500) || null,
     merged: !!pr.merged_at,
   };
-  supabase.from('project_pull_requests').upsert(row, { onConflict: ['project_id', 'pr_id'] }).then(() => {
+  try {
+    const { error } = await supabase.from('project_pull_requests').upsert(row, { onConflict: ['project_id', 'pr_id'] });
+    if (error) throw error;
     console.log(`Processed pull request ${pr.id} for project ${projectId}`);
-  }).catch(err => {
+  } catch (err) {
     console.error('Error storing pull request:', err);
-  });
+  }
 }
