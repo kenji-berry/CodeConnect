@@ -36,7 +36,7 @@ export default async function handler(req, res) {
     }
 
     // Verify signature
-    const secret = process.env.GITHUB_WEBHOOK_SECRET;
+    const secret = process.env.NEXT_PUBLIC_GITHUB_WEBHOOK_SECRET;
     if (!secret) {
       console.error('Webhook: Missing GITHUB_WEBHOOK_SECRET environment variable');
       return;

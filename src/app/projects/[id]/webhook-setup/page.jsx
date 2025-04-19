@@ -13,7 +13,7 @@ export default function WebhookSetup() {
   const [copied, setCopied] = useState(false);
   
   // Get the single global secret from env
-  const secret = process.env.GITHUB_WEBHOOK_SECRET;
+  const secret = process.env.NEXT_PUBLIC_GITHUB_WEBHOOK_SECRET;
 
   useEffect(() => {
     async function checkOwner() {
