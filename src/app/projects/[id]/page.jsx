@@ -604,6 +604,50 @@ const ProjectDetails = () => {
 
   return (
     <div className="max-w-3xl mx-auto my-10 bg-[--primary-color] rounded-2xl shadow-lg border border-[--magenta-dark] p-0 overflow-hidden">
+      {isOwner && project && !project.webhook_active && (
+        <div className="bg-amber-600 text-white p-4 border-b border-amber-700">
+          <div className="flex items-start">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <div>
+              <h3 className="font-bold text-lg mb-1">GitHub Webhook Required</h3>
+              <p className="mb-2">
+                Your project isn't visible to other users because you haven't set up a GitHub webhook.
+                Projects without active webhooks won't appear in recommendations or search results.
+              </p>
+              <details className="bg-amber-700 rounded p-2 mt-1">
+                <summary className="font-semibold cursor-pointer">How to set up your webhook</summary>
+                <ol className="list-decimal ml-6 mt-2 text-sm">
+                  <li className="mb-1">Go to your GitHub repository &rarr; <b>Settings</b> &rarr; <b>Webhooks</b></li>
+                  <li className="mb-1">Click <b>Add webhook</b></li>
+                  <li className="mb-1">
+                    <div className="mb-1"><b>Payload URL:</b></div>
+                    <code className="bg-amber-800 p-1 rounded block overflow-x-auto text-xs">
+                      {`${window.location.origin}/api/webhooks/github?projectId=${project.id}`}
+                    </code>
+                  </li>
+                  <li className="mb-1"><b>Content type:</b> <code className="bg-amber-800 p-1 rounded">application/json</code></li>
+                  <li className="mb-1">
+                    <div><b>Secret:</b></div>
+                    <a 
+                      href={`/projects/${project.id}/webhook-setup`} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="text-white underline"
+                    >
+                      Click here to generate a webhook secret
+                    </a>
+                  </li>
+                  <li className="mb-1">For <b>events</b>, select <b>Push</b>, <b>Issues</b>, and <b>Pull requests</b></li>
+                  <li>Click <b>Add webhook</b> to save</li>
+                </ol>
+              </details>
+            </div>
+          </div>
+        </div>
+      )}
+      
       {/* Project Image */}
       {project.image_url && (
         <div className="w-full h-64 bg-gray-800 flex items-center justify-center overflow-hidden">

@@ -37,6 +37,12 @@ export default async function handler(req, res) {
       return res.status(401).json({ error: 'Invalid signature' });
     }
     
+    // Set webhook_active to true when we receive a valid webhook event
+    await supabase
+      .from('project')
+      .update({ webhook_active: true })
+      .eq('id', projectId);
+    
     // Process the webhook event based on type
     const event = req.headers['x-github-event'];
     
@@ -54,6 +60,12 @@ export default async function handler(req, res) {
         // Ignore unhandled events
         break;
     }
+    
+    // Update webhook last activity time
+    await supabase
+      .from('project_webhooks')
+      .update({ last_activity: new Date() })
+      .eq('project_id', projectId);
     
     return res.status(200).json({ success: true });
   } catch (error) {

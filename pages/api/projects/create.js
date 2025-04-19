@@ -65,52 +65,6 @@ export default async function handler(req, res) {
     const license = parseField(data.fields.license);
     const setup_time = parseField(data.fields.setup_time);
 
-    // --- WEBHOOK CHECK: Prevent posting if webhook not set up ---
-    // Only check for new projects (not updates)
-    if (!project_id) {
-      const { data: webhook, error: webhookError } = await supabase
-        .from('project_webhooks')
-        .select('id')
-        .eq('project_id', null) // fallback if project_id not yet created
-        .eq('project_id', project_id || 0) // fallback for 0 if not set
-        .or(`project_id.eq.${project_id || 0},project_id.is.null`)
-        .eq('active', true)
-        .maybeSingle();
-
-      // Try by repoName/owner if project_id not available
-      let projectRow = null;
-      if (!webhook) {
-        const { data: project, error: projectError } = await supabase
-          .from('project')
-          .select('id')
-          .eq('repo_name', repoName)
-          .eq('repo_owner', owner)
-          .maybeSingle();
-        if (project && project.id) {
-          projectRow = project;
-        }
-      }
-
-      let webhookExists = false;
-      if (webhook && webhook.id) {
-        webhookExists = true;
-      } else if (projectRow && projectRow.id) {
-        const { data: webhook2 } = await supabase
-          .from('project_webhooks')
-          .select('id')
-          .eq('project_id', projectRow.id)
-          .eq('active', true)
-          .maybeSingle();
-        if (webhook2 && webhook2.id) webhookExists = true;
-      }
-
-      if (!webhookExists) {
-        return res.status(400).json({
-          error: "You must set up a GitHub webhook for this project before posting. Go to your project settings and follow the webhook setup instructions."
-        });
-      }
-    }
-
     // If description_type is "Use existing description", fetch from GitHub
     let finalDescription = custom_description;
     const descType = description_type;

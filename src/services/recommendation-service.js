@@ -198,7 +198,8 @@ async function getUserPreferredTags(userId, debug = false) {
   const { data: projects, error: projectError } = await supabase
     .from('project')
     .select('id, repo_name')
-    .in('repo_name', interactedRepoIds);
+    .in('repo_name', interactedRepoIds)
+    .eq('webhook_active', true);
   
   if (projectError || !projects || projects.length === 0) {
     console.error('Error getting projects for tag preferences:', projectError);
@@ -278,7 +279,8 @@ async function getUserPreferredTechnologies(userId: string) {
   const { data: projects, error: projectError } = await supabase
     .from('project')
     .select('id, repo_name')
-    .in('repo_name', interactedRepoIds);
+    .in('repo_name', interactedRepoIds)
+    .eq('webhook_active', true);
   
   if (projectError || !projects || projects.length === 0) {
     console.error('Error getting projects for technology preferences:', projectError);
@@ -394,7 +396,8 @@ export async function getRecommendedProjects(userId, limit = 5, debug = false) {
       const { data: projectsData, error: projectsError } = await supabase
         .from('project')
         .select('id, repo_name')
-        .in('repo_name', interactedRepoNames);
+        .in('repo_name', interactedRepoNames)
+        .eq('webhook_active', true);
       
       if (!projectsError && projectsData) {
         interactedProjectIds = projectsData.map(p => p.id);
@@ -567,7 +570,8 @@ export async function getRecommendedProjects(userId, limit = 5, debug = false) {
               created_at,
               status
             `)
-            .in('id', topProjectIds);
+            .in('id', topProjectIds)
+            .eq('webhook_active', true);
           
           if (error) {
             console.error('Error getting project details:', error);
@@ -798,6 +802,7 @@ export async function getRecentProjects(limit = 5) {
         status
       `)
       .order('created_at', { ascending: false })
+      .eq('webhook_active', true)
       .limit(limit);
     
     if (error) {
@@ -1055,7 +1060,8 @@ export async function getCollaborativeRecommendations(userId, limit = 5, debug =
         created_at,
         status
       `)
-      .in('repo_name', topRepoIds);
+      .in('repo_name', topRepoIds)
+      .eq('webhook_active', true);
 
     if (projectsError || !projects || projects.length === 0) {
       if (debug) console.log("👥 Error getting project details:", projectsError);
