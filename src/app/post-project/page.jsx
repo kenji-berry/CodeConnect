@@ -116,9 +116,11 @@ const Page = () => {
     </div>;
   }
 
-  const filteredRepositories = repositories.filter((repo) =>
-    repo.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredRepositories = repositories
+    .filter((repo) => !repo.private)
+    .filter((repo) =>
+      repo.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
 
   return (
     <div className="w-screen h-screen flex flex-col items-center inria-sans-regular p-8">
