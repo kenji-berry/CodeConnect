@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { supabase } from '@/supabaseClient';
+import Link from 'next/link';
 
 export default function WebhookSetup() {
   const { id } = useParams();
@@ -80,9 +81,9 @@ export default function WebhookSetup() {
         <h1 className="text-2xl inria-sans-bold text-[--title-red] mb-6">Error</h1>
         <p className="text-[--off-white]">{error || "You don't have permission to view this page"}</p>
         <div className="mt-6">
-          <a href="/" className="px-4 py-2 bg-[--muted-red] hover:bg-[--title-red] rounded text-white font-semibold">
+          <Link href="/" className="px-4 py-2 bg-[--muted-red] hover:bg-[--title-red] rounded text-white font-semibold inline-block">
             Return to Home
-          </a>
+          </Link>
         </div>
       </div>
     );
@@ -94,7 +95,7 @@ export default function WebhookSetup() {
       <div className="mb-6">
         <p className="text-[--off-white] mb-4">
           Use this secret when configuring the webhook in your GitHub repository settings.
-          Keep this secret secure - it's used to verify that webhook events are coming from GitHub.
+          Keep this secret secure - it&#39;s used to verify that webhook events are coming from GitHub.
         </p>
         <div className="bg-gray-800 p-4 rounded flex justify-between items-center border border-gray-700">
           <code className="text-green-400 font-mono">{secret || "Secret not available"}</code>
