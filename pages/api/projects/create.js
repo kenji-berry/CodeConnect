@@ -540,6 +540,86 @@ export default async function handler(req, res) {
       }
     }
 
+    // --- FETCH ISSUES, PRs, AND COMMITS FROM GITHUB ---
+    if (!isUpdate && github_link && owner && repoName) {
+      try {
+        // Fetch all issues
+        const issuesRes = await axios.get(
+          `https://api.github.com/repos/${owner}/${repoName}/issues?state=all&per_page=100`,
+          { headers: { Authorization: `token ${githubToken}` } }
+        );
+        const issues = issuesRes.data.filter(issue => !issue.pull_request); // Exclude PRs
+
+        // Insert issues into project_issues
+        if (issues.length > 0) {
+          const issueRows = issues.map(issue => ({
+            project_id: project.id,
+            issue_id: issue.id,
+            title: issue.title?.substring(0, 1000) || null,
+            body: issue.body?.substring(0, 10000) || null,
+            state: issue.state?.substring(0, 100) || null,
+            created_at: issue.created_at ? new Date(issue.created_at) : null,
+            updated_at: issue.updated_at ? new Date(issue.updated_at) : null,
+            number: issue.number,
+            labels: Array.isArray(issue.labels) ? issue.labels.map(l => l.name) : [],
+            url: issue.html_url?.substring(0, 500) || null,
+          }));
+          await supabase.from('project_issues').upsert(issueRows, { onConflict: ['project_id', 'issue_id'] });
+        }
+
+        // Fetch all pull requests
+        const prsRes = await axios.get(
+          `https://api.github.com/repos/${owner}/${repoName}/pulls?state=all&per_page=100`,
+          { headers: { Authorization: `token ${githubToken}` } }
+        );
+        const prs = prsRes.data;
+
+        // Insert PRs into project_pull_requests
+        if (prs.length > 0) {
+          const prRows = prs.map(pr => ({
+            project_id: project.id,
+            pr_id: pr.id,
+            title: pr.title?.substring(0, 1000) || null,
+            body: pr.body?.substring(0, 10000) || null,
+            state: pr.state?.substring(0, 100) || null,
+            created_at: pr.created_at ? new Date(pr.created_at) : null,
+            updated_at: pr.updated_at ? new Date(pr.updated_at) : null,
+            number: pr.number,
+            labels: Array.isArray(pr.labels) ? pr.labels.map(l => l.name) : [],
+            url: pr.html_url?.substring(0, 500) || null,
+            merged: !!pr.merged_at,
+          }));
+          await supabase.from('project_pull_requests').upsert(prRows, { onConflict: ['project_id', 'pr_id'] });
+        }
+
+        // Fetch all commits (first 100)
+        const commitsRes = await axios.get(
+          `https://api.github.com/repos/${owner}/${repoName}/commits?per_page=100`,
+          { headers: { Authorization: `token ${githubToken}` } }
+        );
+        const commits = commitsRes.data;
+
+        // Insert commits into project_commits
+        if (commits.length > 0) {
+          const commitRows = commits.map(commit => ({
+            project_id: project.id,
+            commit_id: commit.sha,
+            message: commit.commit?.message?.substring(0, 1000) || null,
+            author: commit.commit?.author?.name?.substring(0, 100) || null,
+            timestamp: commit.commit?.author?.date ? new Date(commit.commit.author.date) : null,
+            url: commit.html_url?.substring(0, 500) || null,
+            branch: null, // Not available from this endpoint
+          }));
+          await supabase.from('project_commits').insert(commitRows);
+        }
+
+        console.log('✅ API: Fetched and stored issues, PRs, and commits from GitHub');
+      } catch (err) {
+        console.error('❌ API: Error fetching GitHub data on project creation', err);
+        // Optionally, you can return an error or continue
+      }
+    }
+
     console.log('✅ API: Project process completed successfully', { projectId: project.id, isUpdate });
     return res.status(isUpdate ? 200 : 201).json({ projectId: project.id });
   } catch (error) {
