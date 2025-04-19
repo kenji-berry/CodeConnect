@@ -53,6 +53,26 @@ function NewestProjectsContent() {
           return;
         }
 
+        // Fetch open issue counts for all project IDs in one query
+        const { data: issuesData, error: issuesError } = await supabase
+          .from('project_issues')
+          .select('project_id, state')
+          .in('project_id', projectIds);
+
+        if (issuesError) {
+          console.error('Error fetching issue counts:', issuesError);
+        }
+
+        // Build a map of project_id -> open issue count
+        const openIssueCountMap = {};
+        if (issuesData) {
+          issuesData.forEach(issue => {
+            if (issue.state === 'open') {
+              openIssueCountMap[issue.project_id] = (openIssueCountMap[issue.project_id] || 0) + 1;
+            }
+          });
+        }
+
         // Process projects in smaller batches to avoid resource exhaustion
         const projectsWithData = [];
         const BATCH_SIZE = 5;
@@ -84,7 +104,8 @@ function NewestProjectsContent() {
                   tags: tagResult.data?.map(tag => ({
                     name: tag.tags.name,
                     is_highlighted: tag.is_highlighted
-                  })) || []
+                  })) || [],
+                  issueCount: openIssueCountMap[project.id] || 0 
                 };
               } catch (error) {
                 console.error(`Error processing project ${project.id}:`, error);
@@ -154,7 +175,7 @@ function NewestProjectsContent() {
                 techStack={project.technologies
                   .filter(tech => tech.is_highlighted)
                   .map(tech => tech.name)}
-                issueCount={0}
+                issueCount={project.issueCount || 0} 
                 recommended={false}
                 image={project.image}
               />
