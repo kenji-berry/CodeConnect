@@ -113,6 +113,22 @@ export default async function handler(req, res) {
       status
     });
 
+    if (!Array.isArray(tags) || tags.length === 0) {
+      return res.status(400).json({ error: "At least one tag is required." });
+    }
+    if (!Array.isArray(highlighted_tags) || highlighted_tags.length === 0) {
+      return res.status(400).json({ error: "At least one highlighted tag is required." });
+    }
+    if (!Array.isArray(technologies) || technologies.length === 0) {
+      return res.status(400).json({ error: "At least one technology is required." });
+    }
+    if (!Array.isArray(highlighted_technologies) || highlighted_technologies.length === 0) {
+      return res.status(400).json({ error: "At least one highlighted technology is required." });
+    }
+    if (!setup_time || isNaN(setup_time) || Number(setup_time) < 1) {
+      return res.status(400).json({ error: "Estimated setup time is required." });
+    }
+
     // If description_type is "Use existing description", fetch from GitHub
     console.log('🔄 API: Processing description', { type: description_type });
     let finalDescription = custom_description;
@@ -180,6 +196,7 @@ export default async function handler(req, res) {
             size: fs.statSync(file.filepath).size 
           });
           
+          // Use buffer approach since it worked previously
           const buffer = fs.readFileSync(file.filepath);
           console.log('🔄 API: Image buffer loaded, starting moderation');
 
@@ -194,33 +211,70 @@ export default async function handler(req, res) {
           });
 
           console.log('🔄 API: Sending image to Sightengine for moderation');
-          const sightengineResponse = await axios.post(
-            'https://api.sightengine.com/1.0/check.json',
-            formData,
-            { headers: formData.getHeaders() }
-          );
-
-          const result = sightengineResponse.data;
-          console.log('✅ API: Sightengine moderation result', { 
-            nudity_safe: result.nudity?.safe, 
-            weapon: result.weapon?.weapon,
-            offensive_prob: result.offensive?.prob,
-            gore_prob: result.gore?.prob
-          });
-          
-          if (
-            result.nudity?.safe === false ||
-            result.weapon?.weapon === true ||
-            result.alcohol?.alcohol === true ||
-            result.gore?.prob > 0.5 ||
-            result.offensive?.prob > 0.5 ||
-            result.violence?.violence === true ||
-            result.scam?.scam === true ||
-            result.self_harm?.self_harm === true ||
-            result.gambling?.gambling === true
-          ) {
-            console.log('❌ API: Image failed moderation');
-            return res.status(400).json({ error: "Image failed moderation: contains inappropriate or restricted content." });
+          try {
+            // Make request with explicit timeout and better error handling
+            const sightengineResponse = await axios({
+              method: 'post',
+              url: 'https://api.sightengine.com/1.0/check.json',
+              data: formData,
+              headers: formData.getHeaders(),
+              timeout: 30000, // 30 second timeout for larger images
+              validateStatus: status => true // Don't throw on any status code
+            });
+            
+            console.log('🔄 API: Sightengine response received', { 
+              status: sightengineResponse.status, 
+              statusText: sightengineResponse.statusText,
+              hasData: !!sightengineResponse.data
+            });
+            
+            // Handle server errors (code 950) differently
+            if (sightengineResponse.status === 500 && 
+                sightengineResponse.data?.error?.code === 950) {
+              console.log('⚠️ API: Sightengine server error, proceeding without moderation');
+              // Continue without moderation
+            } else if (sightengineResponse.status !== 200) {
+              // For other errors, return a 400
+              let errorMsg = `Sightengine API returned status ${sightengineResponse.status}`;
+              if (sightengineResponse.data?.error?.message) {
+                errorMsg += `: ${sightengineResponse.data.error.message}`;
+              }
+              return res.status(400).json({ error: errorMsg });
+            } else {
+              // Successful response, check moderation results
+              const result = sightengineResponse.data;
+              console.log('✅ API: Sightengine moderation result', { 
+                nudity_safe: result.nudity?.safe, 
+                weapon: result.weapon?.weapon,
+                offensive_prob: result.offensive?.prob,
+                gore_prob: result.gore?.prob
+              });
+              
+              if (
+                result.nudity?.safe === false ||
+                result.weapon?.weapon === true ||
+                result.alcohol?.alcohol === true ||
+                result.gore?.prob > 0.5 ||
+                result.offensive?.prob > 0.5 ||
+                result.violence?.violence === true ||
+                result.scam?.scam === true ||
+                result.self_harm?.self_harm === true ||
+                result.gambling?.gambling === true
+              ) {
+                console.log('❌ API: Image failed moderation');
+                return res.status(400).json({ error: "Image failed moderation: contains inappropriate or restricted content." });
+              }
+            }
+          } catch (error) {
+            console.error('❌ API: Image moderation failed', error.message);
+            if (error.response) {
+              console.error('API response status:', error.response.status);
+              console.error('API response data:', error.response.data);
+            }
+            
+            // For network errors or other exceptions, log but proceed
+            console.log('⚠️ API: Error during moderation request, proceeding without moderation');
+            // Continue execution without returning error
           }
         } catch (error) {
           console.error('❌ API: Image moderation failed', error);

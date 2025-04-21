@@ -40,7 +40,7 @@ export default function ProjectPageLayout({
 
   return (
     <div className="flex flex-col min-h-screen">
-      <div className="bg-[--primary-color] py-4 px-6 border-b border-gray-800">
+      <div className="py-4 px-6 border-b border-gray-800">
         <div className="flex items-center justify-between">
           <Link href="/" className="inria-sans-bold title-red hover:underline">
             ← Back to Dashboard
@@ -59,7 +59,7 @@ export default function ProjectPageLayout({
       
       <div className="flex flex-1">
         <div className={`
-          w-64 bg-[--primary-color] border-r border-gray-800 fixed md:static h-full z-40 overflow-y-auto 
+          w-64 border-r border-gray-800 fixed md:static h-full z-40 overflow-y-auto 
           transition-all duration-300 ease-in-out
           ${showMobileSidebar ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
         `}>

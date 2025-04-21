@@ -49,8 +49,13 @@ const ProjectDetails = () => {
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [isDeletingProject, setIsDeletingProject] = useState(false);
 
+  // Add state for copied secret
+  const [copiedSecret, setCopiedSecret] = useState(false);
+
   // Helper: check if current user owns the project
   const isOwner = currentUser && project && currentUser.id === project.user_id;
+
+  const secret = process.env.NEXT_PUBLIC_GITHUB_WEBHOOK_SECRET;
 
   // Replace startEditing function with this redirect function
   const redirectToEditPage = () => {
@@ -591,7 +596,7 @@ const ProjectDetails = () => {
 
   if (!project) {
     return (
-      <div className="flex items-center justify-center min-h-screen w-full radial-background">
+      <div className="flex items-center justify-center min-h-screen w-full">
         <div className="text-center">
           <div className="mb-4">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[--title-red] mx-auto"></div>
@@ -603,84 +608,89 @@ const ProjectDetails = () => {
   }
 
   return (
-    <div className="max-w-3xl mx-auto my-10 bg-[--primary-color] rounded-2xl shadow-lg border border-[--magenta-dark] p-0 overflow-hidden">
+    <div className="max-w-[1200px] mx-auto my-10 bg-[#18181b] rounded-xl shadow-xl border border-[--magenta-dark] p-0 overflow-hidden transition-all duration-300">
       {isOwner && project && !project.webhook_active && (
-        <div className="bg-amber-600 text-white p-4 border-b border-amber-700">
-          <div className="flex items-start">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-            <div>
-              <h3 className="font-bold text-lg mb-1">GitHub Webhook Required</h3>
-              <p className="mb-2">
-                Your project isn&#39;t visible to other users because you haven&#39;t set up a GitHub webhook.
-                Projects without active webhooks won&#39;t appear in recommendations or search results.
-              </p>
-              <details className="bg-amber-700 rounded p-2 mt-1">
-                <summary className="font-semibold cursor-pointer">How to set up your webhook</summary>
-                <ol className="list-decimal ml-6 mt-2 text-sm">
-                  <li className="mb-1">Go to your GitHub repository &rarr; <b>Settings</b> &rarr; <b>Webhooks</b></li>
-                  <li className="mb-1">Click <b>Add webhook</b></li>
-                  <li className="mb-1">
-                    <div className="mb-1"><b>Payload URL:</b></div>
-                    <code className="bg-amber-800 p-1 rounded block overflow-x-auto text-xs">
-                      {`${window.location.origin}/api/webhooks/github?projectId=${project.id}`}
-                    </code>
-                  </li>
-                  <li className="mb-1"><b>Content type:</b> <code className="bg-amber-800 p-1 rounded">application/json</code></li>
-                  <li className="mb-1">
-                    <div><b>Secret:</b></div>
-                    <a 
-                      href={`/projects/${project.id}/webhook-setup`} 
-                      target="_blank" 
-                      rel="noopener noreferrer" 
-                      className="text-white underline"
+        <div className="bg-[--title-red] bg-opacity-90 text-[--off-white] p-6 border-b-2 border-[--orange] flex items-start gap-4">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 mr-2 mt-0.5 text-[--orange]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          <div>
+            <h3 className="font-bold text-xl mb-1 tracking-tight">GitHub Webhook Required</h3>
+            <p className="mb-2 text-[--off-white] opacity-80">
+              Your project isn&#39;t visible to other users because you haven&#39;t set up a GitHub webhook.
+              Projects without active webhooks won&#39;t appear in recommendations or search results.
+            </p>
+            <details className="bg-[#232323] rounded-lg p-3 mt-2 border-l-4 border-[--orange]">
+              <summary className="font-semibold cursor-pointer text-[--orange]">How to set up your webhook</summary>
+              <ol className="list-decimal ml-6 mt-2 text-sm text-[--off-white]">
+                <li className="mb-1">Go to your GitHub repository &rarr; <b>Settings</b> &rarr; <b>Webhooks</b></li>
+                <li className="mb-1">Click <b>Add webhook</b></li>
+                <li className="mb-1">
+                  <div className="mb-1"><b>Payload URL:</b></div>
+                  <code className="bg-amber-800 p-1 rounded block overflow-x-auto text-xs">
+                    {`${window.location.origin}/api/webhooks/github?projectId=${project.id}`}
+                  </code>
+                </li>
+                <li className="mb-1"><b>Content type:</b> <code className="bg-amber-800 p-1 rounded">application/json</code></li>
+                <li className="mb-1">
+                  <div><b>Secret:</b></div>
+                  <div className="flex items-center gap-2 mt-1">
+                    <code className="bg-amber-800 p-1 rounded font-mono text-green-300">{secret}</code>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(secret);
+                        setCopiedSecret(true);
+                        setTimeout(() => setCopiedSecret(false), 2000);
+                      }}
+                      className="px-2 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded text-xs"
                     >
-                      Click here to generate a webhook secret
-                    </a>
-                  </li>
-                  <li className="mb-1">For <b>events</b>, select <b>Push</b>, <b>Issues</b>, and <b>Pull requests</b></li>
-                  <li>Click <b>Add webhook</b> to save</li>
-                </ol>
-              </details>
-            </div>
+                      {copiedSecret ? "Copied!" : "Copy"}
+                    </button>
+                  </div>
+                </li>
+                <li className="mb-1">For <b>events</b>, select <b>Push</b>, <b>Issues</b>, and <b>Pull requests</b></li>
+                <li>Click <b>Add webhook</b> to save</li>
+              </ol>
+            </details>
           </div>
         </div>
       )}
-      
+
       {/* Project Image */}
       {project.image_url && (
-        <div className="w-full h-64 bg-gray-800 flex items-center justify-center overflow-hidden">
+        <div className="w-full h-64 bg-[#232323] flex items-center justify-center overflow-hidden">
           <img
             src={project.image_url}
             alt={project.repo_name}
-            className="object-cover w-full h-full"
+            className="object-cover w-full h-full rounded-t-xl"
             style={{ maxHeight: 320 }}
           />
         </div>
       )}
 
-      <div className="p-6">
+      <div className="p-8 sm:p-10">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6 border-b border-[--muted-red] pb-4">
-          <div>
-            <h1 className="text-3xl inria-sans-bold text-[--title-red] mb-1">{project.repo_name}</h1>
-            <p className="text-sm text-[--off-white] opacity-70">{project.repo_description || "No description provided."}</p>
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-6 mb-8 border-b border-[--muted-red] pb-6">
+          <div className="min-w-0">
+            <h1 className="text-4xl font-extrabold inria-sans-bold text-[--title-red] mb-2 truncate">{project.repo_name}</h1>
+            <p className="text-base text-[--off-white] opacity-70 line-clamp-2">{project.repo_description || "No description provided."}</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <button
               onClick={handleLike}
-              className={`px-4 py-2 rounded-lg flex items-center gap-2 transition-colors duration-200 shadow-sm ${
-                isLiked ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-700 hover:bg-gray-600'
+              className={`px-5 py-2 rounded-full flex items-center gap-2 font-bold shadow transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[--orange] ${
+                isLiked ? 'bg-[--orange] hover:bg-[--title-red] text-white scale-105' : 'bg-[#232323] hover:bg-[--orange] text-[--off-white]'
               }`}
               disabled={!currentUser}
+              aria-pressed={isLiked}
             >
-              <span className="text-lg">{isLiked ? '❤️' : '🤍'}</span>
+              <span className="text-xl">{isLiked ? '❤️' : '🤍'}</span>
               <span className="font-semibold">{likes}</span>
             </button>
             <button
               onClick={() => openReportModal({ type: 'project' })}
-              className="px-3 py-2 bg-[--muted-red] hover:bg-[--title-red] rounded-lg text-sm shadow-sm transition-colors duration-200"
+              className="px-3 py-2 bg-[--muted-red] hover:bg-[--title-red] rounded-full text-sm shadow transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[--title-red]"
               title="Report Project"
             >
               <span role="img" aria-label="Report">⚠️</span>
@@ -689,14 +699,14 @@ const ProjectDetails = () => {
               <>
                 <button
                   onClick={redirectToEditPage}
-                  className="px-3 py-2 bg-green-700 hover:bg-green-800 rounded-lg text-sm shadow-sm transition-colors duration-200 ml-2"
+                  className="px-4 py-2 bg-green-700 hover:bg-green-800 rounded-full text-sm font-bold shadow transition-all duration-200 ml-2 focus:outline-none focus:ring-2 focus:ring-green-400"
                   title="Edit Project"
                 >
                   ✏️ Edit
                 </button>
                 <button
                   onClick={() => setShowDeleteModal(true)}
-                  className="px-3 py-2 bg-red-700 hover:bg-red-800 rounded-lg text-sm shadow-sm transition-colors duration-200 ml-2"
+                  className="px-4 py-2 bg-red-700 hover:bg-red-800 rounded-full text-sm font-bold shadow transition-all duration-200 ml-2 focus:outline-none focus:ring-2 focus:ring-red-400"
                   title="Delete Project"
                 >
                   🗑️ Delete
@@ -707,7 +717,7 @@ const ProjectDetails = () => {
         </div>
 
         {/* Project Info */}
-        <div className="mb-6">
+        <div className="mb-8">
           {isEditing ? (
             <form onSubmit={handleEditSave} className="space-y-4">
               <div>
@@ -782,13 +792,15 @@ const ProjectDetails = () => {
               })}
               <div className="flex flex-col mb-2">
                 <span className="font-semibold text-[--orange]">Technologies</span>
-                <div>
+                <div className="flex flex-wrap gap-2 mt-1">
                   {project.project_technologies && project.project_technologies.length > 0
                     ? project.project_technologies.map(pt =>
                         <span
                           key={pt.technologies.id}
-                          className={`inline-block mr-2 mb-1 px-2 py-1 rounded bg-gray-800 text-sm ${
-                            pt.is_highlighted ? "font-bold text-blue-300 border border-blue-400" : "text-[--off-white]"
+                          className={`inline-block px-3 py-1 rounded-full text-xs font-bold shadow ${
+                            pt.is_highlighted
+                              ? "bg-[--orange] text-white border-2 border-[--title-red] scale-105"
+                              : "bg-[#232323] text-[--off-white] opacity-80"
                           }`}
                         >
                           {pt.technologies.name}{pt.is_highlighted ? " ★" : ""}
@@ -799,10 +811,10 @@ const ProjectDetails = () => {
               </div>
               <div className="flex flex-col mb-2">
                 <span className="font-semibold text-[--orange]">Tags</span>
-                <div>
+                <div className="flex flex-wrap gap-2 mt-1">
                   {project.project_tags && project.project_tags.length > 0
                     ? project.project_tags.map(pt =>
-                        <span key={pt.tags.id} className="inline-block mr-2 mb-1 px-2 py-1 rounded bg-gray-800 text-sm text-[--off-white]">
+                        <span key={pt.tags.id} className="inline-block px-3 py-1 rounded-full bg-[--title-red] text-white text-xs font-bold shadow">
                           {pt.tags.name}
                         </span>
                       )

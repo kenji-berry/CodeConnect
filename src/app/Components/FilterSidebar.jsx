@@ -56,7 +56,7 @@ export default function FilterSidebar({
     <div className={`filter-sidebar ${className}`}>
       <h3 className="inter-bold text-xl mb-4">Filters</h3>
       
-      <div className="main-page-filter-box radial-background px-3 py-4 inria-sans-bold flex flex-col gap-4">
+      <div className="main-page-filter-box px-3 py-4 inria-sans-bold flex flex-col gap-4">
         <div>
           <p className="mb-2">Technologies/Languages:</p>
           <MultiSelector

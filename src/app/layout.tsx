@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import "./globals.css";
 import NavBar from "./Components/NavBar";
 import { AuthStateListener } from './Components/AuthStateListener';
-import Footer from "./Components/Footer";
 
 export const metadata: Metadata = {
   title: "CodeConnect",
@@ -20,7 +19,6 @@ export default function RootLayout({
         <NavBar />
         <AuthStateListener />
         {children}
-        <Footer />
       </body>
     </html>
   );

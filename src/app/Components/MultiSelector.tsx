@@ -21,7 +21,6 @@ const MultiSelector: React.FC<MultiSelectorProps> = ({
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
 
-  // Update selectedTags when initialTags or nonRemovableTags change
   useEffect(() => {
     const newSelectedTags = [...new Set([...initialTags, ...nonRemovableTags])];
     if (JSON.stringify(newSelectedTags) !== JSON.stringify(selectedTags)) {
@@ -29,7 +28,6 @@ const MultiSelector: React.FC<MultiSelectorProps> = ({
     }
   }, [initialTags, nonRemovableTags]);
 
-  // Filter available tags based on search term using useMemo with null checks
   const filteredTags = useMemo(() => {
     return (availableTags || [])
       .filter((tag): tag is string =>
@@ -80,39 +78,44 @@ const MultiSelector: React.FC<MultiSelectorProps> = ({
   }, []);
 
   return (
-    <div className="relative">
+    <div className="relative w-full max-w-xl">
       <div className="relative" ref={dropdownRef}>
         <div className="relative">
           <input
             type="text"
-            className="form-input block w-full mb-2 pr-10 rounded-md border-2 border-slate-600 
-                      bg-magenta-dark text-black placeholder-gray-500 
-                      focus:border-orange focus:outline-none focus:ring-1 focus:ring-orange 
-                      transition-colors py-1.5 px-3"
+            className="form-input block w-full mb-2 pr-10 rounded-xl border-2 border-[var(--orange)] 
+              bg-[#232323] text-[var(--off-white)] placeholder-gray-400
+              focus:border-[var(--title-red)] focus:outline-none focus:ring-2 focus:ring-[var(--title-red)]
+              transition-colors py-2 px-4 shadow-sm"
             placeholder="Search tags..."
             value={searchTerm}
             onChange={handleSearchChange}
             onClick={() => setIsDropdownOpen(true)}
+            aria-label="Search tags"
           />
           {searchTerm && (
             <button
-              className="absolute right-0 top-0 h-full px-3 text-slate-800 hover:text-muted-red transition-colors"
+              className="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7 flex items-center justify-center text-[var(--orange)] hover:text-[var(--title-red)] transition-colors rounded-full bg-[#18181b] focus:outline-none focus:ring-2 focus:ring-[var(--title-red)]"
               onClick={handleClearSearch}
               aria-label="Clear search"
+              type="button"
             >
               ×
             </button>
           )}
         </div>
         {isDropdownOpen && filteredTags.length > 0 && (
-          <ul className="dropdown-list absolute w-full mt-1 z-10 max-h-48 overflow-y-auto 
-                      rounded-md border border-slate-600 bg-slate-200 shadow-lg">
+          <ul className="dropdown-list absolute w-full mt-1 z-20 max-h-56 overflow-y-auto 
+            rounded-xl border-2 border-[var(--orange)] bg-[#232323] shadow-2xl">
             {filteredTags.map((tag) => (
               <li
                 key={`available-${tag}`}
                 onClick={() => handleTagChange(tag)}
-                className="p-2 cursor-pointer hover:bg-slate-300 text-black inter-regular 
-                          border-b border-slate-400 last:border-b-0 transition-colors"
+                className="p-3 cursor-pointer hover:bg-[var(--orange)] hover:text-black text-[var(--off-white)] font-semibold
+                  border-b border-[#232323] last:border-b-0 transition-all rounded-xl"
+                tabIndex={0}
+                onKeyDown={e => (e.key === "Enter" || e.key === " ") && handleTagChange(tag)}
+                aria-label={`Add tag ${tag}`}
               >
                 {tag.toUpperCase()}
               </li>
@@ -120,22 +123,31 @@ const MultiSelector: React.FC<MultiSelectorProps> = ({
           </ul>
         )}
       </div>
-      <div className="selected-tags mt-2 flex flex-wrap gap-1.5">
+      <div className="selected-tags mt-4 flex flex-wrap gap-2">
         {selectedTags.map((tag) => (
-          <button
+          <span
             key={`selected-${tag}`}
-            className={`tag-item flex items-center py-1.5 px-2.5 rounded text-sm font-medium transition-colors
-                      ${nonRemovableTags.includes(tag)
-                ? 'bg-title-red text-black cursor-default'
-                : 'bg-[var(--muted-red)] hover:bg-[var(--title-red)] text-[var(--off-white)]'}`}
-            onClick={() => handleTagChange(tag)}
-            disabled={nonRemovableTags.includes(tag)}
+            className={`tag-item flex items-center py-1.5 px-3 rounded-full text-sm font-bold transition-all
+              shadow-sm border-2
+              ${nonRemovableTags.includes(tag)
+                ? 'bg-[var(--title-red)] border-[var(--title-red)] text-black cursor-default'
+                : 'bg-[var(--orange)] border-[var(--orange)] text-white hover:bg-[var(--title-red)] hover:border-[var(--title-red)] hover:text-black'}`}
+            tabIndex={0}
+            aria-label={nonRemovableTags.includes(tag) ? `${tag} (locked)` : `Remove tag ${tag}`}
           >
-            <span>{tag.toUpperCase()}</span>
+            <span className="truncate max-w-[120px]">{tag.toUpperCase()}</span>
             {!nonRemovableTags.includes(tag) && (
-              <span className="ml-1.5 text-sm opacity-80 hover:opacity-100">×</span>
+              <button
+                type="button"
+                onClick={() => handleTagChange(tag)}
+                className="ml-2 text-base opacity-80 hover:opacity-100 transition-opacity focus:outline-none"
+                aria-label={`Remove tag ${tag}`}
+                tabIndex={-1}
+              >
+                ×
+              </button>
             )}
-          </button>
+          </span>
         ))}
       </div>
     </div>

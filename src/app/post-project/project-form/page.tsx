@@ -15,8 +15,6 @@ import {
   fetchAvailableTechnologies 
 } from '../../../utils/githubUtils';
 
-
-// Define interfaces for the data structure
 interface Tag {
   name: string;
 }
@@ -118,6 +116,7 @@ function ProjectFormContent() {
   const [suggestedTags, setSuggestedTags] = useState<string[]>([]);
   const [suggestedTechnologies, setSuggestedTechnologies] = useState<string[]>([]);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState<boolean>(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const mentorshipOptions = [
     { value: "Yes", tooltip: "Mentorship is available for new contributors." },
@@ -202,11 +201,9 @@ function ProjectFormContent() {
     }
   };
 
-  // Prevent overwriting user edits after initial load
   const [hasPrefilled, setHasPrefilled] = useState(false);
 
   useEffect(() => {
-    // Define fetchAllData inside the useEffect closure
     const fetchAllData = async () => {
       try {
         const { data: { session: authSession }, error: sessionError } = await supabase.auth.getSession();
@@ -317,8 +314,6 @@ function ProjectFormContent() {
                         'isEditMode:', isEditMode, 
                         'hasPrefilled:', hasPrefilled);
             
-            // Check hasPrefilled again right before setting technologies
-            // This ensures not overwrite user's prefilled technologies
             const currentHasPrefilled = isEditMode && hasPrefilled;
             console.log('Current hasPrefilled value:', currentHasPrefilled);
             
@@ -376,17 +371,14 @@ function ProjectFormContent() {
           setIsEditMode(true);
           setProjectId(project.id);
           
-          // When editing an existing project, we should have access
           setHasRepoAccess(true);
           
-          // Set all project data
           setCustomDescription(project.custom_description || '');
           setDescriptionOption(project.description_type || "Use existing description");
           setDifficulty(project.difficulty_level || 1);
           setProjectStatus(project.status || "Active Development");
           setMentorship(project.mentorship ? "Yes" : "No");
           setLicense(project.license || "MIT");
-          setCustomLicense(project.license && !["MIT", "Apache-2.0", "GPL-3.0", "BSD-3-Clause", "Unlicensed"].includes(project.license) ? project.license : "");
           setSetupTime(project.setup_time || undefined);
           
           setSelectedTags((project.project_tags || []).map((pt: ProjectTag) => pt.tags?.name).filter(Boolean));
@@ -396,7 +388,6 @@ function ProjectFormContent() {
             .map((pt: ProjectTag) => pt.tags?.name)
             .filter(Boolean));
           
-          // Store technologies in a local variable to ensure availability for API calls
           const projectTechs = (project.project_technologies || [])
             .map((pt: ProjectTechnology) => pt.technologies?.name)
             .filter(Boolean);
@@ -423,13 +414,11 @@ function ProjectFormContent() {
           setBannerImage(project.image || null);
           setBannerImagePreview(project.image || null);
 
-          // Wait for all state updates to complete by deferring this
           setTimeout(() => {
             console.log('Setting hasPrefilled to true');
-            setHasPrefilled(true); // Prevent further overwrites
+            setHasPrefilled(true);
           }, 0);
           
-          // Return the technologies to prevent later overwrites
           return projectTechs;
         }
         return null;
@@ -439,26 +428,22 @@ function ProjectFormContent() {
       }
     };
     
-    // Initialize project form by checking for existing data first
     const initializeProjectForm = async () => {
-      // Get the session regardless of whether we're creating or editing
       const { data: { session: authSession }, error: sessionError } = await supabase.auth.getSession();
       if (sessionError) {
         console.error('Session error:', sessionError.message);
       } else {
-        setSession(authSession); // Always set the session
+        setSession(authSession);
       }
 
       try {
         
-        // Load ALL dropdown options in one batch
         const [tagsResponse, technologiesResponse, contributionTypesResponse] = await Promise.all([
           supabase.from('tags').select('name'),
           supabase.from('technologies').select('name'),
           supabase.from('contribution_type').select('name')
         ]);
 
-        // Process tags
         if (!tagsResponse.error) {
           const tagNames = (tagsResponse.data || [])
             .filter((tag): tag is { name: string } => tag && typeof tag.name === 'string')
@@ -466,12 +451,11 @@ function ProjectFormContent() {
             .filter(name => name.length > 0);
           console.log(`Loaded ${tagNames.length} tags`);
           setTags(tagNames);
-          setAvailableTags(tagNames); // Add this line to also set availableTags
+          setAvailableTags(tagNames);
         } else {
           console.error('Error loading tags:', tagsResponse.error);
         }
 
-        // Process technologies
         if (!technologiesResponse.error) {
           const techNames = (technologiesResponse.data || [])
             .filter((tech): tech is { name: string } => tech && typeof tech.name === 'string')
@@ -479,12 +463,11 @@ function ProjectFormContent() {
             .filter(name => name.length > 0);
           console.log(`Loaded ${techNames.length} technologies`);
           setTechnologies(techNames);
-          setAvailableTechnologies(techNames); // Add this line to also set availableTechnologies
+          setAvailableTechnologies(techNames);
         } else {
           console.error('Error loading technologies:', technologiesResponse.error);
         }
 
-        // Process contribution types
         if (!contributionTypesResponse.error) {
           const contributionTypeNames = (contributionTypesResponse.data || [])
             .filter((type): type is { name: string } => type && typeof type.name === 'string')
@@ -500,11 +483,9 @@ function ProjectFormContent() {
         console.error('Error fetching form options:', error);
       }
 
-      // This loads existing project data if we're in edit mode
       console.log('Checking for existing project data...');
       const existingTechs = await fetchExistingProject();
       
-      // Only fetch GitHub data if we don't already have project data
       if (!existingTechs) {
         console.log('No existing project data found, fetching from GitHub API');
         fetchAllData();
@@ -548,6 +529,9 @@ function ProjectFormContent() {
   }, [selectedTechnologies]);
 
   const validateSubmission = async () => {
+    setFieldErrors({});
+    const errors: Record<string, string> = {};
+    
     if (!session?.user?.id) {
       throw new Error('Please sign in to submit a project');
     }
@@ -561,60 +545,100 @@ function ProjectFormContent() {
     }
 
     if (!bannerImageFile && !bannerImage) {
-      throw new Error('Project banner image is required');
+      errors.bannerImage = 'Project banner image is required';
     }
   
     if (descriptionOption === "Write your Own" && !customDescription.trim()) {
-      throw new Error('Custom description is required when not using GitHub description');
+      errors.customDescription = 'Custom description is required';
     }
   
     if (selectedTechnologies.length === 0) {
-      throw new Error('At least one technology is required');
+      errors.technologies = 'At least one technology is required';
+    }
+
+    if (highlightedTechnologies.length === 0) {
+      errors.highlightedTechnologies = 'At least one highlighted technology is required';
+    }
+
+    if (selectedTags.length === 0) {
+      errors.tags = 'At least one tag is required';
+    }
+
+    if (highlightedTags.length === 0) {
+      errors.highlightedTags = 'At least one highlighted tag is required';
     }
   
     if (!projectStatus) {
-      throw new Error('Project status must be selected');
+      errors.status = 'Project status must be selected';
+    }
+  
+    if (typeof setupTime !== "number" || isNaN(setupTime) || setupTime < 1) {
+      errors.setupTime = 'Valid setup time (in minutes) is required';
     }
   
     const invalidLinks = resourceLinks.filter(link => link.url && !link.isValid);
     if (invalidLinks.length > 0) {
-      throw new Error(`Invalid resource links found: ${invalidLinks.map(l => l.name).join(', ')}`);
+      errors.resourceLinks = `Invalid resource links found: ${invalidLinks.map(l => l.name).join(', ')}`;
     }
 
     if (selectedContributionTypes.length === 0) {
-      throw new Error('At least one contribution type is required');
+      errors.contributionTypes = 'At least one contribution type is required';
+    }
+    
+    if (license === "Other" && !customLicense.trim()) {
+      errors.customLicense = 'Custom license name is required';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      throw new Error('Please fix the highlighted errors before submitting');
     }
 
     if (descriptionOption === "Write your Own") {
-      const profanityResponse = await fetch('/api/check-profanity', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: customDescription }),
-      });
-      const profanityData = await profanityResponse.json();
-      if (profanityData.isProfane) {
-        throw new Error('Custom description contains inappropriate language. Please revise.');
+      try {
+        const profanityResponse = await fetch('/api/check-profanity', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: customDescription }),
+        });
+        const profanityData = await profanityResponse.json();
+        if (profanityData.isProfane) {
+          errors.customDescription = 'Custom description contains inappropriate language. Please revise.';
+        }
+      } catch (error) {
+        console.error('Error checking profanity:', error);
       }
     }
 
     for (const link of resourceLinks) {
       if (link.name.trim()) {
-        const profanityResponse = await fetch('/api/check-profanity', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: link.name }),
-        });
-        const profanityData = await profanityResponse.json();
-        if (profanityData.isProfane) {
-          throw new Error(`Resource link name "${link.name}" contains inappropriate language. Please revise.`);
+        try {
+          const profanityResponse = await fetch('/api/check-profanity', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: link.name }),
+          });
+          const profanityData = await profanityResponse.json();
+          if (profanityData.isProfane) {
+            errors.resourceLinks = `Resource link name "${link.name}" contains inappropriate language. Please revise.`;
+            break;
+          }
+        } catch (error) {
+          console.error('Error checking profanity:', error);
         }
       }
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      throw new Error('Please fix the highlighted errors before submitting');
     }
   };
 
   const handleSubmitProject = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setSubmissionError(null);
+    setFieldErrors({});
 
     try {
       await validateSubmission();
@@ -655,12 +679,23 @@ function ProjectFormContent() {
         credentials: 'include',
       });
 
-      const result = await response.json();
-
       if (!response.ok) {
+        const result = await response.json();
+        
+        if (result.error?.includes('banner image')) {
+          setFieldErrors(prev => ({...prev, bannerImage: result.error}));
+          throw new Error(result.error);
+        }
+        
+        if (result.error?.includes('Image failed moderation')) {
+          setFieldErrors(prev => ({...prev, bannerImage: 'Image failed content moderation: contains inappropriate content'}));
+          throw new Error('Image failed content moderation. Please select another image.');
+        }
+        
         throw new Error(result.error || 'Failed to save project');
       }
 
+      const result = await response.json();
       router.push(`/projects/${result.projectId}`);
     } catch (err) {
       setSubmissionError(err instanceof Error ? err.message : 'An unexpected error occurred');
@@ -670,415 +705,467 @@ function ProjectFormContent() {
   };
 
   return (
-    <div className="w-screen h-screen flex flex-col items-center">
-      <h1 className="my-1 text-4xl font-bold flex items-center group">
-        <a 
-          href={`https://github.com/${owner}/${repoName}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-2 relative text-white hover:text-red-500 transition-colors duration-300"
-        >
-          {repoName}
-          <div className="relative">
-            <div className="absolute bottom-0 left-0 w-full h-0.5 bg-red-500 transform scale-x-0 transition-transform duration-300 group-hover:scale-x-100" />
-          </div>
-          <svg 
-            xmlns="http://www.w3.org/2000/svg" 
-            className="h-6 w-6 transform transition-transform duration-300 group-hover:translate-x-1 group-hover:-translate-y-1" 
-            fill="none" 
-            viewBox="0 0 24 24" 
-            stroke="currentColor"
-          >
-            <path 
-              strokeLinecap="round" 
-              strokeLinejoin="round" 
-              strokeWidth={2} 
-              d="M10 6H6a2 2  0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" 
-            />
-          </svg>
-        </a>
-      </h1>
-      
-      <form onSubmit={handleSubmitProject} className="w-full">
-        <div className="bento-container w-full inria-sans-regular">
-          <div className="bento-box full-width radial-background">
-            <h4>Project Banner Image <span className="text-[--title-red]">*</span>:</h4>
-            <div className="mt-2 flex flex-col items-center">
-              {bannerImagePreview ? (
-                <div className="relative w-full aspect-[16/9]">
-                  <img 
-                    src={bannerImagePreview} 
-                    alt="Banner preview" 
-                    className="w-full h-full object-cover object-center rounded-lg"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setBannerImage(null);
-                      setBannerImagePreview(null);
-                      setBannerImageFile(null);
-                    }}
-                    className="absolute top-2 right-2 bg-gray-800 text-white p-2 rounded-full hover:bg-gray-700"
-                    aria-label="Remove image"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                    </svg>
-                  </button>
-                </div>
-              ) : (
-                <label className="cursor-pointer w-full">
-                  <div className="border-2 border-dashed border-gray-600 rounded-lg p-6 flex flex-col items-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-gray-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                    <p className="text-gray-400">Click to upload a banner image <span className="text-[--title-red]">*</span></p>
-                    <p className="text-xs text-gray-500 mt-1">Recommended: 16:9 aspect ratio (1280×720px or similar)</p>
-                    <p className="text-xs text-gray-500">Images will be displayed in 16:9 format</p>
-                  </div>
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/gif,image/webp"
-                    onChange={handleImageChange}
-                    className="hidden"
-                    required
-                  />
-                </label>
-              )}
-            </div>
-          </div>
-          <div className="bento-box full-width radial-background">
-            <div className="flex items-center">
-              <span className="mr-2 inria-sans-semibold">
-                Write your own project description or use existing description?
-              </span>
-              <SingleSelector
-                values={descriptionOptions}
-                onValueChange={(value) =>
-                  handleDescriptionOptionChange(value || "")
-                }
-                initialValue={descriptionOption}
-              />
-            </div>
-              {descriptionOption === "Write your Own" && (
-              <textarea
-                name="customDescription"
-                className="w-full mt-2 p-2 border rounded-lg shadow-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none text-black resize-y min-h-[2.6rem]"
-                placeholder="Write your project description here..."
-                rows={3}
-                style={{ resize: 'vertical' }}
-                value={customDescription}
-                onChange={(e) => setCustomDescription(e.target.value)}
-              />
-              )}
-          </div>
-          <div className="bento-box half-width radial-background">
-            <h4>Technologies and Languages:</h4>
-            <HighlightableMultiSelector
-              availableTags={technologies}
-              onTagsChange={(tags: string[]) => {
-                handleTechnologiesChange(tags);
-              }}
-              initialTags={selectedTechnologies}
-              nonRemovableTags={Object.keys(repoInfo.languages).map(lang => lang.toLowerCase())}
-              highlightedTags={highlightedTechnologies}
-              onHighlightedTagsChange={(highlighted: string[]) => {
-                handleHighlightedTechnologiesChange(highlighted);
-              }}
-            />
-            <LanguageBar languages={repoInfo.languages} />
-            
-            <div className="mt-3 border-t border-[var(--off-white)] pt-3">
-              <div className="flex justify-between items-center mb-2">
-                <h5 className="text-sm font-semibold inria-sans-semibold">
-                  {isLoadingSuggestions ? 'Analyzing README...' : 'Suggested Technologies:'}
-                </h5>
-                {!isLoadingSuggestions && suggestedTechnologies.length > 0 && (
-                  <button
-                    onClick={() => {
-                      const newTechnologies = [...selectedTechnologies];
-                      suggestedTechnologies.forEach(tech => {
-                        if (!newTechnologies.includes(tech)) {
-                          newTechnologies.push(tech);
-                        }
-                      });
-                      handleTechnologiesChange(newTechnologies);
-                    }}
-                    className="text-xs px-2 py-1 bg-[var(--muted-red)] text-[var(--off-white)] rounded hover:bg-[var(--title-red)] transition-colors"
-                  >
-                    Add All
-                  </button>
-                )}
+    <div className="min-h-screen w-full flex flex-col items-center px-2">
+      <div className="w-full max-w-[1200px] mx-auto py-10">
+        <header className="mb-10">
+          <h1 className="text-5xl font-extrabold flex items-center group text-[var(--off-white)] tracking-tight">
+            <a
+              href={`https://github.com/${owner}/${repoName}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 relative text-[var(--off-white)] hover:text-[var(--title-red)] transition-colors duration-300"
+            >
+              <span className="">{repoName}</span>
+              <div className="relative">
+                <div className="absolute bottom-0 left-0 w-full h-0.5 bg-[var(--title-red)] transform scale-x-0 transition-transform duration-300 group-hover:scale-x-100" />
               </div>
-              {isLoadingSuggestions ? (
-                <div className="flex items-center space-x-2">
-                  <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-[var(--title-red)]"></div>
-                  <span className="text-sm text-gray-400">Finding technologies in README...</span>
-                </div>
-              ) : suggestedTechnologies.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {suggestedTechnologies.map((tech, index) => (
-                    <button
-                      key={`tech-${index}`}
-                      onClick={() => {
-                        if (!selectedTechnologies.includes(tech)) {
-                          handleTechnologiesChange([...selectedTechnologies, tech]);
-                        }
-                      }}
-                      className={`px-2 py-1 rounded text-xs border border-[var(--off-white)] 
-                        ${selectedTechnologies.includes(tech) 
-                          ? 'bg-[var(--muted-red)] text-[var(--off-white)] cursor-default' 
-                          : 'bg-transparent hover:bg-[var(--magenta-dark)]'
-                        } transition-colors`}
-                    >
-                      {tech}
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-gray-400">No technologies to suggest</p>
-              )}
-            </div>
-          </div>
-          <div className="bento-box half-width radial-background">
-            <h4>Tags:</h4>
-            <HighlightableMultiSelector
-              availableTags={tags}
-              onTagsChange={handleTagsChange}
-              initialTags={selectedTags}
-              highlightedTags={highlightedTags}
-              onHighlightedTagsChange={handleHighlightedTagsChange}
-              nonRemovableTags={[]} // No non-removable tags for this selector
-            />
-            
-            <div className="mt-3 border-t border-[var(--off-white)] pt-3">
-              <div className="flex justify-between items-center mb-2">
-                <h5 className="text-sm font-semibold inria-sans-semibold">
-                  {isLoadingSuggestions ? 'Analyzing README...' : 'Suggested Tags:'}
-                </h5>
-                {!isLoadingSuggestions && suggestedTags.length > 0 && (
-                  <button
-                    onClick={() => {
-                      const newTags = [...selectedTags];
-                      suggestedTags.forEach(tag => {
-                        if (!newTags.includes(tag)) {
-                          newTags.push(tag);
-                        }
-                      });
-                      handleTagsChange(newTags);
-                    }}
-                    className="text-xs px-2 py-1 bg-[var(--muted-red)] text-[var(--off-white)] rounded hover:bg-[var(--title-red)] transition-colors"
-                  >
-                    Add All
-                  </button>
-                )}
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-7 w-7 transform transition-transform duration-300 group-hover:translate-x-1 group-hover:-translate-y-1"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M10 6H6a2 2  0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                />
+              </svg>
+            </a>
+          </h1>
+          <p className="mt-2 text-lg text-gray-400 max-w-2xl">
+            Share your project with the CodeConnect community. Fill out the details below to help contributors discover and join your project!
+          </p>
+        </header>
+        
+        {submissionError && (
+          <div className="rounded-xl bg-[#2A1619] border border-[var(--title-red)] p-4 mb-8 shadow-lg animate-fadeIn">
+            <div className="flex items-start">
+              <div className="flex-shrink-0">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-[var(--title-red)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
               </div>
-              {isLoadingSuggestions ? (
-                <div className="flex items-center space-x-2">
-                  <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-[var(--title-red)]"></div>
-                  <span className="text-sm text-gray-400">Finding tags in README...</span>
-                </div>
-              ) : suggestedTags.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {suggestedTags.map((tag, index) => (
-                    <button
-                      key={`tag-${index}`}
-                      onClick={() => {
-                        if (!selectedTags.includes(tag)) {
-                          handleTagsChange([...selectedTags, tag]);
-                        }
-                      }}
-                      className={`px-2 py-1 rounded text-xs border border-[var(--off-white)]
-                        ${selectedTags.includes(tag) 
-                          ? 'bg-[var(--muted-red)] text-[var(--off-white)] cursor-default' 
-                          : 'bg-transparent hover:bg-[var(--magenta-dark)]'
-                        } transition-colors`}
-                    >
-                      {tag}
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-gray-400">No tags to suggest</p>
-              )}
-            </div>
-          </div>
-          <div className="bento-box half-width radial-background">
-            <h4>Project Status:</h4>
-            <SingleSelector
-              values={statusOptions.map(opt => opt.value)}
-              onValueChange={handleStatusChange}
-              initialValue={projectStatus}
-              tooltips={Object.fromEntries(statusOptions.map(opt => [opt.value, opt.tooltip]))}
-            />
-          </div>
-          <div className="bento-box half-width radial-background">
-            <h4>Beginner Friendliness:</h4>
-            <div className="mt-4 flex items-center justify-center">
-              <DifficultySelector
-                onDifficultyChange={handleDifficultyChange}
-                initialDifficulty={difficulty}
-              />
-            </div>
-          </div>
-          <div className="bento-box half-width radial-background">
-            <h4>Contribution Types:</h4>
-            <MultiSelector
-              availableTags={contributionTypes}
-              onTagsChange={setSelectedContributionTypes}
-              initialTags={selectedContributionTypes}
-            />
-          </div>
-          <div className="bento-box half-width radial-background">
-            <h4>Mentorship Available?</h4>
-            <SingleSelector
-              values={mentorshipOptions.map(opt => opt.value)}
-              onValueChange={(selectedValue) => setMentorship(selectedValue || "No")}
-              initialValue={mentorship}
-              tooltips={Object.fromEntries(mentorshipOptions.map(opt => [opt.value, opt.tooltip]))}
-            />
-          </div>
-          <div className="bento-box half-width radial-background">
-            <h4>License:</h4>
-            <SingleSelector
-              values={licenseOptions}
-              onValueChange={(selectedValue) => setLicense(selectedValue || "")}
-              initialValue={license}
-            />
-            {license === "Other" && (
-              <input
-                type="text"
-                className="mt-2 w-full p-2 rounded-lg border border-gray-300 outline-none text-black"
-                placeholder="Enter custom license"
-                value={customLicense}
-                onChange={e => setCustomLicense(e.target.value)}
-              />
-            )}
-          </div>
-          <div className="bento-box half-width radial-background">
-            <h4>Estimated Setup Time (minutes):</h4>
-            <input
-              type="number"
-              min={1}
-              max={240}
-              className="w-full p-2 rounded-lg border border-gray-300 outline-none text-black"
-              placeholder="Estimated setup time in minutes"
-              value={setupTime}
-              onChange={e => setSetupTime(Number(e.target.value))}
-            />
-          </div>
-          <div className="bento-box full-width radial-background">
-            <h4>Resource Links:</h4>
-            <div className="flex flex-col gap-2 mt-2">
-              {resourceLinks.map((link, index) => (
-                <div key={index} className="flex flex-col gap-2">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={link.name}
-                      onChange={(e) => {
-                        const newLinks = [...resourceLinks];
-                        newLinks[index] = { ...newLinks[index], name: e.target.value };
-                        setResourceLinks(newLinks);
-                      }}
-                      className="w-1/6 p-2 rounded-lg border border-gray-300 outline-none text-black"
-                      placeholder="Resource name..."
-                    />
-                    <input
-                      type="url"
-                      value={link.url}
-                      onChange={(e) => {
-                        const newLinks = [...resourceLinks];
-                        const isValid = isValidUrl(e.target.value);
-                        newLinks[index] = { 
-                          ...newLinks[index], 
-                          url: e.target.value,
-                          isValid 
-                        };
-                        setResourceLinks(newLinks);
-                      }}
-                      className={`w-5/6 p-2 rounded-lg border ${
-                        link.url && !link.isValid 
-                          ? 'border-red-500' 
-                          : 'border-gray-300'
-                      } outline-none text-black`}
-                      placeholder="Enter resource link..."
-                    />
-                    <button
-                      onClick={() => {
-                        const newLinks = resourceLinks.filter((_, i) => i !== index);
-                        setResourceLinks(newLinks);
-                      }}
-                      className="p-2 text-red-500 hover:text-red-700"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                  {link.url && !link.isValid && (
-                    <span className="text-red-500 text-sm ml-1">
-                      Please enter a valid URL (e.g., https://example.com)
-                    </span>
+              <div className="ml-3 flex-1">
+                <h3 className="text-sm font-medium text-[var(--title-red)]">Submission Error</h3>
+                <div className="mt-1 text-sm text-[var(--off-white)]">
+                  {submissionError}
+                  {Object.keys(fieldErrors).length > 0 && (
+                    <ul className="list-disc pl-5 mt-2 space-y-1 text-[var(--muted-red)]">
+                      {Object.entries(fieldErrors).map(([key, error]) => (
+                        <li key={key}>{error}</li>
+                      ))}
+                    </ul>
                   )}
                 </div>
-              ))}
-              <button
-                onClick={() => setResourceLinks([...resourceLinks, { name: '', url: '', isValid: false }])}
-                className="w-fit px-4 py-2 bg-[color:--muted-red] text-white rounded-lg hover:bg-red-700 
-                  transition-colors duration-200 flex items-center gap-2"
+              </div>
+              <button 
+                onClick={() => setSubmissionError(null)} 
+                className="flex-shrink-0 ml-4 text-[var(--muted-red)] hover:text-[var(--title-red)]"
               >
-                <svg 
-                  xmlns="http://www.w3.org/2000/svg" 
-                  className="h-5 w-5" 
-                  viewBox="0 0 20 20" 
-                  fill="currentColor"
-                >
-                  <path 
-                    fillRule="evenodd" 
-                    d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" 
-                    clipRule="evenodd" 
-                  />
+                <span className="sr-only">Close</span>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
                 </svg>
-                Add Resource Link
               </button>
             </div>
           </div>
-        </div>
+        )}
 
-        <div className="w-full flex justify-center mt-8 mb-12">
-          <button
-            type="submit"
-            disabled={isSubmitting || !hasRepoAccess}
-            className={`px-8 py-3 rounded-lg font-medium flex items-center gap-2 transition-colors duration-200 
-              ${isSubmitting || !hasRepoAccess
-                ? 'bg-gray-400 cursor-not-allowed' 
-                : 'bg-[color:--muted-red] hover:bg-red-700 text-white'}`}
-          >
-            {isSubmitting ? (
-              <>
-                <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                {isEditMode ? "Updating..." : "Submitting..."}
-              </>
-            ) : !hasRepoAccess ? (
-              "No Repository Access"
-            ) : (
-              <>
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                </svg>
-                {isEditMode ? "Update Project" : "Post Project"}
-              </>
+        <form onSubmit={handleSubmitProject} className="space-y-8">
+          <div className="flex flex-col gap-8">
+            <section className={`rounded-xl shadow-lg bg-[#232323] ${fieldErrors.bannerImage ? 'border-2 border-[var(--title-red)]' : 'border border-[var(--muted-red)]'} p-8 flex flex-col gap-4`}>
+              <h2 className="text-2xl font-bold text-[var(--off-white)] mb-1 flex items-center gap-2">
+                Project Banner Image <span className="text-[var(--title-red)]">*</span>
+              </h2>
+              <p className="text-sm text-gray-400 mb-2">
+                This image will be shown at the top of your project page. Recommended: 16:9 aspect ratio (1280×720px or similar).
+              </p>
+              {fieldErrors.bannerImage && (
+                <p className="text-sm text-[var(--title-red)] mb-2">
+                  {fieldErrors.bannerImage}
+                </p>
+              )}
+              <div className="flex flex-col items-center w-full">
+                {bannerImagePreview ? (
+                  <div className="relative w-full aspect-[16/9] rounded-xl overflow-hidden shadow-md">
+                    <img
+                      src={bannerImagePreview}
+                      alt="Banner preview"
+                      className="w-full h-full object-cover object-center rounded-xl"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setBannerImage(null);
+                        setBannerImagePreview(null);
+                        setBannerImageFile(null);
+                      }}
+                      className="absolute top-3 right-3 bg-[#18181b] text-white p-2 rounded-full hover:bg-gray-700 shadow-lg focus:outline-none focus:ring-2 focus:ring-[var(--title-red)]"
+                      aria-label="Remove image"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="w-full">
+                    <input
+                      type="file"
+                      name="banner_image"
+                      id="banner_image"
+                      accept="image/jpeg,image/png,image/gif,image/webp"
+                      onChange={handleImageChange}
+                      className="sr-only"
+                      aria-required="true"
+                      ref={(input) => {
+                        // Don't require the field if we're in edit mode and already have an image
+                        if (input && (bannerImage || isEditMode)) {
+                          input.removeAttribute('required');
+                        } else if (input) {
+                          input.setAttribute('required', 'required');
+                        }
+                      }}
+                    />
+                    <label htmlFor="banner_image" className="cursor-pointer block w-full">
+                      <div className={`border-2 border-dashed ${fieldErrors.bannerImage ? 'border-[var(--title-red)]' : 'border-[var(--muted-red)]'} rounded-xl p-8 flex flex-col items-center bg-[#1a1a1a] hover:bg-[#232323] transition-colors`}>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-gray-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <p className="text-[var(--off-white)] font-medium">Click to upload a banner image <span className="text-[var(--title-red)]">*</span></p>
+                        <p className="text-xs text-gray-400 mt-1">Recommended: 16:9 aspect ratio (1280×720px or similar)</p>
+                      </div>
+                    </label>
+                  </div>
+                )}
+              </div>
+            </section>
+
+            <section className={`rounded-xl shadow-lg bg-[#232323] ${fieldErrors.customDescription ? 'border-2 border-[var(--title-red)]' : 'border border-[var(--muted-red)]'} p-8 flex flex-col gap-4`}>
+              <div className="flex flex-col md:flex-row md:items-center gap-4">
+                <span className="text-lg font-semibold text-[var(--off-white)]">
+                  Project Description <span className="text-[var(--title-red)]">*</span>
+                </span>
+                <SingleSelector
+                  values={descriptionOptions}
+                  onValueChange={(value) => handleDescriptionOptionChange(value || "")}
+                  initialValue={descriptionOption}
+                />
+              </div>
+              {descriptionOption === "Write your Own" && (
+                <>
+                  {fieldErrors.customDescription && (
+                    <p className="text-sm text-[var(--title-red)]">
+                      {fieldErrors.customDescription}
+                    </p>
+                  )}
+                  <textarea
+                    name="customDescription"
+                    className={`w-full mt-2 p-3 rounded-xl bg-[#18181b] ${
+                      fieldErrors.customDescription 
+                        ? 'border-2 border-[var(--title-red)]' 
+                        : 'border border-[var(--muted-red)]'
+                    } text-[var(--off-white)] shadow focus:ring-2 focus:ring-[var(--title-red)] focus:border-[var(--title-red)] outline-none resize-y min-h-[3.5rem] transition`}
+                    placeholder="Write your project description here..."
+                    rows={4}
+                    value={customDescription}
+                    onChange={(e) => setCustomDescription(e.target.value)}
+                    maxLength={1200}
+                  />
+                </>
+              )}
+            </section>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <section className={`rounded-xl shadow-lg bg-[#232323] ${
+                fieldErrors.technologies || fieldErrors.highlightedTechnologies 
+                  ? 'border-2 border-[var(--title-red)]' 
+                  : 'border border-[var(--muted-red)]'
+              } p-8 flex flex-col gap-4`}>
+                <h3 className="text-xl font-bold text-[var(--off-white)] mb-2">
+                  Technologies & Languages <span className="text-[var(--title-red)]">*</span>
+                </h3>
+                {fieldErrors.technologies && (
+                  <p className="text-sm text-[var(--title-red)]">{fieldErrors.technologies}</p>
+                )}
+                {fieldErrors.highlightedTechnologies && (
+                  <p className="text-sm text-[var(--title-red)]">{fieldErrors.highlightedTechnologies}</p>
+                )}
+                <HighlightableMultiSelector
+                  availableTags={technologies}
+                  onTagsChange={handleTechnologiesChange}
+                  initialTags={selectedTechnologies}
+                  nonRemovableTags={Object.keys(repoInfo.languages).map(lang => lang.toLowerCase())}
+                  highlightedTags={highlightedTechnologies}
+                  onHighlightedTagsChange={handleHighlightedTechnologiesChange}
+                />
+                <div className="mt-2 text-sm text-gray-400">
+                  <span className="font-medium text-[var(--muted-red)]">Note:</span> At least one technology must be highlighted (shown in accent color)
+                </div>
+                <LanguageBar languages={repoInfo.languages} />
+                <div className="mt-4 border-t border-[var(--off-white)] pt-3">
+                </div>
+              </section>
+
+              <section className={`rounded-xl shadow-lg bg-[#232323] ${
+                fieldErrors.tags || fieldErrors.highlightedTags
+                  ? 'border-2 border-[var(--title-red)]' 
+                  : 'border border-[var(--muted-red)]'
+              } p-8 flex flex-col gap-4`}>
+                <h3 className="text-xl font-bold text-[var(--off-white)] mb-2">
+                  Tags <span className="text-[var(--title-red)]">*</span>
+                </h3>
+                {fieldErrors.tags && (
+                  <p className="text-sm text-[var(--title-red)]">{fieldErrors.tags}</p>
+                )}
+                {fieldErrors.highlightedTags && (
+                  <p className="text-sm text-[var(--title-red)]">{fieldErrors.highlightedTags}</p>
+                )}
+                <HighlightableMultiSelector
+                  availableTags={tags}
+                  onTagsChange={handleTagsChange}
+                  initialTags={selectedTags}
+                  highlightedTags={highlightedTags}
+                  onHighlightedTagsChange={handleHighlightedTagsChange}
+                  nonRemovableTags={[]}
+                />
+                <div className="mt-2 text-sm text-gray-400">
+                  <span className="font-medium text-[var(--muted-red)]">Note:</span> At least one tag must be highlighted (shown in accent color)
+                </div>
+                <div className="mt-4 border-t border-[var(--off-white)] pt-3">
+                </div>
+              </section>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <section className={`rounded-xl shadow-lg bg-[#232323] ${
+              fieldErrors.status ? 'border-2 border-[var(--title-red)]' : 'border border-[var(--muted-red)]'
+            } p-8 flex flex-col gap-4`}>
+              <h3 className="text-xl font-bold text-[var(--off-white)] mb-2">
+                Project Status <span className="text-[var(--title-red)]">*</span>
+              </h3>
+              {fieldErrors.status && (
+                <p className="text-sm text-[var(--title-red)]">{fieldErrors.status}</p>
+              )}
+              <SingleSelector
+                values={statusOptions.map(opt => opt.value)}
+                onValueChange={handleStatusChange}
+                initialValue={projectStatus}
+                tooltips={Object.fromEntries(statusOptions.map(opt => [opt.value, opt.tooltip]))}
+              />
+            </section>
+            <section className="rounded-xl shadow-lg bg-[#232323] border border-[var(--muted-red)] p-8 flex flex-col gap-4">
+              <h3 className="text-xl font-bold text-[var(--off-white)] mb-2">
+                Beginner Friendliness <span className="text-[var(--title-red)]">*</span>
+              </h3>
+              <div className="flex items-center justify-center">
+                <DifficultySelector
+                  onDifficultyChange={handleDifficultyChange}
+                  initialDifficulty={difficulty}
+                />
+              </div>
+            </section>
+            <section className={`rounded-xl shadow-lg bg-[#232323] ${
+              fieldErrors.contributionTypes ? 'border-2 border-[var(--title-red)]' : 'border border-[var(--muted-red)]'
+            } p-8 flex flex-col gap-4`}>
+              <h3 className="text-xl font-bold text-[var(--off-white)] mb-2">
+                Contribution Types <span className="text-[var(--title-red)]">*</span>
+              </h3>
+              {fieldErrors.contributionTypes && (
+                <p className="text-sm text-[var(--title-red)]">{fieldErrors.contributionTypes}</p>
+              )}
+              <MultiSelector
+                availableTags={contributionTypes}
+                onTagsChange={setSelectedContributionTypes}
+                initialTags={selectedContributionTypes}
+              />
+            </section>
+            <section className="rounded-xl shadow-lg bg-[#232323] border border-[var(--muted-red)] p-8 flex flex-col gap-4">
+              <h3 className="text-xl font-bold text-[var(--off-white)] mb-2">
+                Mentorship Available? <span className="text-[var(--title-red)]">*</span>
+              </h3>
+              <SingleSelector
+                values={mentorshipOptions.map(opt => opt.value)}
+                onValueChange={(selectedValue) => setMentorship(selectedValue || "No")}
+                initialValue={mentorship}
+                tooltips={Object.fromEntries(mentorshipOptions.map(opt => [opt.value, opt.tooltip]))}
+              />
+            </section>
+            <section className={`rounded-xl shadow-lg bg-[#232323] ${
+              fieldErrors.customLicense ? 'border-2 border-[var(--title-red)]' : 'border border-[var(--muted-red)]'
+            } p-8 flex flex-col gap-4`}>
+              <h3 className="text-xl font-bold text-[var(--off-white)] mb-2">
+                License <span className="text-[var(--title-red)]">*</span>
+              </h3>
+              <SingleSelector
+                values={licenseOptions}
+                onValueChange={(selectedValue) => setLicense(selectedValue || "")}
+                initialValue={license}
+              />
+              {license === "Other" && (
+                <>
+                  {fieldErrors.customLicense && (
+                    <p className="text-sm text-[var(--title-red)]">{fieldErrors.customLicense}</p>
+                  )}
+                  <input
+                    type="text"
+                    className={`mt-2 w-full p-3 rounded-xl bg-[#18181b] ${
+                      fieldErrors.customLicense ? 'border-2 border-[var(--title-red)]' : 'border border-[var(--muted-red)]'
+                    } text-[var(--off-white)] outline-none`}
+                    placeholder="Enter custom license"
+                    value={customLicense}
+                    onChange={e => setCustomLicense(e.target.value)}
+                  />
+                </>
+              )}
+            </section>
+            <section className={`rounded-xl shadow-lg bg-[#232323] ${
+              fieldErrors.setupTime ? 'border-2 border-[var(--title-red)]' : 'border border-[var(--muted-red)]'
+            } p-8 flex flex-col gap-4`}>
+              <h3 className="text-xl font-bold text-[var(--off-white)] mb-2">
+                Estimated Setup Time (minutes) <span className="text-[var(--title-red)]">*</span>
+              </h3>
+              {fieldErrors.setupTime && (
+                <p className="text-sm text-[var(--title-red)]">{fieldErrors.setupTime}</p>
+              )}
+              <input
+                type="number"
+                min={1}
+                max={240}
+                className={`w-full p-3 rounded-xl bg-[#18181b] ${
+                  fieldErrors.setupTime ? 'border-2 border-[var(--title-red)]' : 'border border-[var(--muted-red)]'
+                } text-[var(--off-white)] outline-none`}
+                placeholder="Estimated setup time in minutes"
+                value={setupTime ?? ""}
+                onChange={e => setSetupTime(e.target.value === "" ? undefined : Number(e.target.value))}
+              />
+            </section>
+          </div>
+
+          <section className={`rounded-xl shadow-lg bg-[#232323] ${
+            fieldErrors.resourceLinks ? 'border-2 border-[var(--title-red)]' : 'border border-[var(--muted-red)]'
+          } p-8 flex flex-col gap-4`}>
+            <h3 className="text-xl font-bold text-[var(--off-white)] mb-2">Resource Links</h3>
+            {fieldErrors.resourceLinks && (
+              <p className="text-sm text-[var(--title-red)]">{fieldErrors.resourceLinks}</p>
             )}
-          </button>
-        </div>
-      </form>
+            <div className="flex flex-col gap-3">
+              {resourceLinks.map((link, index) => (
+                <div key={index} className="grid grid-cols-5 gap-3 items-center">
+                  <div className="col-span-2">
+                    <input
+                      type="text"
+                      placeholder="Link Title"
+                      className={`w-full p-2 rounded-lg bg-[#18181b] border ${
+                        !link.name.trim() ? 'border-[var(--muted-red)]' : 'border-gray-600'
+                      } text-[var(--off-white)] outline-none`}
+                      value={link.name}
+                      onChange={(e) => {
+                        const newLinks = [...resourceLinks];
+                        newLinks[index].name = e.target.value;
+                        setResourceLinks(newLinks);
+                      }}
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <input
+                      type="url"
+                      placeholder="URL (https://...)"
+                      className={`w-full p-2 rounded-lg bg-[#18181b] border ${
+                        link.url && !link.isValid 
+                          ? 'border-[var(--title-red)]' 
+                          : 'border-gray-600'
+                      } text-[var(--off-white)] outline-none`}
+                      value={link.url}
+                      onChange={(e) => {
+                        const newLinks = [...resourceLinks];
+                        newLinks[index].url = e.target.value;
+                        newLinks[index].isValid = isValidUrl(e.target.value);
+                        setResourceLinks(newLinks);
+                      }}
+                    />
+                  </div>
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newLinks = [...resourceLinks];
+                        newLinks.splice(index, 1);
+                        setResourceLinks(newLinks);
+                      }}
+                      className="p-2 rounded-lg text-[var(--muted-red)] hover:text-[var(--title-red)] hover:bg-[#1a1a1a] transition-colors"
+                      aria-label="Remove link"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              ))}
+              
+              <button
+                type="button"
+                onClick={() => {
+                  setResourceLinks([...resourceLinks, { name: '', url: '', isValid: false }]);
+                }}
+                className="mt-2 flex items-center gap-2 text-[var(--off-white)] hover:text-[var(--title-red)] transition-colors bg-[#1a1a1a] hover:bg-[#232323] p-2 rounded-lg self-start"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Add Resource Link
+              </button>
+              
+              <p className="text-xs text-gray-400 mt-2">
+                Add links to resources like documentation, setup guides, or contribution guidelines.
+              </p>
+            </div>
+          </section>
+
+          <div className="text-sm text-gray-400 italic mt-2">
+            <span className="text-[var(--title-red)]">*</span> Required fields
+          </div>
+
+          <div className="w-full flex justify-center mt-10 mb-16">
+            <button
+              type="submit"
+              disabled={isSubmitting || !hasRepoAccess}
+              className={`px-10 py-4 rounded-xl font-bold flex items-center gap-3 text-lg transition-all duration-200 shadow-lg
+                ${isSubmitting || !hasRepoAccess
+                  ? 'bg-gray-600 text-gray-300 cursor-not-allowed'
+                  : 'bg-[var(--title-red)] text-white hover:scale-105 hover:bg-[var(--orange)] focus:outline-none focus:ring-2 focus:ring-[var(--orange)]'}`}
+            >
+              {isSubmitting ? (
+                <>
+                  <svg className="animate-spin h-6 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  {isEditMode ? "Updating..." : "Submitting..."}
+                </>
+              ) : !hasRepoAccess ? (
+                "No Repository Access"
+              ) : (
+                <>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                  {isEditMode ? "Update Project" : "Post Project"}
+                </>
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
 
-// Main page component that provides Suspense boundary
 const Page = () => {
   return (
     <Suspense fallback={

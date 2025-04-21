@@ -15,7 +15,6 @@ const formatDate = (dateString) => {
   });
 };
 
-// Cache duration in milliseconds (e.g., 1 hour)
 const CACHE_DURATION = 60 * 60 * 1000;
 
 const Page = () => {
@@ -27,44 +26,33 @@ const Page = () => {
 
   useEffect(() => {
     if (!authLoading && !session) {
-      console.log("No authenticated session");
       setIsLoading(false);
       return;
     }
-
     if (!authLoading && session) {
-      fetchRepositories(false); // Pass false to avoid force refresh
+      fetchRepositories(false);
     }
   }, [session, authLoading]);
 
   const fetchRepositories = async (forceRefresh = false) => {
     try {
-      // Check for cached data first
       const cachedReposTime = localStorage.getItem('github_repos_time');
       const cachedRepos = localStorage.getItem('github_repos');
       const cachedLangs = localStorage.getItem('github_langs');
-      
       const now = new Date().getTime();
       const isCacheValid = cachedReposTime && cachedRepos && cachedLangs && 
-                          (now - parseInt(cachedReposTime) < CACHE_DURATION);
-      
-      // Use cache if valid and not forcing refresh
+        (now - parseInt(cachedReposTime) < CACHE_DURATION);
+
       if (isCacheValid && !forceRefresh) {
-        console.log('Using cached repository data');
         setRepositories(JSON.parse(cachedRepos));
         setLanguages(JSON.parse(cachedLangs));
         setIsLoading(false);
         return;
       }
-      
-      console.log('Fetching fresh repository data');
+
       const repos = await fetchUserRepositories();
       setRepositories(repos || []);
-      
-      // Create an object to store all language data
       const languagesData = {};
-      
-      // Create an array of promises for fetching languages
       const languagePromises = repos?.map(async (repo) => {
         if (repo?.owner?.login && repo?.name) {
           try {
@@ -74,24 +62,19 @@ const Page = () => {
             );
             languagesData[repo.id] = repoLanguages;
           } catch (error) {
-            console.error(`Error fetching languages for ${repo?.name}:`, error);
+            // ignore
           }
         }
       });
-      
-      // Wait for all language requests to complete
       if (languagePromises?.length) {
         await Promise.all(languagePromises);
         setLanguages(languagesData);
       }
-      
-      // Cache the results
       localStorage.setItem('github_repos', JSON.stringify(repos));
       localStorage.setItem('github_langs', JSON.stringify(languagesData));
       localStorage.setItem('github_repos_time', now.toString());
-      
     } catch (error) {
-      console.error("Error fetching repositories:", error);
+      // ignore
     } finally {
       setIsLoading(false);
     }
@@ -99,21 +82,23 @@ const Page = () => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen w-full radial-background">
+      <div className="flex items-center justify-center min-h-screen w-full">
         <div className="text-center">
           <div className="mb-4">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[--title-red] mx-auto"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[var(--title-red)] mx-auto"></div>
           </div>
-          <h1 className="inria-sans-bold text-xl text-off-white">Loading Your Repositories</h1>
+          <h1 className="text-xl text-[var(--off-white)]">Loading Your Repositories</h1>
         </div>
       </div>
     );
   }
 
   if (authError) {
-    return <div className="w-screen h-screen flex items-center justify-center">
-      <div className="text-red-500">{authError}</div>
-    </div>;
+    return (
+      <div className="w-screen h-screen flex items-center justify-center">
+        <div className="text-[var(--title-red)]">{authError}</div>
+      </div>
+    );
   }
 
   const filteredRepositories = repositories
@@ -123,82 +108,101 @@ const Page = () => {
     );
 
   return (
-    <div className="w-screen h-screen flex flex-col items-center inria-sans-regular p-8">
-      <h1 className="text-3xl font-bold mb text-neutral-100">
-        Select a Repository:
-      </h1>
-      <input
-        type="text"
-        placeholder="Search repositories"
-        value={searchQuery}
-        onChange={(e) => setSearchQuery(e.target.value)}
-        className="mb-8 p-3 border rounded-lg w-full max-w-xl shadow-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none bg-transparent text-neutral-100 placeholder-neutral-400"
-      />
-      <div className="w-full max-w-6xl grid grid-cols-1 md:grid-cols-2 gap-6">
-        {filteredRepositories.map((repo) => (
-          <Link
-            key={repo.id}
-            href={`/post-project/project-form?repo=${repo.name}&owner=${repo.owner.login}`}
-            className="p-6 border-2 border-neutral-200 rounded-xl hover:border-red-300 transition-all duration-300 backdrop-blur-sm cursor-pointer"
-          >
-            <div className="mb-4">
-              <h2 className="text-xl font-semibold flex justify-between items-start">
-                <div className="flex items-center group">
-                  <a
-                    href={repo.html_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                    className="text-red-400 hover:text-red-300"
-                  >
-                    {repo.name}
-                  </a>
-                  <a
-                    href={repo.html_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                    className="ml-2 text-sm opacity-60 group-hover:opacity-100 transition-opacity"
-                  >
-                    <FaExternalLinkAlt />
-                  </a>
+    <div className="min-h-screen w-full flex flex-col items-center px-4 py-10">
+      <div className="w-full max-w-[1200px]">
+        <header className="mb-10 flex flex-col items-center">
+          <h1 className="text-4xl md:text-5xl font-extrabold text-[var(--off-white)] tracking-tight mb-2">
+            Select a Repository
+          </h1>
+          <p className="text-lg text-gray-400 max-w-2xl text-center">
+            Choose a repository to post your project. Only public repositories are shown.
+          </p>
+        </header>
+        <div className="flex flex-col items-center mb-8">
+          <input
+            type="text"
+            placeholder="Search repositories"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="p-4 rounded-xl w-full max-w-xl bg-[#232323] border border-[var(--muted-red)] text-[var(--off-white)] placeholder-gray-400 shadow focus:ring-2 focus:ring-[var(--title-red)] focus:border-[var(--title-red)] outline-none transition"
+          />
+        </div>
+        <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-8">
+          {filteredRepositories.map((repo) => (
+            <Link
+              key={repo.id}
+              href={`/post-project/project-form?repo=${repo.name}&owner=${repo.owner.login}`}
+              className="group rounded-xl bg-[#232323] border-2 border-transparent hover:border-[var(--title-red)] shadow-lg p-7 flex flex-col gap-3 transition-all duration-200 cursor-pointer hover:scale-[1.025] focus:outline-none focus:ring-2 focus:ring-[var(--title-red)]"
+            >
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <a
+                      href={repo.html_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-[var(--orange)] font-bold hover:underline truncate max-w-[220px]"
+                    >
+                      {repo.name}
+                    </a>
+                    <a
+                      href={repo.html_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="ml-1 text-sm opacity-60 group-hover:opacity-100 transition-opacity text-[var(--off-white)]"
+                      aria-label="Open on GitHub"
+                    >
+                      <FaExternalLinkAlt />
+                    </a>
+                  </div>
+                  <span className="text-xs text-gray-400">
+                    Updated: {formatDate(repo.updated_at)}
+                  </span>
                 </div>
-              </h2>
-              <p className="text-sm text-neutral-300 mt-1">
-                Updated: {formatDate(repo.updated_at)}
-              </p>
-            </div>
-
-            <p className="text-neutral-200 mb-4 line-clamp-2">
-              {repo.description || "No description available"}
-            </p>
-
-            <div className="flex justify-between text-sm text-neutral-300">
-              <div className="flex items-center space-x-4">
-                <span className="flex items-center">
-                  <span className="text-yellow-300 mr-1">★</span>
-                  {repo.stargazers_count}
-                </span>
-                <span className="flex items-center">
-                  <span className="mr-1">🍴</span>
-                  {repo.forks_count}
-                </span>
+                <p className="text-[var(--off-white)] text-base line-clamp-2 min-h-[2.5rem]">
+                  {repo.description || <span className="italic text-gray-500">No description available</span>}
+                </p>
               </div>
-              <div className="text-neutral-300">
-                {languages[repo.id] ? 
-                  (typeof languages[repo.id] === 'object' && languages[repo.id] !== null) ?
-                    ('message' in languages[repo.id] ? 
-                      (repo.language || 'Not specified') :
-                      (Object.keys(languages[repo.id])
-                        .slice(0, 3)
-                        .join(', ') || 'No languages detected')
-                    ) : 'Loading...'
-                  : 'Loading...'
-                }
+              <div className="flex justify-between items-end mt-2">
+                <div className="flex items-center gap-4">
+                  <span className="flex items-center text-yellow-400 font-bold">
+                    <span className="mr-1">★</span>
+                    {repo.stargazers_count}
+                  </span>
+                  <span className="flex items-center text-[var(--off-white)]">
+                    <span className="mr-1">🍴</span>
+                    {repo.forks_count}
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {languages[repo.id] && typeof languages[repo.id] === 'object' && !('message' in languages[repo.id]) ? (
+                    Object.keys(languages[repo.id])
+                      .slice(0, 3)
+                      .map((lang) => (
+                        <span
+                          key={lang}
+                          className="px-3 py-1 rounded-full bg-[var(--orange)] bg-opacity-80 text-white text-xs font-bold shadow-sm"
+                        >
+                          {lang}
+                        </span>
+                      ))
+                  ) : (
+                    <span className="text-xs text-gray-400">
+                      {repo.language || 'No languages detected'}
+                    </span>
+                  )}
+                </div>
               </div>
-            </div>
-          </Link>
-        ))}
+            </Link>
+          ))}
+        </div>
+        {filteredRepositories.length === 0 && (
+          <div className="text-center text-gray-400 mt-16 text-lg">
+            No repositories found.
+          </div>
+        )}
       </div>
     </div>
   );
