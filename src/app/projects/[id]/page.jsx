@@ -5,6 +5,7 @@ import { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/supabaseClient';
 import { trackProjectView, trackProjectLike, removeProjectLike } from '@/services/recommendation-service';
 import { useProfanityFilter } from '@/hooks/useProfanityFilter';
+import ActivityGraph from '@/app/Components/ActivityGraph';
 
 const ProjectDetails = () => {
   const { id } = useParams();
@@ -41,28 +42,19 @@ const ProjectDetails = () => {
 
   const [commentFilter, setCommentFilter] = useState('new');
 
-  // Add state for edit mode
-  const [isEditing, setIsEditing] = useState(false);
-  const [editData, setEditData] = useState({});
-
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [isDeletingProject, setIsDeletingProject] = useState(false);
 
-  // Add state for copied secret
   const [copiedSecret, setCopiedSecret] = useState(false);
 
-  // Helper: check if current user owns the project
   const isOwner = currentUser && project && currentUser.id === project.user_id;
 
   const secret = process.env.NEXT_PUBLIC_GITHUB_WEBHOOK_SECRET;
 
-  // Replace startEditing function with this redirect function
   const redirectToEditPage = () => {
     if (!project || !project.repo_name) return;
     
-    // Extract owner from project data
-    // The repo_owner field should contain the GitHub username
     const owner = project.repo_owner;
     const repoName = project.repo_name;
     
@@ -71,20 +63,17 @@ const ProjectDetails = () => {
       return;
     }
     
-    // Navigate to the project edit form with query parameters
     window.location.href = `/post-project/project-form?repo=${encodeURIComponent(repoName)}&owner=${encodeURIComponent(owner)}`;
   };
 
-  // Update the handleProjectDelete function
   const handleProjectDelete = async () => {
     if (deleteConfirmation !== project.repo_name) {
-      return; // Don't proceed if confirmation text doesn't match
+      return;
     }
     
     setIsDeletingProject(true);
     
     try {
-      // Delete the project and all related data
       const { error } = await supabase
         .from('project')
         .delete()
@@ -97,14 +86,12 @@ const ProjectDetails = () => {
         return;
       }
       
-      // Store notification data in localStorage to be displayed on the home page
       localStorage.setItem('notification', JSON.stringify({
         message: `Project "${project.repo_name}" was successfully deleted`,
         type: 'success',
-        timestamp: Date.now() // Add timestamp to prevent stale notifications
+        timestamp: Date.now()
       }));
       
-      // Redirect to home
       window.location.href = '/';
     } catch (err) {
       console.error('Unexpected error deleting project:', err);
@@ -113,36 +100,6 @@ const ProjectDetails = () => {
     }
   };
 
-  // Save edits
-  const handleEditSave = async (e) => {
-    e.preventDefault();
-    if (!isOwner) return;
-    try {
-      const { error } = await supabase
-        .from('project')
-        .update({
-          ...editData,
-          repo_name: editData.repo_name,
-          repo_description: editData.repo_description
-        })
-        .eq('id', project.id);
-      if (error) {
-        alert('Failed to update project.');
-        return;
-      }
-      setProject({
-        ...project,
-        ...editData,
-        repo_name: editData.repo_name,
-        repo_description: editData.repo_description
-      });
-      setIsEditing(false);
-    } catch (err) {
-      alert('Unexpected error updating project.');
-    }
-  };
-
-  // First effect to get user info
   useEffect(() => {
     const getCurrentUser = async () => {
       const { data: { user }, error } = await supabase.auth.getUser();
@@ -156,13 +113,10 @@ const ProjectDetails = () => {
     getCurrentUser();
   }, []);
 
-  // Second effect to check if the project is liked
   useEffect(() => {
-    // Only run this effect if user is logged in
     if (!currentUser || !id) return;
 
     const checkIfLiked = async () => {
-      // check if user has liked the project
       try {
         const { data, error: likeError } = await supabase
           .from('project_likes')
@@ -182,11 +136,9 @@ const ProjectDetails = () => {
     checkIfLiked();
   }, [currentUser, id]);
 
-  // Third effect to get project data and comments
   useEffect(() => {
     if (!id) return;
 
-    // get total likes
     const getTotalLikes = async () => {
       const { data, error } = await supabase
         .from('project_likes')
@@ -225,7 +177,6 @@ const ProjectDetails = () => {
       } else {
         setProject(project);
 
-        // Only track view if user is logged in
         if (currentUser && !viewTracked.current) {
           viewTracked.current = true;
           trackProjectView(currentUser.id, project.id)
@@ -250,13 +201,11 @@ const ProjectDetails = () => {
         return;
       }
 
-      // Only proceed if there are comments
       if (commentsData.length === 0) {
         setComments([]);
         return;
       }
 
-      // fetch display names for each comment's user_id
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
         .select('user_id, display_name')
@@ -267,7 +216,6 @@ const ProjectDetails = () => {
         return;
       }
 
-      // Fetch comment votes
       const { data: votesData, error: votesError } = await supabase
         .from('project_comment_votes')
         .select('*')
@@ -277,7 +225,6 @@ const ProjectDetails = () => {
         console.error('Error fetching comment votes:', votesError);
       }
 
-      // Calculate vote totals and user's votes
       const votesByComment = {};
       commentsData.forEach(comment => {
         const commentVotes = votesData?.filter(vote => vote.comment_id === comment.id) || [];
@@ -295,7 +242,6 @@ const ProjectDetails = () => {
 
       setCommentVotes(votesByComment);
 
-      // combine comments with display names
       const commentsWithProfiles = commentsData.map(comment => ({
         ...comment,
         profiles: {
@@ -338,7 +284,6 @@ const ProjectDetails = () => {
     }
 
     if (isLiked) {
-      // Unlike
       const { error } = await supabase
         .from('project_likes')
         .delete()
@@ -349,7 +294,6 @@ const ProjectDetails = () => {
         setIsLiked(false);
         setLikes(prev => prev - 1);
 
-        // Also remove like from recommendation system
         if (project) {
           const result = await removeProjectLike(currentUser.id, project.id);
           if (result.error) {
@@ -358,7 +302,6 @@ const ProjectDetails = () => {
         }
       }
     } else {
-      // Like
       const { error } = await supabase
         .from('project_likes')
         .upsert([
@@ -369,7 +312,6 @@ const ProjectDetails = () => {
         setIsLiked(true);
         setLikes(prev => prev + 1);
 
-        // Also track like for recommendation system
         if (project) {
           trackProjectLike(currentUser.id, project.id);
         }
@@ -385,9 +327,7 @@ const ProjectDetails = () => {
 
     const currentVote = commentVotes[commentId]?.userVote;
 
-    // If same vote type, remove the vote
     if (currentVote === voteType) {
-      // Delete existing vote
       const { error } = await supabase
         .from('project_comment_votes')
         .delete()
@@ -404,10 +344,9 @@ const ProjectDetails = () => {
         }));
       }
     } else {
-      // Either adding new vote or changing vote
       const voteChange =
-        currentVote === null ? (voteType === 'up' ? 1 : -1) :  // New vote
-          voteType === 'up' ? 2 : -2;  // Changing from down to up or up to down (double effect)
+        currentVote === null ? (voteType === 'up' ? 1 : -1) :  
+          voteType === 'up' ? 2 : -2;
 
       const { error } = await supabase
         .from('project_comment_votes')
@@ -451,7 +390,6 @@ const ProjectDetails = () => {
       return;
     }
     
-    // Check for profanity before submitting
     if (reportHasProfanity) {
       alert('Please remove inappropriate language before submitting');
       return;
@@ -506,7 +444,6 @@ const ProjectDetails = () => {
       return; 
     }
     
-    // Check for profanity
     if (commentHasProfanity) {
       alert('Please remove inappropriate language before submitting');
       return;
@@ -515,7 +452,6 @@ const ProjectDetails = () => {
     setIsSubmittingComment(true);
     
     try {
-      // First insert the comment
       const { data, error } = await supabase
         .from('project_comments')
         .insert([
@@ -531,7 +467,6 @@ const ProjectDetails = () => {
         console.error('Error submitting comment:', error);
         alert('Failed to submit comment. Please try again.');
       } else {
-        // Fetch the user's profile to get the display_name
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .select('display_name')
@@ -540,7 +475,6 @@ const ProjectDetails = () => {
           
         const displayName = profileError ? 'User' : profileData.display_name;
         
-        // Add the new comment to the list with the correct display name from profiles
         const newCommentWithProfile = {
           ...data[0],
           profiles: {
@@ -549,9 +483,8 @@ const ProjectDetails = () => {
         };
         
         setComments(prevComments => [newCommentWithProfile, ...prevComments]);
-        setNewComment(''); // Clear the input
+        setNewComment('');
         
-        // Initialize vote count for the new comment
         setCommentVotes(prev => ({
           ...prev,
           [newCommentWithProfile.id]: {
@@ -571,23 +504,19 @@ const ProjectDetails = () => {
   const getFilteredComments = () => {
     if (!comments || comments.length === 0) return [];
     
-    // Create a copy to avoid mutating the original array
     const filtered = [...comments];
     
     switch (commentFilter) {
       case 'top':
-        // Sort by highest score first
         return filtered.sort((a, b) => 
           (commentVotes[b.id]?.score || 0) - (commentVotes[a.id]?.score || 0)
         );
       case 'old':
-        // Sort by oldest first
         return filtered.sort((a, b) => 
           new Date(a.created_at) - new Date(b.created_at)
         );
       case 'new':
       default:
-        // Sort by newest first (default)
         return filtered.sort((a, b) => 
           new Date(b.created_at) - new Date(a.created_at)
         );
@@ -657,7 +586,6 @@ const ProjectDetails = () => {
         </div>
       )}
 
-      {/* Project Image */}
       {project.image_url && (
         <div className="w-full h-64 bg-[#232323] flex items-center justify-center overflow-hidden">
           <img
@@ -670,7 +598,6 @@ const ProjectDetails = () => {
       )}
 
       <div className="p-8 sm:p-10">
-        {/* Header */}
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-6 mb-8 border-b border-[--muted-red] pb-6">
           <div className="min-w-0">
             <h1 className="text-4xl font-extrabold inria-sans-bold text-[--title-red] mb-2 truncate">{project.repo_name}</h1>
@@ -695,7 +622,7 @@ const ProjectDetails = () => {
             >
               <span role="img" aria-label="Report">⚠️</span>
             </button>
-            {isOwner && !isEditing && (
+            {isOwner && (
               <>
                 <button
                   onClick={redirectToEditPage}
@@ -716,116 +643,79 @@ const ProjectDetails = () => {
           </div>
         </div>
 
-        {/* Project Info */}
         <div className="mb-8">
-          {isEditing ? (
-            <form onSubmit={handleEditSave} className="space-y-4">
-              <div>
-                <label className="block font-semibold text-[--orange] mb-1">Project Name</label>
-                <input
-                  type="text"
-                  name="repo_name"
-                  value={editData.repo_name}
-                  onChange={handleEditChange}
-                  className="w-full bg-gray-900 text-[--off-white] rounded px-3 py-2 border border-gray-700"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block font-semibold text-[--orange] mb-1">Description</label>
-                <textarea
-                  name="repo_description"
-                  value={editData.repo_description}
-                  onChange={handleEditChange}
-                  className="w-full bg-gray-900 text-[--off-white] rounded px-3 py-2 border border-gray-700"
-                  rows={3}
-                />
-              </div>
-              {Object.entries(editData).map(([key, value]) => {
-                if (['repo_name', 'repo_description'].includes(key)) return null;
-                return (
-                  <div key={key}>
-                    <label className="block font-semibold text-[--orange] mb-1 capitalize">{key.replace(/_/g, ' ')}</label>
-                    <input
-                      type="text"
-                      name={key}
-                      value={value}
-                      onChange={handleEditChange}
-                      className="w-full bg-gray-900 text-[--off-white] rounded px-3 py-2 border border-gray-700"
-                    />
-                  </div>
-                );
-              })}
-              <div className="flex gap-2 justify-end">
-                <button
-                  type="button"
-                  onClick={() => setIsEditing(false)}
-                  className="px-4 py-2 rounded bg-gray-700 hover:bg-gray-600"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded bg-green-700 hover:bg-green-800 font-semibold text-white"
-                >
-                  Save Changes
-                </button>
-              </div>
-            </form>
-          ) : (
-            <div className="space-y-4">
-              {/* Show each field on its own line */}
-              {Object.entries(project).map(([key, value]) => {
-                if (
-                  [
-                    'id', 'user_id', 'created_at', 'updated_at',
-                    'project_technologies', 'project_tags', 'repo_name',
-                    'repo_description', 'image_url'
-                  ].includes(key)
-                ) return null;
-                return (
-                  <div key={key} className="flex flex-col mb-2">
-                    <span className="font-semibold text-[--orange] capitalize">{key.replace(/_/g, ' ')}</span>
-                    <span className="text-[--off-white] break-all">{typeof value === 'object' ? JSON.stringify(value) : String(value)}</span>
-                  </div>
-                );
-              })}
-              <div className="flex flex-col mb-2">
-                <span className="font-semibold text-[--orange]">Technologies</span>
-                <div className="flex flex-wrap gap-2 mt-1">
-                  {project.project_technologies && project.project_technologies.length > 0
-                    ? project.project_technologies.map(pt =>
-                        <span
-                          key={pt.technologies.id}
-                          className={`inline-block px-3 py-1 rounded-full text-xs font-bold shadow ${
-                            pt.is_highlighted
-                              ? "bg-[--orange] text-white border-2 border-[--title-red] scale-105"
-                              : "bg-[#232323] text-[--off-white] opacity-80"
-                          }`}
-                        >
-                          {pt.technologies.name}{pt.is_highlighted ? " ★" : ""}
-                        </span>
-                      )
-                    : <span className="text-gray-400">N/A</span>}
+          <div className="space-y-4">
+            {Object.entries(project).map(([key, value]) => {
+              if (
+                [
+                  'id', 'user_id', 'created_at', 'updated_at',
+                  'project_technologies', 'project_tags', 'repo_name',
+                  'repo_description', 'image_url'
+                ].includes(key)
+              ) return null;
+              return (
+                <div key={key} className="flex flex-col mb-2">
+                  <span className="font-semibold text-[--orange] capitalize">{key.replace(/_/g, ' ')}</span>
+                  <span className="text-[--off-white] break-all">{typeof value === 'object' ? JSON.stringify(value) : String(value)}</span>
                 </div>
-              </div>
-              <div className="flex flex-col mb-2">
-                <span className="font-semibold text-[--orange]">Tags</span>
-                <div className="flex flex-wrap gap-2 mt-1">
-                  {project.project_tags && project.project_tags.length > 0
-                    ? project.project_tags.map(pt =>
-                        <span key={pt.tags.id} className="inline-block px-3 py-1 rounded-full bg-[--title-red] text-white text-xs font-bold shadow">
-                          {pt.tags.name}
-                        </span>
-                      )
-                    : <span className="text-gray-400">N/A</span>}
-                </div>
+              );
+            })}
+            <div className="flex flex-col mb-2">
+              <span className="font-semibold text-[--orange]">Technologies</span>
+              <div className="flex flex-wrap gap-2 mt-1">
+                {project.project_technologies && project.project_technologies.length > 0
+                  ? project.project_technologies.map(pt =>
+                      <span
+                        key={pt.technologies.id}
+                        className={`inline-block px-3 py-1 rounded-full text-xs font-bold shadow ${
+                          pt.is_highlighted
+                            ? "bg-[--orange] text-white border-2 border-[--title-red] scale-105"
+                            : "bg-[#232323] text-[--off-white] opacity-80"
+                        }`}
+                      >
+                        {pt.technologies.name}{pt.is_highlighted ? " ★" : ""}
+                      </span>
+                    )
+                  : <span className="text-gray-400">N/A</span>}
               </div>
             </div>
-          )}
+            <div className="flex flex-col mb-2">
+              <span className="font-semibold text-[--orange]">Tags</span>
+              <div className="flex flex-wrap gap-2 mt-1">
+                {project.project_tags && project.project_tags.length > 0
+                  ? project.project_tags.map(pt =>
+                      <span key={pt.tags.id} className="inline-block px-3 py-1 rounded-full bg-[--title-red] text-white text-xs font-bold shadow">
+                        {pt.tags.name}
+                      </span>
+                    )
+                  : <span className="text-gray-400">N/A</span>}
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* Comments Section */}
+        <div className="mt-12">
+          <h2 className="text-2xl inria-sans-bold text-[--title-red] mb-4">Project Activity</h2>
+          <div className="bg-gray-900 rounded-xl shadow-sm border border-gray-800 p-6">
+            {project.repo_owner && project.repo_name ? (
+              <>
+                <p className="text-sm text-[--off-white] mb-4">
+                  Weekly commit activity for the past 2 months
+                </p>
+                <ActivityGraph 
+                  owner={project.repo_owner} 
+                  repo={project.repo_name}
+                  weeks={8}
+                />
+              </>
+            ) : (
+              <div className="text-center text-gray-400 py-8">
+                No repository information available to display activity
+              </div>
+            )}
+          </div>
+        </div>
+
         <div className="mt-8">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 gap-2">
             <h2 className="text-2xl inria-sans-bold text-[--title-red]">Comments</h2>
@@ -843,6 +733,7 @@ const ProjectDetails = () => {
               </select>
             </div>
           </div>
+          
           <div className="space-y-4">
             {getFilteredComments().map((comment) => (
               <div key={comment.id} className="p-4 bg-gray-900 rounded-xl shadow-sm border border-gray-800">
@@ -896,7 +787,6 @@ const ProjectDetails = () => {
                 No comments found
               </div>
             )}
-            {/* Add Comment */}
             <div className="mt-8 p-4 bg-gray-800 rounded-xl border border-gray-700">
               <h3 className="text-lg font-semibold mb-4 text-[--orange]">Add a Comment</h3>
               {currentUser ? (
@@ -941,7 +831,6 @@ const ProjectDetails = () => {
           </div>
         </div>
 
-        {/* Report Modal */}
         {showReportModal && (
           <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
             <div className="bg-gray-900 rounded-2xl p-8 w-full max-w-md text-[--off-white] border border-[--muted-red] shadow-2xl">
