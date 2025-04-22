@@ -223,7 +223,7 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="w-screen min-h-screen flex items-center justify-center radial-background">
+    <div className="w-screen min-h-screen flex items-center justify-center">
       <div className="max-w-[500px] w-full mx-4 radial-background rounded-lg shadow-lg p-8">
         {/* Progress indicator */}
         <div className="flex mb-6 items-center">

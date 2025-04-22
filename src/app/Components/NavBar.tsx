@@ -102,8 +102,13 @@ const NavBar = () => {
   const renderNavLink = (href: string, label: string, isProtected: boolean) => {
     return (
       <Link 
-        href={isProtected && !loggedIn ? "#" : href} 
-        onClick={(e) => isProtected && !loggedIn && handleProtectedLink(e, href)}
+        href={href}
+        onClick={(e) => {
+          if (isProtected && !loggedIn) {
+            e.preventDefault();
+            handleProtectedLink(e, href);
+          }
+        }}
         className={`transition-all duration-200 cursor-pointer ${
           pathname === href
           ? isProtected && !loggedIn 
