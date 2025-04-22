@@ -60,9 +60,17 @@ const ActivityGraph: React.FC<ActivityGraphProps> = ({ owner, repo, weeks = 8 })
         setMaxCount(max || 1); // Use 1 as minimum to avoid division by zero
         setCommitData(data);
         setError(null);
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error('Error fetching commit activity:', error);
-        setError(error.message || 'Failed to fetch commit activity data');
+        
+        let errorMessage = 'Failed to fetch commit activity data';
+        if (error instanceof Error) {
+          errorMessage = error.message;
+        } else if (typeof error === 'string') {
+          errorMessage = error;
+        }
+        
+        setError(errorMessage);
       } finally {
         setIsLoading(false);
       }
