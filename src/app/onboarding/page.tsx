@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../supabaseClient';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import MultiSelector from '../Components/MultiSelector';
+import MultiDifficultySelector from '../Components/MultiDifficultySelector';
 
 export default function OnboardingPage() {
   const [displayName, setDisplayName] = useState('');
@@ -13,6 +14,7 @@ export default function OnboardingPage() {
   const [userId, setUserId] = useState<string | null>(null);
 
   const [currentStep, setCurrentStep] = useState(1);
+  const [setupComplete, setSetupComplete] = useState(false);
 
   const [allTagObjects, setAllTagObjects] = useState<{ id: string; name: string }[]>([]);
   const [allTagNames, setAllTagNames] = useState<string[]>([]);
@@ -20,7 +22,18 @@ export default function OnboardingPage() {
   const [selectedTagObjects, setSelectedTagObjects] = useState<{ id: string; name: string }[]>([]);
   const [savingTags, setSavingTags] = useState(false);
 
+  const [selectedDifficulties, setSelectedDifficulties] = useState<number[]>([]);
+  const [savingDifficulty, setSavingDifficulty] = useState(false);
+
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const urlStep = searchParams ? Number(searchParams.get('step')) : null;
+    if (urlStep && [1, 2, 3].includes(urlStep)) {
+      setCurrentStep(urlStep);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     const checkUserProfile = async () => {
@@ -35,15 +48,23 @@ export default function OnboardingPage() {
       const userId = session.user.id;
       setUserId(userId);
 
-      const { data } = await supabase
+      const { data: profile } = await supabase
         .from('profiles')
-        .select('user_id, is_changed')
+        .select('user_id, is_changed, onboarding_step, display_name, difficulty')
         .eq('user_id', userId)
         .maybeSingle();
 
-      if (data && data.is_changed === true) {
+      // If user finished onboarding, redirect home
+      if (profile && profile.is_changed === true) {
         router.push('/');
         return;
+      }
+
+      // Resume onboarding at correct step (if not overridden by URL)
+      if (profile && profile.onboarding_step && searchParams && !searchParams.get('step')) {
+        setCurrentStep(profile.onboarding_step);
+        if (profile.display_name) setDisplayName(profile.display_name);
+        if (profile.difficulty) setSelectedDifficulties(profile.difficulty);
       }
 
       await fetchAllTags();
@@ -51,7 +72,7 @@ export default function OnboardingPage() {
     };
 
     checkUserProfile();
-  }, [router]);
+  }, [router, searchParams]);
 
   async function fetchAllTags() {
     try {
@@ -71,9 +92,18 @@ export default function OnboardingPage() {
     }
   }
 
+  const updateStep = async (step: number) => {
+    if (!userId) return;
+    await supabase
+      .from('profiles')
+      .update({ onboarding_step: step })
+      .eq('user_id', userId);
+  };
+
   const validateAndSaveDisplayName = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setError('');
 
     try {
       if (!displayName.trim()) {
@@ -94,7 +124,6 @@ export default function OnboardingPage() {
         .eq('display_name', displayName.trim());
 
       if (nameCheckError) {
-        console.error('Error checking display name:', nameCheckError);
         setError('Error checking if display name exists. Please try again.');
         setIsSubmitting(false);
         return;
@@ -113,7 +142,6 @@ export default function OnboardingPage() {
         .maybeSingle();
 
       if (profileCheckError) {
-        console.error('Error checking profile:', profileCheckError);
         setError('Error checking existing profile');
         setIsSubmitting(false);
         return;
@@ -125,8 +153,7 @@ export default function OnboardingPage() {
         saveResult = await supabase
           .from('profiles')
           .update({
-            display_name: displayName.trim(),
-            is_changed: true
+            display_name: displayName.trim()
           })
           .eq('user_id', userId);
       } else {
@@ -135,22 +162,21 @@ export default function OnboardingPage() {
           .insert({
             user_id: userId,
             display_name: displayName.trim(),
-            created_at: new Date().toISOString(),
-            is_changed: true
+            onboarding_step: 1,
+            created_at: new Date().toISOString()
           });
       }
 
       if (saveResult.error) {
-        console.error('Error saving display name:', saveResult.error);
         setError('Failed to save display name: ' + (saveResult.error.message || 'Unknown error'));
         setIsSubmitting(false);
         return;
       }
 
+      await updateStep(2);
       setCurrentStep(2);
       setIsSubmitting(false);
     } catch (e) {
-      console.error('Exception during save:', e);
       setError('An unexpected error occurred');
       setIsSubmitting(false);
     }
@@ -165,11 +191,47 @@ export default function OnboardingPage() {
     setSelectedTagObjects(objects);
   };
 
+  const saveDifficulty = async () => {
+    if (!userId) return;
+    setSavingDifficulty(true);
+    setError('');
+    try {
+      if (selectedDifficulties.length === 0) {
+        setError('Please select at least one difficulty level');
+        setSavingDifficulty(false);
+        return;
+      }
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ difficulty_level: selectedDifficulties })
+        .eq('user_id', userId);
+
+      if (updateError) {
+        setError('Failed to save difficulty selection');
+        setSavingDifficulty(false);
+        return;
+      }
+      await updateStep(3);
+      setCurrentStep(3);
+      setSavingDifficulty(false);
+    } catch (e) {
+      setError('Failed to save difficulty selection');
+      setSavingDifficulty(false);
+    }
+  };
+
   const saveTagPreferences = async () => {
     if (!userId) return;
 
     try {
       setSavingTags(true);
+      setError('');
+
+      if (selectedTagObjects.length === 0) {
+        setError('Please select at least one tag');
+        setSavingTags(false);
+        return;
+      }
 
       const tagIds = selectedTagObjects
         .map(tag => tag.id)
@@ -181,7 +243,6 @@ export default function OnboardingPage() {
         .eq('user_id', userId);
 
       if (deleteError) {
-        console.error("Error deleting existing preferences:", deleteError);
         throw deleteError;
       }
 
@@ -197,27 +258,30 @@ export default function OnboardingPage() {
           .insert(preferencesArray);
 
         if (insertError) {
-          console.error("Error inserting preferences:", insertError);
           throw insertError;
         }
       }
 
-      router.push('/');
+      // Mark onboarding complete
+      await supabase
+        .from('profiles')
+        .update({ is_changed: true, onboarding_step: 4 })
+        .eq('user_id', userId);
+
+      setSetupComplete(true);
+      setCurrentStep(4);
+      setSavingTags(false);
     } catch (e) {
-      console.error('Error saving tag preferences:', e);
       setError('Failed to save your tag preferences');
       setSavingTags(false);
     }
   };
 
-  const skipTagSelection = () => {
-    router.push('/');
-  };
-
   if (loading) {
     return (
-      <div className="w-screen min-h-screen flex items-center justify-center bg-gray-900">
-        <div className="loading-spinner"></div>
+      <div className="flex flex-col items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[--title-red] mb-4"></div>
+        <p className="text-[--off-white]">Loading Onboarding</p>
       </div>
     );
   }
@@ -227,17 +291,25 @@ export default function OnboardingPage() {
       <div className="max-w-[500px] w-full mx-4 radial-background rounded-lg shadow-lg p-8">
         {/* Progress indicator */}
         <div className="flex mb-6 items-center">
-          <div className={`rounded-full w-8 h-8 flex items-center justify-center 
-                     ${currentStep === 1 ? 'bg-blue-600 text-white' : 'bg-blue-900 text-blue-300'}`}>
-            1
-          </div>
-          <div className="h-1 w-8 mx-2 bg-gray-700"></div>
-          <div className={`rounded-full w-8 h-8 flex items-center justify-center 
-                     ${currentStep === 2 ? 'bg-blue-600 text-white' : 'bg-blue-900 text-blue-300'}`}>
-            2
-          </div>
+          {[1, 2, 3].map((step) => (
+            <React.Fragment key={step}>
+              <div className={`rounded-full w-8 h-8 flex items-center justify-center 
+                ${currentStep === step ? 'bg-blue-600 text-white' : 'bg-blue-900 text-blue-300'}`}>
+                {step}
+              </div>
+              {step < 3 && <div className="h-1 w-8 mx-2 bg-gray-700"></div>}
+            </React.Fragment>
+          ))}
+          {currentStep === 4 && (
+            <>
+              <div className="h-1 w-8 mx-2 bg-gray-700"></div>
+              <div className="rounded-full w-8 h-8 flex items-center justify-center bg-green-600 text-white">
+                ✓
+              </div>
+            </>
+          )}
         </div>
-        
+
         {currentStep === 1 ? (
           <>
             <h1 className="text-2xl inter-bold main-subtitle mb-4">Welcome to CodeConnect!</h1>
@@ -267,7 +339,37 @@ export default function OnboardingPage() {
               </div>
             </form>
           </>
-        ) : (
+        ) : currentStep === 2 ? (
+          <>
+            <h1 className="text-2xl inter-bold main-subtitle mb-4">Select Your Preferred Difficulty</h1>
+            <p className="mb-6">Choose one or more difficulty levels for projects you want to see.</p>
+            <div className="mb-6">
+              <MultiDifficultySelector
+                selectedDifficulties={selectedDifficulties}
+                onDifficultiesChange={setSelectedDifficulties}
+              />
+            </div>
+            {error && <p className="text-red-500 mb-4">{error}</p>}
+            <div className="flex justify-between">
+              <button
+                onClick={async () => {
+                  await updateStep(1);
+                  setCurrentStep(1);
+                }}
+                className="px-4 py-2 text-gray-400 rounded hover:bg-gray-800"
+              >
+                Back
+              </button>
+              <button
+                onClick={saveDifficulty}
+                disabled={savingDifficulty}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+              >
+                {savingDifficulty ? 'Saving...' : 'Continue'}
+              </button>
+            </div>
+          </>
+        ) : currentStep === 3 ? (
           <>
             <h1 className="text-2xl inter-bold main-subtitle mb-4">Select Your Interests</h1>
             <p className="mb-6">Choose topics you&apos;re interested in to help us personalize your recommendations.</p>
@@ -291,10 +393,13 @@ export default function OnboardingPage() {
             
             <div className="flex justify-between">
               <button
-                onClick={skipTagSelection}
+                onClick={async () => {
+                  await updateStep(2);
+                  setCurrentStep(2);
+                }}
                 className="px-4 py-2 text-gray-400 rounded hover:bg-gray-800"
               >
-                Skip for now
+                Back
               </button>
               <button
                 onClick={saveTagPreferences}
@@ -305,6 +410,24 @@ export default function OnboardingPage() {
               </button>
             </div>
           </>
+        ) : (
+          <div className="flex flex-col items-center justify-center py-12">
+            <div className="mb-4">
+              <svg className="h-16 w-16 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h1 className="text-2xl font-bold text-green-500 mb-2">Setup Complete!</h1>
+            <p className="text-[--off-white] mb-6 text-center">
+              Your profile is ready and personalized. You can now explore projects tailored to your interests.
+            </p>
+            <button
+              className="px-6 py-3 bg-blue-600 text-white rounded-full font-semibold hover:bg-blue-700 transition"
+              onClick={() => router.push('/')}
+            >
+              Go to Dashboard
+            </button>
+          </div>
         )}
       </div>
     </div>

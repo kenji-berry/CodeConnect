@@ -358,7 +358,20 @@ async function getUserTagPreferences(userId, debug = false) {
 export async function getRecommendedProjects(userId, limit = 5, debug = false) {
   try {
     if (debug) console.log("🔍 Starting recommendation process for user:", userId);
-    
+
+    // --- Fetch user difficulty preferences ---
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('difficulty_level')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    const userDifficulties = Array.isArray(profile?.difficulty_level)
+      ? profile.difficulty_level.map(String)
+      : [];
+
+    if (debug) console.log("🔍 User difficulty preferences:", userDifficulties);
+
     // 1. Get user's interaction data
     const { data: interactions, error: interactionError } = await supabase
       .from('user_interactions')
@@ -582,11 +595,29 @@ export async function getRecommendedProjects(userId, limit = 5, debug = false) {
           const enrichedProjects = await enrichProjectsWithTagsAndTech(projects || []);
           
           // Add recommendation reasons and sort by original score
-          const recommendedProjects = enrichedProjects.map(project => ({
-            ...project,
-            recommendationReason: projectReasons[project.id] || ["Recommended based on your preferences"]
-          }));
-          
+          const recommendedProjects = enrichedProjects.map(project => {
+            // Project difficulty_level may be null or an array
+            const projectDifficulties = Array.isArray(project.difficulty_level)
+              ? project.difficulty_level.map(String)
+              : [];
+
+            // Check for any overlap
+            const matchesDifficulty = userDifficulties.length > 0 &&
+              projectDifficulties.some(d => userDifficulties.includes(d));
+
+            // Add a boost to the score if there's a match
+            if (matchesDifficulty && projectScores[project.id] !== undefined) {
+              projectScores[project.id] += 1.0; 
+              if (!project.recommendationReason) project.recommendationReason = [];
+              project.recommendationReason.push("Matches your preferred difficulty level");
+            }
+
+            return {
+              ...project,
+              recommendationReason: projectReasons[project.id] || ["Recommended based on your preferences"]
+            };
+          });
+
           // Sort according to original score order
           const sortedProjects = topProjectIds
             .map(id => recommendedProjects.find(p => p.id === id))

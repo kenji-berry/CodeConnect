@@ -44,13 +44,12 @@ export default function AuthCallback() {
             }]);
         }
         
-        // Let middleware handle the redirect - just go to dashboard
-        router.push('/dashboard');
       } catch (err) {
         console.error("Auth callback error:", err);
         setError(err instanceof Error ? err.message : "An unknown error occurred");
       } finally {
         setLoading(false);
+        router.replace('/');
       }
     }
 

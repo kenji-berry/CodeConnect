@@ -39,7 +39,7 @@ export async function middleware(req: NextRequest) {
     
     const { data: profile, error } = await supabase
       .from('profiles')
-      .select('is_changed, display_name')
+      .select('is_changed, display_name, onboarding_step')
       .eq('user_id', session.user.id)
       .single();
     
@@ -47,12 +47,15 @@ export async function middleware(req: NextRequest) {
     console.log('❌ Profile query error:', error?.message);
     
     const needsOnboarding = !profile || profile.is_changed === false;
+    const onboardingStep = profile?.onboarding_step ?? 1;
     console.log('🚀 Needs onboarding?', needsOnboarding);
     console.log('🌐 Current path:', path);
     
-    if (needsOnboarding && path !== '/onboarding') {
+    if (needsOnboarding && !path.startsWith('/onboarding')) {
       console.log('🔄 Redirecting to onboarding...');
-      return NextResponse.redirect(new URL('/onboarding', req.url));
+      const onboardingUrl = new URL('/onboarding', req.url);
+      onboardingUrl.searchParams.set('step', onboardingStep.toString());
+      return NextResponse.redirect(onboardingUrl);
     }
     console.log('==================================\n');
   }
