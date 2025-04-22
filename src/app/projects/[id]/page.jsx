@@ -466,33 +466,47 @@ const ProjectDetails = () => {
       if (error) {
         console.error('Error submitting comment:', error);
         alert('Failed to submit comment. Please try again.');
-      } else {
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('display_name')
-          .eq('user_id', currentUser.id)
-          .single();
-          
-        const displayName = profileError ? 'User' : profileData.display_name;
-        
-        const newCommentWithProfile = {
-          ...data[0],
-          profiles: {
-            display_name: displayName
-          }
-        };
-        
-        setComments(prevComments => [newCommentWithProfile, ...prevComments]);
-        setNewComment('');
-        
-        setCommentVotes(prev => ({
-          ...prev,
-          [newCommentWithProfile.id]: {
-            score: 0,
-            userVote: null
-          }
-        }));
+        return;
       }
+      
+      // Make sure data exists and has at least one item
+      if (!data || !data[0]) {
+        console.error('No data returned after comment insertion');
+        alert('Failed to submit comment. Please try again.');
+        return;
+      }
+
+      // Store the comment ID before making the next request
+      const newCommentId = data[0].id;
+      
+      // Get profile data
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('display_name')
+        .eq('user_id', currentUser.id)
+        .single();
+      
+      const displayName = profileError ? 'User' : (profileData?.display_name || 'User');
+      
+      const newCommentWithProfile = {
+        ...data[0],
+        profiles: {
+          display_name: displayName
+        }
+      };
+      
+      setComments(prevComments => [newCommentWithProfile, ...prevComments]);
+      setNewComment('');
+      
+      // Use the stored comment ID to ensure it exists
+      setCommentVotes(prev => ({
+        ...prev,
+        [newCommentId]: {
+          score: 0,
+          userVote: null
+        }
+      }));
+
     } catch (error) {
       console.error('Error in comment submission:', error);
       alert('An unexpected error occurred.');
@@ -537,169 +551,284 @@ const ProjectDetails = () => {
   }
 
   return (
-    <div className="max-w-[1200px] mx-auto my-10 bg-[#18181b] rounded-xl shadow-xl border border-[--magenta-dark] p-0 overflow-hidden transition-all duration-300">
-      {isOwner && project && !project.webhook_active && (
-        <div className="bg-[--title-red] bg-opacity-90 text-[--off-white] p-6 border-b-2 border-[--orange] flex items-start gap-4">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 mr-2 mt-0.5 text-[--orange]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-          </svg>
-          <div>
-            <h3 className="font-bold text-xl mb-1 tracking-tight">GitHub Webhook Required</h3>
-            <p className="mb-2 text-[--off-white] opacity-80">
-              Your project isn&#39;t visible to other users because you haven&#39;t set up a GitHub webhook.
-              Projects without active webhooks won&#39;t appear in recommendations or search results.
-            </p>
-            <details className="bg-[#232323] rounded-lg p-3 mt-2 border-l-4 border-[--orange]">
-              <summary className="font-semibold cursor-pointer text-[--orange]">How to set up your webhook</summary>
-              <ol className="list-decimal ml-6 mt-2 text-sm text-[--off-white]">
-                <li className="mb-1">Go to your GitHub repository &rarr; <b>Settings</b> &rarr; <b>Webhooks</b></li>
-                <li className="mb-1">Click <b>Add webhook</b></li>
-                <li className="mb-1">
-                  <div className="mb-1"><b>Payload URL:</b></div>
-                  <code className="bg-amber-800 p-1 rounded block overflow-x-auto text-xs">
-                    {`${window.location.origin}/api/webhooks/github?projectId=${project.id}`}
-                  </code>
-                </li>
-                <li className="mb-1"><b>Content type:</b> <code className="bg-amber-800 p-1 rounded">application/json</code></li>
-                <li className="mb-1">
-                  <div><b>Secret:</b></div>
-                  <div className="flex items-center gap-2 mt-1">
-                    <code className="bg-amber-800 p-1 rounded font-mono text-green-300">{secret}</code>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        navigator.clipboard.writeText(secret);
-                        setCopiedSecret(true);
-                        setTimeout(() => setCopiedSecret(false), 2000);
-                      }}
-                      className="px-2 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded text-xs"
-                    >
-                      {copiedSecret ? "Copied!" : "Copy"}
-                    </button>
-                  </div>
-                </li>
-                <li className="mb-1">For <b>events</b>, select <b>Push</b>, <b>Issues</b>, and <b>Pull requests</b></li>
-                <li>Click <b>Add webhook</b> to save</li>
-              </ol>
-            </details>
-          </div>
-        </div>
-      )}
-
-      {project.image_url && (
-        <div className="w-full h-64 bg-[#232323] flex items-center justify-center overflow-hidden">
-          <img
-            src={project.image_url}
-            alt={project.repo_name}
-            className="object-cover w-full h-full rounded-t-xl"
-            style={{ maxHeight: 320 }}
-          />
-        </div>
-      )}
-
-      <div className="p-8 sm:p-10">
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-6 mb-8 border-b border-[--muted-red] pb-6">
-          <div className="min-w-0">
-            <h1 className="text-4xl font-extrabold inria-sans-bold text-[--title-red] mb-2 truncate">{project.repo_name}</h1>
-            <p className="text-base text-[--off-white] opacity-70 line-clamp-2">{project.repo_description || "No description provided."}</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={handleLike}
-              className={`px-5 py-2 rounded-full flex items-center gap-2 font-bold shadow transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[--orange] ${
-                isLiked ? 'bg-[--orange] hover:bg-[--title-red] text-white scale-105' : 'bg-[#232323] hover:bg-[--orange] text-[--off-white]'
-              }`}
-              disabled={!currentUser}
-              aria-pressed={isLiked}
-            >
-              <span className="text-xl">{isLiked ? '❤️' : '🤍'}</span>
-              <span className="font-semibold">{likes}</span>
-            </button>
-            <button
-              onClick={() => openReportModal({ type: 'project' })}
-              className="px-3 py-2 bg-[--muted-red] hover:bg-[--title-red] rounded-full text-sm shadow transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[--title-red]"
-              title="Report Project"
-            >
-              <span role="img" aria-label="Report">⚠️</span>
-            </button>
-            {isOwner && (
-              <>
-                <button
-                  onClick={redirectToEditPage}
-                  className="px-4 py-2 bg-green-700 hover:bg-green-800 rounded-full text-sm font-bold shadow transition-all duration-200 ml-2 focus:outline-none focus:ring-2 focus:ring-green-400"
-                  title="Edit Project"
-                >
-                  ✏️ Edit
-                </button>
-                <button
-                  onClick={() => setShowDeleteModal(true)}
-                  className="px-4 py-2 bg-red-700 hover:bg-red-800 rounded-full text-sm font-bold shadow transition-all duration-200 ml-2 focus:outline-none focus:ring-2 focus:ring-red-400"
-                  title="Delete Project"
-                >
-                  🗑️ Delete
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-
-        <div className="mb-8">
-          <div className="space-y-4">
-            {Object.entries(project).map(([key, value]) => {
-              if (
-                [
-                  'id', 'user_id', 'created_at', 'updated_at',
-                  'project_technologies', 'project_tags', 'repo_name',
-                  'repo_description', 'image_url'
-                ].includes(key)
-              ) return null;
-              return (
-                <div key={key} className="flex flex-col mb-2">
-                  <span className="font-semibold text-[--orange] capitalize">{key.replace(/_/g, ' ')}</span>
-                  <span className="text-[--off-white] break-all">{typeof value === 'object' ? JSON.stringify(value) : String(value)}</span>
-                </div>
-              );
-            })}
-            <div className="flex flex-col mb-2">
-              <span className="font-semibold text-[--orange]">Technologies</span>
-              <div className="flex flex-wrap gap-2 mt-1">
-                {project.project_technologies && project.project_technologies.length > 0
-                  ? project.project_technologies.map(pt =>
-                      <span
-                        key={pt.technologies.id}
-                        className={`inline-block px-3 py-1 rounded-full text-xs font-bold shadow ${
-                          pt.is_highlighted
-                            ? "bg-[--orange] text-white border-2 border-[--title-red] scale-105"
-                            : "bg-[#232323] text-[--off-white] opacity-80"
-                        }`}
+    <div className="w-full flex flex-col items-center px-2 py-10">
+      <div className="w-full max-w-[1200px] mx-auto">
+        {/* Webhook Warning Banner */}
+        {isOwner && project && !project.webhook_active && (
+          <div className="bg-[--title-red] bg-opacity-90 text-[--off-white] p-6 rounded-xl border-b-2 border-[--orange] flex items-start gap-4 mb-8 shadow-lg">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 mr-2 mt-0.5 text-[--orange]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <div>
+              <h3 className="font-bold text-xl mb-1 tracking-tight">GitHub Webhook Required</h3>
+              <p className="mb-2 text-[--off-white] opacity-80">
+                Your project isn&#39;t visible to other users because you haven&#39;t set up a GitHub webhook.
+                Projects without active webhooks won&#39;t appear in recommendations or search results.
+              </p>
+              <details className="bg-[#232323] rounded-lg p-3 mt-2 border-l-4 border-[--orange]">
+                <summary className="font-semibold cursor-pointer text-[--orange]">How to set up your webhook</summary>
+                <ol className="list-decimal ml-6 mt-2 text-sm text-[--off-white]">
+                  <li className="mb-1">Go to your GitHub repository &rarr; <b>Settings</b> &rarr; <b>Webhooks</b></li>
+                  <li className="mb-1">Click <b>Add webhook</b></li>
+                  <li className="mb-1">
+                    <div className="mb-1"><b>Payload URL:</b></div>
+                    <code className="bg-amber-800 p-1 rounded block overflow-x-auto text-xs">
+                      {`${window.location.origin}/api/webhooks/github?projectId=${project.id}`}
+                    </code>
+                  </li>
+                  <li className="mb-1"><b>Content type:</b> <code className="bg-amber-800 p-1 rounded">application/json</code></li>
+                  <li className="mb-1">
+                    <div><b>Secret:</b></div>
+                    <div className="flex items-center gap-2 mt-1">
+                      <code className="bg-amber-800 p-1 rounded font-mono text-green-300">{secret}</code>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(secret);
+                          setCopiedSecret(true);
+                          setTimeout(() => setCopiedSecret(false), 2000);
+                        }}
+                        className="px-2 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded text-xs"
                       >
-                        {pt.technologies.name}{pt.is_highlighted ? " ★" : ""}
-                      </span>
-                    )
-                  : <span className="text-gray-400">N/A</span>}
-              </div>
-            </div>
-            <div className="flex flex-col mb-2">
-              <span className="font-semibold text-[--orange]">Tags</span>
-              <div className="flex flex-wrap gap-2 mt-1">
-                {project.project_tags && project.project_tags.length > 0
-                  ? project.project_tags.map(pt =>
-                      <span key={pt.tags.id} className="inline-block px-3 py-1 rounded-full bg-[--title-red] text-white text-xs font-bold shadow">
-                        {pt.tags.name}
-                      </span>
-                    )
-                  : <span className="text-gray-400">N/A</span>}
-              </div>
+                        {copiedSecret ? "Copied!" : "Copy"}
+                      </button>
+                    </div>
+                  </li>
+                  <li className="mb-1">For <b>events</b>, select <b>Push</b>, <b>Issues</b>, and <b>Pull requests</b></li>
+                  <li>Click <b>Add webhook</b> to save</li>
+                </ol>
+              </details>
             </div>
           </div>
-        </div>
+        )}
 
-        <div className="mt-12">
-          <h2 className="text-2xl inria-sans-bold text-[--title-red] mb-4">Project Activity</h2>
-          <div className="bg-gray-900 rounded-xl shadow-sm border border-gray-800 p-6">
+        {/* Project Title and Actions */}
+        <section className="rounded-xl shadow-lg bg-[#232323] border border-[var(--muted-red)] p-8 mb-8">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-6 border-b border-[--muted-red] pb-6 mb-6">
+            <div className="min-w-0">
+              <h1 className="text-5xl font-extrabold flex items-center group text-[var(--off-white)] tracking-tight mb-2 truncate">
+                <a
+                  href={`https://github.com/${project.repo_owner}/${project.repo_name}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 relative text-[var(--off-white)] hover:text-[var(--title-red)] transition-colors duration-300"
+                >
+                  <span className="">{project.repo_name}</span>
+                  <div className="relative">
+                    <div className="absolute bottom-0 left-0 w-full h-0.5 bg-[var(--title-red)] transform scale-x-0 transition-transform duration-300 group-hover:scale-x-100" />
+                  </div>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-7 w-7 transform transition-transform duration-300 group-hover:translate-x-1 group-hover:-translate-y-1"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                    />
+                  </svg>
+                </a>
+              </h1>
+              <p className="text-base text-[--off-white] opacity-70 line-clamp-2">{project.repo_description || "No description provided."}</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleLike}
+                className={`px-5 py-2 rounded-full flex items-center gap-2 font-bold shadow transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[--orange] ${
+                  isLiked ? 'bg-[--orange] hover:bg-[--title-red] text-white scale-105' : 'bg-[#232323] hover:bg-[--orange] text-[--off-white]'
+                }`}
+                disabled={!currentUser}
+                aria-pressed={isLiked}
+              >
+                <span className="text-xl">{isLiked ? '❤️' : '🤍'}</span>
+                <span className="font-semibold">{likes}</span>
+              </button>
+              <button
+                onClick={() => openReportModal({ type: 'project' })}
+                className="px-3 py-2 bg-[--muted-red] hover:bg-[--title-red] rounded-full text-sm shadow transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[--title-red]"
+                title="Report Project"
+              >
+                <span role="img" aria-label="Report">⚠️</span>
+              </button>
+              {isOwner && (
+                <>
+                  <button
+                    onClick={redirectToEditPage}
+                    className="px-4 py-2 bg-green-700 hover:bg-green-800 rounded-full text-sm font-bold shadow transition-all duration-200 ml-2 focus:outline-none focus:ring-2 focus:ring-green-400"
+                    title="Edit Project"
+                  >
+                    ✏️ Edit
+                  </button>
+                  <button
+                    onClick={() => setShowDeleteModal(true)}
+                    className="px-4 py-2 bg-red-700 hover:bg-red-800 rounded-full text-sm font-bold shadow transition-all duration-200 ml-2 focus:outline-none focus:ring-2 focus:ring-red-400"
+                    title="Delete Project"
+                  >
+                    🗑️ Delete
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+          
+          {/* Project Description */}
+          <div className="mb-6">
+            <h2 className="text-xl font-semibold text-[--orange] mb-2">Description</h2>
+            <p className="text-[--off-white]">{project.custom_description || "No custom description provided."}</p>
+          </div>
+          
+          {/* Project Details */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+            <div>
+              <h3 className="font-semibold text-[--orange] mb-1">Repository</h3>
+              <div className="text-[--off-white] flex items-center">
+                <a
+                  href={`https://github.com/${project.repo_owner}/${project.repo_name}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center hover:text-[--title-red] transition-colors"
+                >
+                  {project.repo_owner}/{project.repo_name}
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M12.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                </a>
+              </div>
+            </div>
+            
+            <div>
+              <h3 className="font-semibold text-[--orange] mb-1">Status</h3>
+              <p className="text-[--off-white]">{project.status || "Unknown"}</p>
+            </div>
+            
+            <div>
+              <h3 className="font-semibold text-[--orange] mb-1">Difficulty Level</h3>
+              <div className="flex items-center">
+                {Array.from({ length: project.difficulty_level || 1 }).map((_, i) => (
+                  <svg key={i} xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-[--title-red]" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                  </svg>
+                ))}
+                {Array.from({ length: 5 - (project.difficulty_level || 1) }).map((_, i) => (
+                  <svg key={i + project.difficulty_level} xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                  </svg>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <h3 className="font-semibold text-[--orange] mb-1">Setup Time</h3>
+              <p className="text-[--off-white]">{project.setup_time ? `${project.setup_time} minutes` : "Not specified"}</p>
+            </div>
+            
+            <div>
+              <h3 className="font-semibold text-[--orange] mb-1">Mentorship</h3>
+              <p className="text-[--off-white]">{project.mentorship ? "Available" : "Not available"}</p>
+            </div>
+            
+            <div>
+              <h3 className="font-semibold text-[--orange] mb-1">License</h3>
+              <p className="text-[--off-white]">{project.license || "Not specified"}</p>
+            </div>
+
+            <div>
+              <h3 className="font-semibold text-[--orange] mb-1">Open Issues</h3>
+              <p className="text-[--off-white]">{project.open_issues || "0"}</p>
+            </div>
+
+            <div>
+              <h3 className="font-semibold text-[--orange] mb-1">Last Updated</h3>
+              <p className="text-[--off-white]">
+                {project.updated_at ? new Date(project.updated_at).toLocaleDateString('en-US', {
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric'
+                }) : "Unknown"}
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* Technologies and Tags */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+          {/* Technologies */}
+          <section className="rounded-xl shadow-lg bg-[#232323] border border-[var(--muted-red)] p-8">
+            <h2 className="text-xl font-bold text-[var(--off-white)] mb-4">Technologies & Languages</h2>
+            <div className="flex flex-wrap gap-2">
+              {project.project_technologies && project.project_technologies.length > 0
+                ? project.project_technologies.map(pt =>
+                    <span
+                      key={pt.technologies.id}
+                      className={`inline-block px-3 py-1 rounded-full text-sm font-medium shadow ${
+                        pt.is_highlighted
+                          ? "bg-[#232323] text-[var(--off-white)] border-2 border-amber-500 hover:border-amber-400"
+                          : "bg-[#232323] text-[var(--off-white)] border border-[var(--muted-red)] hover:border-[var(--title-red)]"
+                      }`}
+                    >
+                      {pt.technologies.name}{pt.is_highlighted ? " ★" : ""}
+                    </span>
+                  )
+                : <span className="text-gray-400">No technologies specified</span>}
+            </div>
+          </section>
+
+          {/* Tags */}
+          <section className="rounded-xl shadow-lg bg-[#232323] border border-[var(--muted-red)] p-8">
+            <h2 className="text-xl font-bold text-[var(--off-white)] mb-4">Tags</h2>
+            <div className="flex flex-wrap gap-2">
+              {project.project_tags && project.project_tags.length > 0
+                ? project.project_tags.map(pt =>
+                    <span 
+                      key={pt.tags.id} 
+                      className={`inline-block px-3 py-1 rounded-full text-sm font-medium shadow ${
+                        pt.is_highlighted
+                          ? "bg-[#232323] text-[var(--off-white)] border-2 border-amber-500 hover:border-amber-400"
+                          : "bg-[#232323] text-[var(--off-white)] border border-[var(--muted-red)] hover:border-[var(--title-red)]"
+                      }`}
+                    >
+                      {pt.tags.name}{pt.is_highlighted ? " ★" : ""}
+                    </span>
+                  )
+                : <span className="text-gray-400">No tags specified</span>}
+            </div>
+          </section>
+        </div>
+        
+        {/* Resource Links */}
+        {project.links && project.links.length > 0 && (
+          <section className="rounded-xl shadow-lg bg-[#232323] border border-[var(--muted-red)] p-8 mb-8">
+            <h2 className="text-xl font-bold text-[var(--off-white)] mb-4">Resource Links</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {project.links.map((link, index) => (
+                <a
+                  key={index}
+                  href={link.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center p-3 rounded-lg bg-[#1a1a1a] border border-[var(--muted-red)] hover:border-[var(--title-red)] transition-colors"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-[var(--orange)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                  </svg>
+                  <span className="text-[var(--off-white)]">{link.name}</span>
+                </a>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Activity Graph */}
+        <section className="rounded-xl shadow-lg bg-[#232323] border border-[var(--muted-red)] p-8 mb-8">
+          <h2 className="text-xl font-bold text-[var(--off-white)] mb-4">Project Activity</h2>
+          <div className="bg-[#1a1a1a] rounded-xl shadow-sm border border-gray-800 p-6">
             {project.repo_owner && project.repo_name ? (
               <>
-                <p className="text-sm text-[--off-white] mb-4">
+                <p className="text-sm text-[var(--off-white)] mb-4">
                   Weekly commit activity for the past 2 months
                 </p>
                 <ActivityGraph 
@@ -714,16 +843,17 @@ const ProjectDetails = () => {
               </div>
             )}
           </div>
-        </div>
+        </section>
 
-        <div className="mt-8">
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 gap-2">
-            <h2 className="text-2xl inria-sans-bold text-[--title-red]">Comments</h2>
-            <div className="flex items-center">
-              <label htmlFor="comment-filter" className="mr-2 text-sm text-[--off-white]">Filter by:</label>
+        {/* Comments Section */}
+        <section className="rounded-xl shadow-lg bg-[#232323] border border-[var(--muted-red)] p-8">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6">
+            <h2 className="text-xl font-bold text-[var(--off-white)]">Comments</h2>
+            <div className="flex items-center mt-2 sm:mt-0">
+              <label htmlFor="comment-filter" className="mr-2 text-sm text-[var(--off-white)]">Filter by:</label>
               <select
                 id="comment-filter"
-                className="bg-gray-800 text-[--off-white] rounded px-3 py-1 text-sm border border-gray-700"
+                className="bg-[#1a1a1a] text-[var(--off-white)] rounded px-3 py-1 text-sm border border-gray-700"
                 value={commentFilter}
                 onChange={(e) => setCommentFilter(e.target.value)}
               >
@@ -734,42 +864,42 @@ const ProjectDetails = () => {
             </div>
           </div>
           
-          <div className="space-y-4">
-            {getFilteredComments().map((comment) => (
-              <div key={comment.id} className="p-4 bg-gray-900 rounded-xl shadow-sm border border-gray-800">
+          <div className="space-y-4 mb-8">
+            {getFilteredComments().length > 0 ? getFilteredComments().map((comment) => (
+              <div key={comment.id} className="p-4 bg-[#1a1a1a] rounded-xl shadow-sm border border-gray-800">
                 <div className="flex justify-between items-start mb-1">
-                  <p className="font-bold text-[--orange]">{comment.profiles.display_name}</p>
+                  <p className="font-bold text-[var(--orange)]">{comment.profiles.display_name}</p>
                   <button
                     onClick={() => openReportModal({ type: 'comment', id: comment.id })}
-                    className="text-xs bg-[--muted-red] hover:bg-[--title-red] px-2 py-1 rounded transition-colors duration-200"
+                    className="text-xs bg-[var(--muted-red)] hover:bg-[var(--title-red)] px-2 py-1 rounded transition-colors duration-200"
                     title="Report Comment"
                   >
                     ⚠️
                   </button>
                 </div>
-                <p className="text-[--off-white]">{comment.comment}</p>
-                <div className="flex items-center mt-2">
-                  <div className="flex items-center mr-4">
+                <p className="text-[var(--off-white)]">{comment.comment}</p>
+                <div className="flex items-center justify-between mt-2">
+                  <div className="flex items-center">
                     <button
                       onClick={() => handleVote(comment.id, 'up')}
                       disabled={!currentUser}
                       className={`px-2 py-1 rounded transition-colors duration-200 ${
                         commentVotes[comment.id]?.userVote === 'up'
                           ? 'bg-blue-600 text-white'
-                          : 'bg-gray-800 hover:bg-blue-700'
+                          : 'bg-[#232323] hover:bg-blue-700'
                       }`}
                       title={currentUser ? "Upvote" : "Sign in to vote"}
                     >
                       ▲
                     </button>
-                    <span className="mx-2 font-semibold text-[--off-white]">{commentVotes[comment.id]?.score || 0}</span>
+                    <span className="mx-2 font-semibold text-[var(--off-white)]">{commentVotes[comment.id]?.score || 0}</span>
                     <button
                       onClick={() => handleVote(comment.id, 'down')}
                       disabled={!currentUser}
                       className={`px-2 py-1 rounded transition-colors duration-200 ${
                         commentVotes[comment.id]?.userVote === 'down'
                           ? 'bg-red-600 text-white'
-                          : 'bg-gray-800 hover:bg-red-700'
+                          : 'bg-[#232323] hover:bg-red-700'
                       }`}
                       title={currentUser ? "Downvote" : "Sign in to vote"}
                     >
@@ -781,182 +911,187 @@ const ProjectDetails = () => {
                   </p>
                 </div>
               </div>
-            ))}
-            {comments.length === 0 && (
+            )) : (
               <div className="text-center text-gray-400 py-4">
-                No comments found
+                No comments yet. Be the first to comment!
               </div>
             )}
-            <div className="mt-8 p-4 bg-gray-800 rounded-xl border border-gray-700">
-              <h3 className="text-lg font-semibold mb-4 text-[--orange]">Add a Comment</h3>
-              {currentUser ? (
-                <form onSubmit={handleCommentSubmit}>
+          </div>
+
+          {/* Add Comment Form */}
+          <div className="p-4 bg-[#1a1a1a] rounded-xl border border-gray-700">
+            <h3 className="text-lg font-semibold mb-4 text-[var(--orange)]">Add a Comment</h3>
+            {currentUser ? (
+              <form onSubmit={handleCommentSubmit}>
+                <textarea
+                  className={`w-full bg-[#18181b] p-3 rounded-xl text-[var(--off-white)] mb-3 resize-none border ${
+                    commentHasProfanity 
+                      ? 'border-2 border-[var(--title-red)]' 
+                      : 'border border-[var(--muted-red)]'
+                  } focus:ring-2 focus:ring-[var(--title-red)] focus:border-[var(--title-red)] outline-none`}
+                  rows="3"
+                  value={newComment}
+                  onChange={handleCommentChange}
+                  placeholder="Share your thoughts about this project..."
+                  required
+                ></textarea>
+                {commentHasProfanity && (
+                  <p className="text-[var(--title-red)] text-sm mb-2">
+                    Please remove inappropriate language
+                  </p>
+                )}
+                <div className="flex justify-end">
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-[var(--title-red)] hover:bg-[var(--orange)] rounded-xl text-white font-semibold transition-colors duration-200"
+                    disabled={isSubmittingComment || !newComment.trim() || commentHasProfanity}
+                  >
+                    {isSubmittingComment ? 'Posting...' : 'Post Comment'}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <div className="text-center p-4 bg-[#18181b] rounded-xl">
+                <p className="mb-2 text-[var(--off-white)]">You need to be logged in to comment</p>
+                <button
+                  onClick={redirectToLogin}
+                  className="px-4 py-2 bg-[var(--title-red)] hover:bg-[var(--orange)] rounded-xl text-white font-semibold"
+                >
+                  Log In
+                </button>
+              </div>
+            )}
+          </div>
+        </section>
+      </div>
+
+      {/* Report Modal */}
+      {showReportModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+          <div className="bg-gray-900 rounded-2xl p-8 w-full max-w-md text-[--off-white] border border-[--muted-red] shadow-2xl">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-[--title-red]">
+                Report {reportTarget?.type === 'project' ? 'Project' : 'Comment'}
+              </h2>
+              <button onClick={() => setShowReportModal(false)} className="text-gray-400 hover:text-white text-2xl">
+                &times;
+              </button>
+            </div>
+            {reportSuccess ? (
+              <div className="text-green-500 text-center py-4">
+                Report submitted successfully. Thank you for helping keep our community safe.
+              </div>
+            ) : (
+              <form onSubmit={handleReportSubmit}>
+                <div className="mb-4">
+                  <label className="block mb-2">Reason:</label>
+                  <select
+                    className="w-full bg-gray-800 p-2 rounded text-[--off-white] border border-gray-700"
+                    value={reportReason}
+                    onChange={(e) => setReportReason(e.target.value)}
+                    required
+                  >
+                    <option value="">Select a reason</option>
+                    <option value="spam">Spam</option>
+                    <option value="inappropriate">Inappropriate content</option>
+                    <option value="offensive">Offensive language</option>
+                    <option value="harassment">Harassment</option>
+                    <option value="misinformation">Misinformation</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+                <div className="mb-4">
+                  <label className="block mb-2">Description (optional):</label>
                   <textarea
-                    className={`w-full bg-gray-900 p-3 rounded text-[--off-white] mb-3 resize-none border ${
-                      commentHasProfanity ? 'border-red-500' : 'border-gray-700'
+                    className={`w-full bg-gray-800 p-2 rounded text-[--off-white] border ${
+                      reportHasProfanity ? 'border-red-500' : 'border-gray-700'
                     }`}
                     rows="3"
-                    value={newComment}
-                    onChange={handleCommentChange}
-                    placeholder="Share your thoughts about this project..."
-                    required
+                    value={reportDescription}
+                    onChange={handleReportDescriptionChange}
+                    placeholder="Please provide additional details..."
                   ></textarea>
-                  {commentHasProfanity && (
-                    <p className="text-red-500 text-sm mb-2">
+                  {reportHasProfanity && (
+                    <p className="text-red-500 text-sm mt-1">
                       Please remove inappropriate language
                     </p>
                   )}
-                  <div className="flex justify-end">
-                    <button
-                      type="submit"
-                      className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-white font-semibold transition-colors duration-200"
-                      disabled={isSubmittingComment || !newComment.trim()}
-                    >
-                      {isSubmittingComment ? 'Posting...' : 'Post Comment'}
-                    </button>
-                  </div>
-                </form>
-              ) : (
-                <div className="text-center p-4 bg-gray-900 rounded">
-                  <p className="mb-2">You need to be logged in to comment</p>
+                </div>
+                <div className="flex justify-end">
                   <button
-                    onClick={redirectToLogin}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-white font-semibold"
+                    type="button"
+                    onClick={() => setShowReportModal(false)}
+                    className="px-4 py-2 rounded mr-2 bg-gray-700 hover:bg-gray-600"
                   >
-                    Log In
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 rounded bg-[--title-red] hover:bg-[--muted-red] font-semibold"
+                    disabled={reportSubmitting}
+                  >
+                    {reportSubmitting ? 'Submitting...' : 'Submit Report'}
                   </button>
                 </div>
-              )}
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Delete Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+          <div className="bg-gray-900 rounded-2xl p-8 w-full max-w-md text-[--off-white] border border-red-500 shadow-2xl">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-red-500">Delete Project</h2>
+              <button 
+                onClick={() => setShowDeleteModal(false)} 
+                className="text-gray-400 hover:text-white text-2xl"
+                aria-label="Close"
+              >
+                &times;
+              </button>
+            </div>
+            <div className="mb-6">
+              <p className="text-[--off-white] mb-4">
+                Are you sure you want to delete this project? This action <span className="font-bold">cannot be undone</span> and will remove all associated data including comments and likes.
+              </p>
+              <p className="font-semibold mb-2">
+                Type <span className="text-red-400">&ldquo;{project.repo_name}&rdquo;</span> to confirm:
+              </p>
+              <input
+                type="text"
+                className="w-full bg-gray-800 p-2 rounded text-[--off-white] border border-gray-700"
+                value={deleteConfirmation}
+                onChange={(e) => setDeleteConfirmation(e.target.value)}
+                placeholder="Enter project name to confirm"
+              />
+            </div>
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => setShowDeleteModal(false)}
+                className="px-4 py-2 rounded mr-2 bg-gray-700 hover:bg-gray-600"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleProjectDelete}
+                className={`px-4 py-2 rounded font-semibold ${
+                  deleteConfirmation === project.repo_name 
+                    ? 'bg-red-600 hover:bg-red-700' 
+                    : 'bg-gray-600 cursor-not-allowed'
+                }`}
+                disabled={deleteConfirmation !== project.repo_name || isDeletingProject}
+              >
+                {isDeletingProject ? 'Deleting...' : 'Delete Project'}
+              </button>
             </div>
           </div>
         </div>
-
-        {showReportModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
-            <div className="bg-gray-900 rounded-2xl p-8 w-full max-w-md text-[--off-white] border border-[--muted-red] shadow-2xl">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold text-[--title-red]">
-                  Report {reportTarget?.type === 'project' ? 'Project' : 'Comment'}
-                </h2>
-                <button onClick={() => setShowReportModal(false)} className="text-gray-400 hover:text-white text-2xl">
-                  &times;
-                </button>
-              </div>
-              {reportSuccess ? (
-                <div className="text-green-500 text-center py-4">
-                  Report submitted successfully. Thank you for helping keep our community safe.
-                </div>
-              ) : (
-                <form onSubmit={handleReportSubmit}>
-                  <div className="mb-4">
-                    <label className="block mb-2">Reason:</label>
-                    <select
-                      className="w-full bg-gray-800 p-2 rounded text-[--off-white] border border-gray-700"
-                      value={reportReason}
-                      onChange={(e) => setReportReason(e.target.value)}
-                      required
-                    >
-                      <option value="">Select a reason</option>
-                      <option value="spam">Spam</option>
-                      <option value="inappropriate">Inappropriate content</option>
-                      <option value="offensive">Offensive language</option>
-                      <option value="harassment">Harassment</option>
-                      <option value="misinformation">Misinformation</option>
-                      <option value="other">Other</option>
-                    </select>
-                  </div>
-                  <div className="mb-4">
-                    <label className="block mb-2">Description (optional):</label>
-                    <textarea
-                      className={`w-full bg-gray-800 p-2 rounded text-[--off-white] border ${
-                        reportHasProfanity ? 'border-red-500' : 'border-gray-700'
-                      }`}
-                      rows="3"
-                      value={reportDescription}
-                      onChange={handleReportDescriptionChange}
-                      placeholder="Please provide additional details..."
-                    ></textarea>
-                    {reportHasProfanity && (
-                      <p className="text-red-500 text-sm mt-1">
-                        Please remove inappropriate language
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex justify-end">
-                    <button
-                      type="button"
-                      onClick={() => setShowReportModal(false)}
-                      className="px-4 py-2 rounded mr-2 bg-gray-700 hover:bg-gray-600"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      className="px-4 py-2 rounded bg-[--title-red] hover:bg-[--muted-red] font-semibold"
-                      disabled={reportSubmitting}
-                    >
-                      {reportSubmitting ? 'Submitting...' : 'Submit Report'}
-                    </button>
-                  </div>
-                </form>
-              )}
-            </div>
-          </div>
-        )}
-
-        {showDeleteModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
-            <div className="bg-gray-900 rounded-2xl p-8 w-full max-w-md text-[--off-white] border border-red-500 shadow-2xl">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold text-red-500">Delete Project</h2>
-                <button 
-                  onClick={() => setShowDeleteModal(false)} 
-                  className="text-gray-400 hover:text-white text-2xl"
-                  aria-label="Close"
-                >
-                  &times;
-                </button>
-              </div>
-              <div className="mb-6">
-                <p className="text-[--off-white] mb-4">
-                  Are you sure you want to delete this project? This action <span className="font-bold">cannot be undone</span> and will remove all associated data including comments and likes.
-                </p>
-                <p className="font-semibold mb-2">
-                  Type <span className="text-red-400">&ldquo;{project.repo_name}&rdquo;</span> to confirm:
-                </p>
-                <input
-                  type="text"
-                  className="w-full bg-gray-800 p-2 rounded text-[--off-white] border border-gray-700"
-                  value={deleteConfirmation}
-                  onChange={(e) => setDeleteConfirmation(e.target.value)}
-                  placeholder="Enter project name to confirm"
-                />
-              </div>
-              <div className="flex justify-end">
-                <button
-                  type="button"
-                  onClick={() => setShowDeleteModal(false)}
-                  className="px-4 py-2 rounded mr-2 bg-gray-700 hover:bg-gray-600"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleProjectDelete}
-                  className={`px-4 py-2 rounded font-semibold ${
-                    deleteConfirmation === project.repo_name 
-                      ? 'bg-red-600 hover:bg-red-700' 
-                      : 'bg-gray-600 cursor-not-allowed'
-                  }`}
-                  disabled={deleteConfirmation !== project.repo_name || isDeletingProject}
-                >
-                  {isDeletingProject ? 'Deleting...' : 'Delete Project'}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
+      )}
     </div>
   );
 };
