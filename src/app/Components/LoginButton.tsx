@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { supabase } from "../../supabaseClient";
+import { useRouter } from "next/navigation";
 
 const LoginButton = () => {
   const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
 
   const handleLogin = async () => {
     setIsLoading(true);
@@ -16,7 +18,6 @@ const LoginButton = () => {
           redirectTo: typeof window !== "undefined"
             ? `${window.location.origin}/auth/callback`
             : undefined,
-          scopes: "repo",
         },
       });
     } catch (err) {

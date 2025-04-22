@@ -8,11 +8,6 @@ export default async function handler(req, res) {
   try {
     const { access_token, expires_in } = req.body;
     
-    console.log('========== OAUTH RESPONSE DATA ==========');
-    console.log('Complete request body:', JSON.stringify(req.body, null, 2));
-    console.log('All request headers:', req.headers);
-    console.log('=======================================');
-    
     console.log('Setting access token in cookie:', { 
       hasAccessToken: !!access_token,
       expiresIn: expires_in

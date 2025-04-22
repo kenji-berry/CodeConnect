@@ -45,5 +45,4 @@ export default async function handler(req, res) {
 <Auth
   supabaseClient={supabase}
   providers={['github']}
-  redirectTo={`${window.location.origin}/onboarding`}
 />

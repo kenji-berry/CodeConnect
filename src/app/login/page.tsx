@@ -15,7 +15,7 @@ function AuthRequiredContent() {
   }, [returnPath]);
 
   return (
-    <div className="w-screen min-h-screen flex items-center justify-center radial-background">
+    <div className="w-screen min-h-screen flex items-center justify-center">
       <div className="max-w-md w-full mx-4 radial-background rounded-lg shadow-lg p-8 text-center">
         <h1 className="text-2xl inter-bold main-subtitle mb-4">Authentication Required</h1>
         <p className="mb-8">
