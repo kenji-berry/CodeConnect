@@ -45,8 +45,18 @@ export default function Settings() {
           .select('tag_id, tags(name)')
           .eq('user_id', user.id);
         if (tagPrefsError) throw tagPrefsError;
+
         setPreferredTagNames(
-          (tagPrefs || []).map(pref => pref.tags?.name).filter(Boolean)
+          (tagPrefs || [])
+            .map(pref => {
+              // Handle both possible shapes of the data
+              if (Array.isArray(pref.tags)) {
+                return pref.tags[0]?.name;
+              } else {
+                return (pref.tags as { name: string })?.name;
+              }
+            })
+            .filter(Boolean)
         );
 
         // Fetch user email preferences
