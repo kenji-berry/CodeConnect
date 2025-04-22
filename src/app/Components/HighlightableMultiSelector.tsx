@@ -96,74 +96,98 @@ const HighlightableMultiSelector: React.FC<HighlightableMultiSelectorProps> = ({
   }, []);
 
   return (
-    <div className="relative">
+    <div className="relative w-full">
       <div className="relative" ref={dropdownRef}>
         <div className="relative">
           <input
             type="text"
-            className="form-input block w-full mb-2 pr-10 main-input"
-            placeholder="Search..."
+            className="form-input block w-full mb-2 pr-10 rounded-xl border border-[var(--muted-red)] 
+              bg-[#18181b] text-[var(--off-white)] placeholder-gray-500
+              focus:border-[var(--title-red)] focus:outline-none focus:ring-1 focus:ring-[var(--title-red)]
+              transition-all duration-200 py-2 px-4 shadow-sm"
+            placeholder="Search tags..."
             value={searchTerm}
             onChange={handleSearchChange}
             onClick={() => setIsDropdownOpen(true)}
+            aria-label="Search tags"
+            style={{ color: 'var(--off-white)' }}
           />
           {searchTerm && (
             <button
-              className="absolute right-0 top-1 mt-2 mr-2 text-red-600"
+              className="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7 flex items-center justify-center 
+                text-gray-400 hover:text-[var(--title-red)] transition-colors rounded-full 
+                bg-[#232323] focus:outline-none"
               onClick={handleClearSearch}
+              aria-label="Clear search"
+              type="button"
             >
-              Clear
+              ×
             </button>
           )}
         </div>
         {isDropdownOpen && filteredTags.length > 0 && (
-          <ul className="dropdown-list absolute w-full mt-1 z-10">
+          <ul className="dropdown-list absolute w-full mt-1 z-20 max-h-56 overflow-y-auto 
+            rounded-xl border border-[var(--muted-red)] bg-[#18181b] shadow-lg">
             {filteredTags.map((tag) => (
               <li
                 key={`available-${tag}`}
                 onClick={() => handleTagChange(tag)}
-                className="p-2 cursor-pointer hover:bg-slate-800 bg-slate-700 text-black inter-regular text-uppercase"
+                className="p-2.5 cursor-pointer bg-[#18181b] hover:bg-[#2a2a2a] text-[var(--off-white)] font-medium
+                  border-b border-[#1a1a1a] last:border-b-0 transition-all"
+                tabIndex={0}
+                onKeyDown={e => (e.key === "Enter" || e.key === " ") && handleTagChange(tag)}
+                aria-label={`Add tag ${tag}`}
               >
-                {tag.toUpperCase()}
+                <div className="flex items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-2 text-[var(--muted-red)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  {tag.toUpperCase()}
+                </div>
               </li>
             ))}
           </ul>
         )}
       </div>
-      <div className="selected-tags mt-1">
+      <div className="selected-tags mt-3 flex flex-wrap gap-2">
         {selectedTags.map((tag) => (
-          <div
+          <span
             key={`selected-${tag}`}
-            className={`tag-item selected-tag flex items-center py-1 px-2 m-1 rounded text-uppercase transition-colors duration-300 ${
-              nonRemovableTags.includes(tag)
-                ? 'bg-blue-500 hover:bg-blue-700'
+            className={`tag-item flex items-center py-1.5 px-3 rounded-full text-sm font-medium transition-all
+              ${nonRemovableTags.includes(tag)
+                ? 'bg-[#232323] text-[var(--off-white)] border-2 border-[var(--muted-red)] cursor-default'
                 : highlightedTags.includes(tag)
-                ? 'bg-yellow-500 hover:bg-yellow-400'
-                : 'bg-slate-500 hover:bg-slate-600'
-            }`}
+                  ? 'bg-[#232323] text-[var(--off-white)] border-2 border-amber-500 hover:border-amber-400'
+                  : 'bg-[#232323] text-[var(--off-white)] border border-[var(--muted-red)] hover:border-[var(--title-red)]'}`}
+            tabIndex={0}
+            aria-label={nonRemovableTags.includes(tag) ? `${tag} (locked)` : `Tag ${tag}`}
           >
-            <span className="flex-1">{tag.toUpperCase()}</span>
+            <span className="truncate max-w-[120px]">{tag.toUpperCase()}</span>
             <button
-              className="ml-2 text-white transition-transform duration-300 transform hover:scale-125"
+              type="button"
               onClick={(e) => handleHighlightChange(e, tag)}
-              type="button" // Add this to explicitly prevent form submission
+              className={`ml-2 ${highlightedTags.includes(tag) ? 'text-amber-400' : 'text-gray-400'} hover:text-amber-300 transition-colors focus:outline-none`}
+              aria-label={highlightedTags.includes(tag) ? `Unhighlight tag ${tag}` : `Highlight tag ${tag}`}
+              tabIndex={-1}
             >
               {highlightedTags.includes(tag) ? '★' : '☆'}
             </button>
             {!nonRemovableTags.includes(tag) && (
               <button
-                className="ml-2 text-white transition-transform duration-300 transform hover:scale-125"
+                type="button"
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
                   handleTagChange(tag);
                 }}
-                type="button" // Add this to explicitly prevent form submission
+                className="ml-2 text-gray-400 hover:text-[var(--title-red)] transition-colors focus:outline-none"
+                aria-label={`Remove tag ${tag}`}
+                tabIndex={-1}
               >
-                ✕
+                ×
               </button>
             )}
-          </div>
+          </span>
         ))}
       </div>
     </div>

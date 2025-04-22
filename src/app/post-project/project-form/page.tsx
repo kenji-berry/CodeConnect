@@ -80,7 +80,6 @@ function ProjectFormContent() {
   const [technologies, setTechnologies] = useState<string[]>([]);
   const [selectedTechnologies, setSelectedTechnologies] = useState<string[]>([]);
   const [highlightedTechnologies, setHighlightedTechnologies] = useState<string[]>([]);
-  const [descriptionOption, setDescriptionOption] = useState<string>("Use existing description");
   const [session, setSession] = useState<{ user: { id: string } } | null>(null);
   const [projectStatus, setProjectStatus] = useState<string>("Active Development");
   const [difficulty, setDifficulty] = useState<number>(1);
@@ -148,10 +147,6 @@ function ProjectFormContent() {
     setHighlightedTechnologies(highlighted);
   };
 
-  const handleDescriptionOptionChange = (option: string) => {
-    setDescriptionOption(option);
-  };
-
   const handleStatusChange = (status: string | null) => {
     setProjectStatus(status || "Active Development");
   };
@@ -186,7 +181,6 @@ function ProjectFormContent() {
     reader.readAsDataURL(file);
   };
 
-  const descriptionOptions = ["Use existing description", "Write your Own"];
   const statusOptions = [
     { value: "Active Development", tooltip: "The project is actively being worked on." },
     { value: "Maintenance", tooltip: "The project is in maintenance mode." },
@@ -374,7 +368,6 @@ function ProjectFormContent() {
           setHasRepoAccess(true);
           
           setCustomDescription(project.custom_description || '');
-          setDescriptionOption(project.description_type || "Use existing description");
           setDifficulty(project.difficulty_level || 1);
           setProjectStatus(project.status || "Active Development");
           setMentorship(project.mentorship ? "Yes" : "No");
@@ -548,7 +541,7 @@ function ProjectFormContent() {
       errors.bannerImage = 'Project banner image is required';
     }
   
-    if (descriptionOption === "Write your Own" && !customDescription.trim()) {
+    if (!customDescription.trim()) {
       errors.customDescription = 'Custom description is required';
     }
   
@@ -594,7 +587,7 @@ function ProjectFormContent() {
       throw new Error('Please fix the highlighted errors before submitting');
     }
 
-    if (descriptionOption === "Write your Own") {
+    if (customDescription) {
       try {
         const profanityResponse = await fetch('/api/check-profanity', {
           method: 'POST',
@@ -650,7 +643,6 @@ function ProjectFormContent() {
       formData.append('repoName', repoName ?? '');
       formData.append('owner', owner ?? '');
       formData.append('github_link', githubLink);
-      formData.append('description_type', descriptionOption);
       formData.append('custom_description', customDescription);
       formData.append('difficulty_level', String(difficulty));
       formData.append('tags', JSON.stringify(selectedTags));
@@ -845,38 +837,37 @@ function ProjectFormContent() {
             </section>
 
             <section className={`rounded-xl shadow-lg bg-[#232323] ${fieldErrors.customDescription ? 'border-2 border-[var(--title-red)]' : 'border border-[var(--muted-red)]'} p-8 flex flex-col gap-4`}>
-              <div className="flex flex-col md:flex-row md:items-center gap-4">
-                <span className="text-lg font-semibold text-[var(--off-white)]">
-                  Project Description <span className="text-[var(--title-red)]">*</span>
-                </span>
-                <SingleSelector
-                  values={descriptionOptions}
-                  onValueChange={(value) => handleDescriptionOptionChange(value || "")}
-                  initialValue={descriptionOption}
-                />
+              <h3 className="text-xl font-bold text-[var(--off-white)] mb-2">
+                Project Description <span className="text-[var(--title-red)]">*</span>
+              </h3>
+              <div className="text-sm text-gray-400 mb-2">
+                <p>Write a compelling description of your project and what makes it special.</p>
+                <div className="mt-2 text-sm text-gray-400">
+                  <span className="font-medium text-[var(--muted-red)]">Note:</span> The first few lines are the most important as they will be shown in project previews.
+                </div>
               </div>
-              {descriptionOption === "Write your Own" && (
-                <>
-                  {fieldErrors.customDescription && (
-                    <p className="text-sm text-[var(--title-red)]">
-                      {fieldErrors.customDescription}
-                    </p>
-                  )}
-                  <textarea
-                    name="customDescription"
-                    className={`w-full mt-2 p-3 rounded-xl bg-[#18181b] ${
-                      fieldErrors.customDescription 
-                        ? 'border-2 border-[var(--title-red)]' 
-                        : 'border border-[var(--muted-red)]'
-                    } text-[var(--off-white)] shadow focus:ring-2 focus:ring-[var(--title-red)] focus:border-[var(--title-red)] outline-none resize-y min-h-[3.5rem] transition`}
-                    placeholder="Write your project description here..."
-                    rows={4}
-                    value={customDescription}
-                    onChange={(e) => setCustomDescription(e.target.value)}
-                    maxLength={1200}
-                  />
-                </>
+              {fieldErrors.customDescription && (
+                <p className="text-sm text-[var(--title-red)]">
+                  {fieldErrors.customDescription}
+                </p>
               )}
+              <textarea
+                name="customDescription"
+                className={`w-full mt-2 p-3 rounded-xl bg-[#18181b] ${
+                  fieldErrors.customDescription 
+                    ? 'border-2 border-[var(--title-red)]' 
+                    : 'border border-[var(--muted-red)]'
+                } text-[var(--off-white)] shadow focus:ring-2 focus:ring-[var(--title-red)] focus:border-[var(--title-red)] outline-none resize-y min-h-[100px] transition`}
+                placeholder="Describe your project here. Include what problem it solves, who it's for, and why contributors should be excited about it..."
+                rows={5}
+                value={customDescription}
+                onChange={(e) => setCustomDescription(e.target.value)}
+                maxLength={1500}
+                required
+              />
+              <div className="text-xs text-gray-400 flex justify-end">
+                {customDescription.length}/1500 characters
+              </div>
             </section>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -905,9 +896,70 @@ function ProjectFormContent() {
                 <div className="mt-2 text-sm text-gray-400">
                   <span className="font-medium text-[var(--muted-red)]">Note:</span> At least one technology must be highlighted (shown in accent color)
                 </div>
-                <LanguageBar languages={repoInfo.languages} />
-                <div className="mt-4 border-t border-[var(--off-white)] pt-3">
-                </div>
+                
+                {/* Suggested Technologies UI */}
+                {suggestedTechnologies.length > 0 || isLoadingSuggestions ? (
+                  <div className="mt-4 pt-3 border-t border-gray-700">
+                    <div className="flex justify-between items-center mb-3">
+                      <h5 className="text-sm font-semibold text-[var(--off-white)]">
+                        {isLoadingSuggestions ? 'Analyzing README...' : 'Suggested Technologies:'}
+                      </h5>
+                      {!isLoadingSuggestions && suggestedTechnologies.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newTechnologies = [...selectedTechnologies];
+                            suggestedTechnologies.forEach(tech => {
+                              if (!newTechnologies.includes(tech)) {
+                                newTechnologies.push(tech);
+                              }
+                            });
+                            handleTechnologiesChange(newTechnologies);
+                          }}
+                          className="text-xs px-2 py-1 bg-[var(--muted-red)] text-[var(--off-white)] rounded hover:bg-[var(--title-red)] transition-colors"
+                        >
+                          Add All
+                        </button>
+                      )}
+                    </div>
+                    
+                    {isLoadingSuggestions ? (
+                      <div className="flex items-center space-x-2">
+                        <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-[var(--title-red)]"></div>
+                        <span className="text-sm text-gray-400">Finding technologies in README...</span>
+                      </div>
+                    ) : suggestedTechnologies.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {suggestedTechnologies.map((tech) => (
+                          <button
+                            key={tech}
+                            type="button"
+                            onClick={() => {
+                              if (!selectedTechnologies.includes(tech)) {
+                                handleTechnologiesChange([...selectedTechnologies, tech]);
+                              }
+                            }}
+                            disabled={selectedTechnologies.includes(tech)}
+                            className={`px-2 py-1 text-xs rounded-md ${
+                              selectedTechnologies.includes(tech)
+                                ? 'bg-[var(--muted-red)] text-white cursor-default'
+                                : 'bg-[#1a1a1a] text-[var(--off-white)] hover:bg-[#2a2a2a]'
+                            } transition-colors flex items-center gap-1`}
+                          >
+                            {!selectedTechnologies.includes(tech) && (
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                              </svg>
+                            )}
+                            {tech}
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-400">No technologies suggested from repository</p>
+                    )}
+                  </div>
+                ) : null}
               </section>
 
               <section className={`rounded-xl shadow-lg bg-[#232323] ${
@@ -935,8 +987,70 @@ function ProjectFormContent() {
                 <div className="mt-2 text-sm text-gray-400">
                   <span className="font-medium text-[var(--muted-red)]">Note:</span> At least one tag must be highlighted (shown in accent color)
                 </div>
-                <div className="mt-4 border-t border-[var(--off-white)] pt-3">
-                </div>
+                
+                {/* Suggested Tags UI */}
+                {suggestedTags.length > 0 || isLoadingSuggestions ? (
+                  <div className="mt-4 pt-3 border-t border-gray-700">
+                    <div className="flex justify-between items-center mb-3">
+                      <h5 className="text-sm font-semibold text-[var(--off-white)]">
+                        {isLoadingSuggestions ? 'Analyzing README...' : 'Suggested Tags:'}
+                      </h5>
+                      {!isLoadingSuggestions && suggestedTags.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newTags = [...selectedTags];
+                            suggestedTags.forEach(tag => {
+                              if (!newTags.includes(tag)) {
+                                newTags.push(tag);
+                              }
+                            });
+                            handleTagsChange(newTags);
+                          }}
+                          className="text-xs px-2 py-1 bg-[var(--muted-red)] text-[var(--off-white)] rounded hover:bg-[var(--title-red)] transition-colors"
+                        >
+                          Add All
+                        </button>
+                      )}
+                    </div>
+                    
+                    {isLoadingSuggestions ? (
+                      <div className="flex items-center space-x-2">
+                        <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-[var(--title-red)]"></div>
+                        <span className="text-sm text-gray-400">Finding tags in README...</span>
+                      </div>
+                    ) : suggestedTags.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {suggestedTags.map((tag) => (
+                          <button
+                            key={tag}
+                            type="button"
+                            onClick={() => {
+                              if (!selectedTags.includes(tag)) {
+                                handleTagsChange([...selectedTags, tag]);
+                              }
+                            }}
+                            disabled={selectedTags.includes(tag)}
+                            className={`px-2 py-1 text-xs rounded-md ${
+                              selectedTags.includes(tag)
+                                ? 'bg-[var(--muted-red)] text-white cursor-default'
+                                : 'bg-[#1a1a1a] text-[var(--off-white)] hover:bg-[#2a2a2a]'
+                            } transition-colors flex items-center gap-1`}
+                          >
+                            {!selectedTags.includes(tag) && (
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                              </svg>
+                            )}
+                            {tag}
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-400">No tags suggested from repository</p>
+                    )}
+                  </div>
+                ) : null}
               </section>
             </div>
           </div>

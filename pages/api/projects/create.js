@@ -128,52 +128,11 @@ export default async function handler(req, res) {
     if (!setup_time || isNaN(setup_time) || Number(setup_time) < 1) {
       return res.status(400).json({ error: "Estimated setup time is required." });
     }
-
-    // If description_type is "Use existing description", fetch from GitHub
-    console.log('🔄 API: Processing description', { type: description_type });
-    let finalDescription = custom_description;
-    const descType = description_type;
-    if (
-      descType &&
-      String(descType).toLowerCase().includes('existing') &&
-      github_link
-    ) {
-      try {
-        console.log('🔄 API: Fetching description from GitHub', { github_link });
-        let repoOwner = owner;
-        let repoNameValue = repoName;
-        const match = github_link.match(/github\.com\/([^\/]+)\/([^\/]+)/);
-        if (match) {
-          repoOwner = match[1];
-          repoNameValue = match[2];
-        }
-        console.log('🔄 API: GitHub repo info', { repoOwner, repoNameValue });
-        
-        const response = await fetch(`https://api.github.com/repos/${repoOwner}/${repoNameValue}`, {
-          headers: {
-            'Authorization': `token ${githubToken}`,
-            'Accept': 'application/vnd.github.v3+json'
-          }
-        });
-        
-        console.log('🔄 API: GitHub API response status:', response.status);
-        if (response.ok) {
-          const repoData = await response.json();
-          finalDescription = repoData.description || '';
-          console.log('✅ API: GitHub description fetched successfully', { 
-            description: finalDescription ? (finalDescription.length > 50 ? finalDescription.substring(0, 50) + '...' : finalDescription) : '(empty)'
-          });
-        } else {
-          console.log('⚠️ API: Failed to fetch GitHub description', { 
-            status: response.status, 
-            statusText: response.statusText 
-          });
-        }
-      } catch (err) {
-        console.error('❌ API: Error fetching GitHub description', err);
-        // fallback to custom_description if fetch fails
-      }
+    if (!custom_description || custom_description.trim().length < 50) {
+      return res.status(400).json({ error: "Project description is required and should be at least 50 characters." });
     }
+
+    let finalDescription = custom_description;
 
     const difficulty = difficulty_level ? parseInt(difficulty_level, 10) : null;
     const setupTime = setup_time ? parseInt(setup_time, 10) : null;
