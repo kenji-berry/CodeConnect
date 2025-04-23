@@ -381,6 +381,52 @@ const ProjectDetails = () => {
     }
   };
 
+  const handleCommentDelete = async (commentId) => {
+    if (!currentUser) {
+      redirectToLogin();
+      return;
+    }
+
+    // Find the comment to ensure the current user is the owner
+    const commentToDelete = comments.find(comment => comment.id === commentId);
+    if (!commentToDelete || commentToDelete.user_id !== currentUser.id) {
+      console.error("User is not authorized to delete this comment or comment not found.");
+      alert("You can only delete your own comments.");
+      return;
+    }
+
+    // Optional: Add a confirmation dialog
+    if (!window.confirm("Are you sure you want to delete this comment? This action cannot be undone.")) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('project_comments')
+        .delete()
+        .eq('id', commentId)
+        .eq('user_id', currentUser.id); // Ensure only the owner can delete
+
+      if (error) {
+        console.error('Error deleting comment:', error);
+        alert('Failed to delete comment. Please try again.');
+      } else {
+        // Update comments state
+        setComments(prevComments => prevComments.filter(comment => comment.id !== commentId));
+
+        // Update comment votes state
+        setCommentVotes(prevVotes => {
+          const newVotes = { ...prevVotes };
+          delete newVotes[commentId];
+          return newVotes;
+        });
+      }
+    } catch (err) {
+      console.error('Unexpected error deleting comment:', err);
+      alert('An unexpected error occurred while deleting the comment.');
+    }
+  };
+
   const openReportModal = (target) => {
     if (!currentUser) {
       redirectToLogin();
@@ -879,13 +925,24 @@ const ProjectDetails = () => {
               <div key={comment.id} className="p-4 bg-[#1a1a1a] rounded-xl shadow-sm border border-gray-800">
                 <div className="flex justify-between items-start mb-1">
                   <p className="font-bold text-[var(--orange)]">{comment.profiles.display_name}</p>
-                  <button
-                    onClick={() => openReportModal({ type: 'comment', id: comment.id })}
-                    className="text-xs bg-[var(--muted-red)] hover:bg-[var(--title-red)] px-2 py-1 rounded transition-colors duration-200"
-                    title="Report Comment"
-                  >
-                    ⚠️
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {currentUser && currentUser.id === comment.user_id && (
+                      <button
+                        onClick={() => handleCommentDelete(comment.id)}
+                        className="text-xs bg-red-700 hover:bg-red-800 px-2 py-1 rounded transition-colors duration-200 text-white"
+                        title="Delete Comment"
+                      >
+                        🗑️
+                      </button>
+                    )}
+                    <button
+                      onClick={() => openReportModal({ type: 'comment', id: comment.id })}
+                      className="text-xs bg-[var(--muted-red)] hover:bg-[var(--title-red)] px-2 py-1 rounded transition-colors duration-200"
+                      title="Report Comment"
+                    >
+                      ⚠️
+                    </button>
+                  </div>
                 </div>
                 <p className="text-[var(--off-white)]">{comment.comment}</p>
                 <div className="flex items-center justify-between mt-2">
