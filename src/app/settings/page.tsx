@@ -44,7 +44,7 @@ export default function Settings() {
         // Fetch user profile
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
-          .select('display_name, difficulty')
+          .select('display_name, difficulty_level')
           .eq('user_id', user.id)
           .single();
         
@@ -52,7 +52,7 @@ export default function Settings() {
         
         if (profile) {
           setDisplayName(profile.display_name || '');
-          setSelectedDifficulties(profile.difficulty || []);
+          setSelectedDifficulties(profile.difficulty_level || []);
         }
 
         // Fetch all available tags
@@ -264,7 +264,7 @@ export default function Settings() {
     try {
       const { error: updateError } = await supabase
         .from('profiles')
-        .update({ difficulty: selectedDifficulties })
+        .update({ difficulty_level: selectedDifficulties })
         .eq('user_id', userId);
         
       if (updateError) throw updateError;
