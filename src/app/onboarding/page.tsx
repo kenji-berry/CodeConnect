@@ -13,6 +13,20 @@ const LoadingFallback = () => (
   </div>
 );
 
+interface UserTagPreference {
+  tags: {
+    id: string;
+    name: string;
+  }[];
+}
+
+interface UserTechnologyPreference {
+  technologies: {
+    id: string;
+    name: string;
+  }[];
+}
+
 function OnboardingClient() {
   const [displayName, setDisplayName] = useState('');
   const [error, setError] = useState('');
@@ -104,14 +118,14 @@ function OnboardingClient() {
         if (profile.difficulty) setSelectedDifficulties(profile.difficulty);
       }
       if (userTags) {
-        const tagNames = userTags.map((ut: any) => ut.tags.name);
+        const tagNames = userTags.flatMap((ut: UserTagPreference) => ut.tags.map(tag => tag.name));
         setSelectedTagNames(tagNames);
-        setSelectedTagObjects(userTags.map((ut: any) => ({ id: ut.tags.id, name: ut.tags.name })));
+        setSelectedTagObjects(userTags.flatMap((ut: UserTagPreference) => ut.tags.map(tag => ({ id: tag.id, name: tag.name }))));
       }
       if (userTechnologies) {
-        const techNames = userTechnologies.map((ut: any) => ut.technologies.name);
+        const techNames = userTechnologies.flatMap((ut: { technologies: { id: string; name: string }[] }) => ut.technologies.map(tech => tech.name));
         setSelectedTechnologyNames(techNames);
-        setSelectedTechnologyObjects(userTechnologies.map((ut: any) => ({ id: ut.technologies.id, name: ut.technologies.name })));
+        setSelectedTechnologyObjects(userTechnologies.flatMap((ut: UserTechnologyPreference) => ut.technologies.map((tech: { id: string; name: string }) => ({ id: tech.id, name: tech.name }))));
       }
       if (emailPrefs) {
         setEmailFrequency(emailPrefs.email_frequency || 'never');
