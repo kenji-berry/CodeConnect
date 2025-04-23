@@ -142,7 +142,7 @@ const MultiSelector: React.FC<MultiSelectorProps> = ({
             tabIndex={0}
             aria-label={nonRemovableTags.includes(tag) ? `${tag} (locked)` : `Remove tag ${tag}`}
           >
-            <span className="truncate max-w-[120px]">{tag.toUpperCase()}</span>
+            <span>{tag.toUpperCase()}</span>
             {!nonRemovableTags.includes(tag) && (
               <button
                 type="button"
