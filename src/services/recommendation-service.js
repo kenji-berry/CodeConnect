@@ -264,6 +264,38 @@ async function getUserPreferredTags(userId, debug = false) {
   return uniqueTags;
 }
 
+// Function to get explicitly selected tag preferences for a user
+async function getUserTagPreferences(userId, debug = false) {
+  try {
+    if (!userId) {
+      console.warn("getUserTagPreferences called with no userId");
+      return [];
+    }
+
+    const { data, error } = await supabase
+      .from('user_tag_preferences')
+      .select('tag_id')
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error('Error fetching user tag preferences:', error);
+      return [];
+    }
+
+    const tagIds = (data || [])
+      .filter(item => item && typeof item === 'object')
+      .map(item => item.tag_id)
+      .filter(id => id !== undefined && id !== null);
+
+    if (debug) console.log(`🏷️ Found ${tagIds.length} explicit tag preferences for user ${userId}`);
+
+    return tagIds;
+  } catch (error) {
+    console.error('Exception in getUserTagPreferences:', error);
+    return [];
+  }
+}
+
 async function getUserTechnologyPreferences(userId, debug = false) {
   try {
     if (!userId) {
