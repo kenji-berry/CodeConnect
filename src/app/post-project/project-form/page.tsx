@@ -227,21 +227,46 @@ function ProjectFormContent() {
   
         if (repoName && owner) {
           try {
-            const repoAccessResponse = await fetch(`/api/github/repos/${owner}/${repoName}/collaborators`, {
+            const userResponse = await fetch('/api/github/user', {
               credentials: 'include'
             });
             
-            if (!repoAccessResponse.ok) {
-              if (repoAccessResponse.status === 403) {
-                setSubmissionError("You don't have sufficient permissions to post this repository.");
-                setHasRepoAccess(false);
-                return;
-              } else {
-                throw new Error(`GitHub API error: ${repoAccessResponse.status}`);
-              }
+            if (!userResponse.ok) {
+              throw new Error(`Failed to fetch user data: ${userResponse.status}`);
             }
             
-            setHasRepoAccess(true);
+            const userData = await userResponse.json();
+            
+            // If user is the owner, they definitely have permission
+            if (userData.login && userData.login.toLowerCase() === owner.toLowerCase()) {
+              setHasRepoAccess(true);
+            } else {
+              // Otherwise, check if they are a collaborator with admin access
+              const permissionsResponse = await fetch(`/api/github/repos/${owner}/${repoName}/collaborators/${userData.login}/permission`, {
+                credentials: 'include'
+              });
+              
+              if (!permissionsResponse.ok) {
+                if (permissionsResponse.status === 403) {
+                  setSubmissionError("You don't have sufficient permissions to post this repository.");
+                  setHasRepoAccess(false);
+                  return;
+                } else {
+                  throw new Error(`GitHub API error: ${permissionsResponse.status}`);
+                }
+              }
+              
+              // Check if they have admin access
+              const permissionsData = await permissionsResponse.json();
+              
+              if (permissionsData.permission === 'admin') {
+                setHasRepoAccess(true);
+              } else {
+                setSubmissionError("Only repository owners or admins can post projects.");
+                setHasRepoAccess(false);
+                return;
+              }
+            }
 
             const [
               repoResponse,
