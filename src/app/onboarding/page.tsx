@@ -1,12 +1,19 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { supabase } from '../../supabaseClient';
 import { useRouter, useSearchParams } from 'next/navigation';
 import MultiSelector from '../Components/MultiSelector';
 import MultiDifficultySelector from '../Components/MultiDifficultySelector';
 
-export default function OnboardingPage() {
+const LoadingFallback = () => (
+  <div className="flex flex-col items-center justify-center min-h-screen">
+    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[--title-red] mb-4"></div>
+    <p className="text-[--off-white]">Loading Onboarding</p>
+  </div>
+);
+
+function OnboardingClient() {
   const [displayName, setDisplayName] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -54,18 +61,21 @@ export default function OnboardingPage() {
         .eq('user_id', userId)
         .maybeSingle();
 
-      // If user finished onboarding, redirect home
       if (profile && profile.is_changed === true) {
         router.push('/');
         return;
       }
 
-      // Resume onboarding at correct step (if not overridden by URL)
       if (profile && profile.onboarding_step && searchParams && !searchParams.get('step')) {
         setCurrentStep(profile.onboarding_step);
         if (profile.display_name) setDisplayName(profile.display_name);
         if (profile.difficulty) setSelectedDifficulties(profile.difficulty);
+      } else if (profile && profile.onboarding_step && !searchParams) {
+         setCurrentStep(profile.onboarding_step);
+         if (profile.display_name) setDisplayName(profile.display_name);
+         if (profile.difficulty) setSelectedDifficulties(profile.difficulty);
       }
+
 
       await fetchAllTags();
       setLoading(false);
@@ -262,7 +272,6 @@ export default function OnboardingPage() {
         }
       }
 
-      // Mark onboarding complete
       await supabase
         .from('profiles')
         .update({ is_changed: true, onboarding_step: 4 })
@@ -272,28 +281,24 @@ export default function OnboardingPage() {
       setCurrentStep(4);
       setSavingTags(false);
     } catch (e) {
-      setError('Failed to save your tag preferences');
+      console.error("Error saving tag preferences:", e);
+      const errorMessage = (e instanceof Error && e.message) ? e.message : 'Unknown error';
+      setError(`Failed to save your tag preferences: ${errorMessage}`);
       setSavingTags(false);
     }
   };
 
   if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[--title-red] mb-4"></div>
-        <p className="text-[--off-white]">Loading Onboarding</p>
-      </div>
-    );
+    return <LoadingFallback />;
   }
 
   return (
     <div className="w-screen min-h-screen flex items-center justify-center">
       <div className="max-w-[500px] w-full mx-4 radial-background rounded-lg shadow-lg p-8">
-        {/* Progress indicator */}
         <div className="flex mb-6 items-center">
           {[1, 2, 3].map((step) => (
             <React.Fragment key={step}>
-              <div className={`rounded-full w-8 h-8 flex items-center justify-center 
+              <div className={`rounded-full w-8 h-8 flex items-center justify-center
                 ${currentStep === step ? 'bg-blue-600 text-white' : 'bg-blue-900 text-blue-300'}`}>
                 {step}
               </div>
@@ -314,7 +319,7 @@ export default function OnboardingPage() {
           <>
             <h1 className="text-2xl inter-bold main-subtitle mb-4">Welcome to CodeConnect!</h1>
             <p className="mb-6">Please choose a display name to continue.</p>
-            
+
             <form onSubmit={validateAndSaveDisplayName}>
               <input
                 type="text"
@@ -325,9 +330,9 @@ export default function OnboardingPage() {
                 maxLength={16}
                 autoFocus
               />
-              
+
               {error && <p className="text-red-500 mb-4">{error}</p>}
-              
+
               <div className="flex justify-end">
                 <button
                   type="submit"
@@ -373,7 +378,7 @@ export default function OnboardingPage() {
           <>
             <h1 className="text-2xl inter-bold main-subtitle mb-4">Select Your Interests</h1>
             <p className="mb-6">Choose topics you&apos;re interested in to help us personalize your recommendations.</p>
-            
+
             <div className="mb-6">
               <div className="main-page-filter-box px-2 py-4 rounded">
                 <MultiSelector
@@ -382,15 +387,15 @@ export default function OnboardingPage() {
                   initialTags={selectedTagNames}
                 />
               </div>
-              
+
               <div className="mt-3 text-sm text-gray-400">
                 <p>• Select tags that represent technologies or topics you&apos;re interested in</p>
                 <p>• You can always change these later in your settings</p>
               </div>
             </div>
-            
+
             {error && <p className="text-red-500 mb-4">{error}</p>}
-            
+
             <div className="flex justify-between">
               <button
                 onClick={async () => {
@@ -431,5 +436,13 @@ export default function OnboardingPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function OnboardingPage() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <OnboardingClient />
+    </Suspense>
   );
 }
