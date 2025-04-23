@@ -188,6 +188,20 @@ function HomeContent() {
         let recommendations;
         if (session?.user) {
           recommendations = await getHybridRecommendations(session.user.id, 3, true);
+          
+          if (recommendations?.length > 0) {
+            const projectsWithData = await Promise.all(
+              recommendations.map(async (project) => {
+                const { technologies, tags } = await fetchTagsAndTech(project.id);
+                return {
+                  ...project,
+                  technologies,
+                  tags,
+                };
+              })
+            );
+            recommendations = projectsWithData;
+          }
         } else {
         }
         
