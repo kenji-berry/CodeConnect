@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/supabaseClient';
 import Link from 'next/link';
 import MultiSelector from '../Components/MultiSelector';
+import MultiDifficultySelector from '../Components/MultiDifficultySelector';
 
 export default function Settings() {
   const [loading, setLoading] = useState(true);
@@ -13,6 +14,16 @@ export default function Settings() {
   const [emailFrequency, setEmailFrequency] = useState<string>('never');
   const [error, setError] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  
+  const [displayName, setDisplayName] = useState<string>('');
+  const [displayNameError, setDisplayNameError] = useState<string | null>(null);
+  const [updatingDisplayName, setUpdatingDisplayName] = useState(false);
+  const [selectedDifficulties, setSelectedDifficulties] = useState<number[]>([]);
+  const [updatingDifficulty, setUpdatingDifficulty] = useState(false);
+  const [allTechnologyNames, setAllTechnologyNames] = useState<string[]>([]);
+  const [allTechnologyObjects, setAllTechnologyObjects] = useState<{ id: string; name: string }[]>([]);
+  const [preferredTechnologyNames, setPreferredTechnologyNames] = useState<string[]>([]);
+  const [updatingTechnologies, setUpdatingTechnologies] = useState(false);
 
   // Fetch user, tags, and preferences
   useEffect(() => {
@@ -30,6 +41,20 @@ export default function Settings() {
         }
         setUserId(user.id);
 
+        // Fetch user profile
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('display_name, difficulty')
+          .eq('user_id', user.id)
+          .single();
+        
+        if (profileError && profileError.code !== 'PGRST116') throw profileError;
+        
+        if (profile) {
+          setDisplayName(profile.display_name || '');
+          setSelectedDifficulties(profile.difficulty || []);
+        }
+
         // Fetch all available tags
         const { data: allTags, error: tagsError } = await supabase
           .from('tags')
@@ -38,6 +63,15 @@ export default function Settings() {
         if (tagsError) throw tagsError;
         setAllTagObjects(allTags || []);
         setAllTagNames((allTags || []).map(tag => tag.name));
+
+        // Fetch all available technologies
+        const { data: allTechnologies, error: techError } = await supabase
+          .from('technologies')
+          .select('id, name')
+          .order('name');
+        if (techError) throw techError;
+        setAllTechnologyObjects(allTechnologies || []);
+        setAllTechnologyNames((allTechnologies || []).map(tech => tech.name));
 
         // Fetch user tag preferences
         const { data: tagPrefs, error: tagPrefsError } = await supabase
@@ -49,11 +83,29 @@ export default function Settings() {
         setPreferredTagNames(
           (tagPrefs || [])
             .map(pref => {
-              // Handle both possible shapes of the data
               if (Array.isArray(pref.tags)) {
                 return pref.tags[0]?.name;
               } else {
                 return (pref.tags as { name: string })?.name;
+              }
+            })
+            .filter(Boolean)
+        );
+
+        // Fetch user technology preferences
+        const { data: techPrefs, error: techPrefsError } = await supabase
+          .from('user_technology_preferences')
+          .select('technology_id, technologies(name)')
+          .eq('user_id', user.id);
+        if (techPrefsError) throw techPrefsError;
+
+        setPreferredTechnologyNames(
+          (techPrefs || [])
+            .map(pref => {
+              if (Array.isArray(pref.technologies)) {
+                return pref.technologies[0]?.name;
+              } else {
+                return (pref.technologies as { name: string })?.name;
               }
             })
             .filter(Boolean)
@@ -65,7 +117,7 @@ export default function Settings() {
           .select('email_frequency')
           .eq('user_id', user.id)
           .single();
-        if (emailPrefsError && emailPrefsError.code !== 'PGRST116') throw emailPrefsError; // ignore not found
+        if (emailPrefsError && emailPrefsError.code !== 'PGRST116') throw emailPrefsError;
         setEmailFrequency(emailPrefs?.email_frequency || 'never');
 
         setLoading(false);
@@ -108,6 +160,40 @@ export default function Settings() {
     }
   };
 
+  // Update technology preferences in DB
+  const handleTechnologiesChange = async (names: string[]) => {
+    setPreferredTechnologyNames(names);
+    if (!userId) return;
+    try {
+      setUpdatingTechnologies(true);
+      
+      // Get technology IDs for selected names
+      const selectedTechnologyIds = allTechnologyObjects
+        .filter(tech => names.includes(tech.name))
+        .map(tech => tech.id);
+
+      // Remove all old preferences
+      await supabase
+        .from('user_technology_preferences')
+        .delete()
+        .eq('user_id', userId);
+
+      // Insert new preferences
+      if (selectedTechnologyIds.length > 0) {
+        const inserts = selectedTechnologyIds.map(technology_id => ({
+          user_id: userId,
+          technology_id,
+        }));
+        await supabase.from('user_technology_preferences').insert(inserts);
+      }
+      
+      setUpdatingTechnologies(false);
+    } catch (err) {
+      setError("Failed to update technology preferences");
+      setUpdatingTechnologies(false);
+    }
+  };
+
   // Update email frequency in DB
   const handleEmailFrequencyChange = async (value: string) => {
     setEmailFrequency(value);
@@ -121,6 +207,72 @@ export default function Settings() {
         );
     } catch (err) {
       setError("Failed to update email preferences");
+    }
+  };
+
+  // Update display name in DB
+  const handleUpdateDisplayName = async () => {
+    if (!userId || !displayName.trim()) return;
+    
+    setDisplayNameError(null);
+    setUpdatingDisplayName(true);
+    
+    try {
+      // Validate display name
+      if (displayName.length > 16) {
+        setDisplayNameError("Display name cannot exceed 16 characters");
+        setUpdatingDisplayName(false);
+        return;
+      }
+      
+      // Check for existing display name
+      const { data: existingNames, error: nameCheckError } = await supabase
+        .from('profiles')
+        .select('user_id')
+        .eq('display_name', displayName.trim())
+        .neq('user_id', userId);
+        
+      if (nameCheckError) throw nameCheckError;
+      
+      if (existingNames && existingNames.length > 0) {
+        setDisplayNameError("This display name is already taken");
+        setUpdatingDisplayName(false);
+        return;
+      }
+      
+      // Update the display name
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ display_name: displayName.trim() })
+        .eq('user_id', userId);
+        
+      if (updateError) throw updateError;
+      
+      setUpdatingDisplayName(false);
+    } catch (err) {
+      console.error("Error updating display name:", err);
+      setDisplayNameError("Failed to update display name");
+      setUpdatingDisplayName(false);
+    }
+  };
+
+  // Update difficulty preferences in DB
+  const handleUpdateDifficulty = async () => {
+    if (!userId) return;
+    
+    setUpdatingDifficulty(true);
+    try {
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ difficulty: selectedDifficulties })
+        .eq('user_id', userId);
+        
+      if (updateError) throw updateError;
+      
+      setUpdatingDifficulty(false);
+    } catch (err) {
+      setError("Failed to update difficulty preferences");
+      setUpdatingDifficulty(false);
     }
   };
 
@@ -158,6 +310,68 @@ export default function Settings() {
 
         <div className="mb-8 p-6 bg-[#232323] border border-[var(--muted-red)] rounded-xl shadow-lg w-full">
           <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold text-[var(--off-white)]">Your Display Name</h2>
+            <p className="text-sm text-gray-400">How others will see you</p>
+          </div>
+
+          <div className="flex space-x-4">
+            <input
+              type="text"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              maxLength={16}
+              className="flex-1 p-2 border border-gray-600 bg-slate-900 rounded focus:border-blue-500 focus:outline-none"
+              placeholder="Enter display name"
+            />
+            <button
+              onClick={handleUpdateDisplayName}
+              disabled={updatingDisplayName}
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+            >
+              {updatingDisplayName ? 'Saving...' : 'Update'}
+            </button>
+          </div>
+          
+          {displayNameError && (
+            <div className="mt-2 text-red-500 text-sm">{displayNameError}</div>
+          )}
+          
+          <div className="mt-3 text-sm text-gray-400">
+            <p>• Display name must be unique and no more than 16 characters</p>
+          </div>
+        </div>
+
+        <div className="mb-8 p-6 bg-[#232323] border border-[var(--muted-red)] rounded-xl shadow-lg w-full">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold text-[var(--off-white)]">Project Difficulty Level</h2>
+            <p className="text-sm text-gray-400">Select your preferred difficulty levels</p>
+          </div>
+
+          <div className="mb-4">
+            <MultiDifficultySelector
+              selectedDifficulties={selectedDifficulties}
+              onDifficultiesChange={setSelectedDifficulties}
+            />
+          </div>
+          
+          <div className="flex justify-end">
+            <button
+              onClick={handleUpdateDifficulty}
+              disabled={updatingDifficulty}
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+            >
+              {updatingDifficulty ? 'Saving...' : 'Update'}
+            </button>
+          </div>
+
+          <div className="mt-3 text-sm text-gray-400">
+            <p>• Select the difficulty levels of projects you want to see</p>
+            <p>• Multiple levels can be selected</p>
+          </div>
+        </div>
+
+        <div className="mb-8 p-6 bg-[#232323] border border-[var(--muted-red)] rounded-xl shadow-lg w-full">
+          <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-semibold text-[var(--off-white)]">Your Preferred Tags</h2>
             <p className="text-sm text-gray-400">Select the tags you&apos;re interested in</p>
           </div>
@@ -171,6 +385,28 @@ export default function Settings() {
           <div className="mt-3 text-sm text-gray-400">
             <p>• Select tags to customize your project recommendations</p>
             <p>• These tags are derived from projects you&apos;ve interacted with</p>
+          </div>
+        </div>
+        
+        <div className="mb-8 p-6 bg-[#232323] border border-[var(--muted-red)] rounded-xl shadow-lg w-full">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold text-[var(--off-white)]">Your Technologies</h2>
+            <p className="text-sm text-gray-400">Select technologies you know or want to work with</p>
+          </div>
+
+          <MultiSelector
+            availableTags={allTechnologyNames}
+            onTagsChange={handleTechnologiesChange}
+            initialTags={preferredTechnologyNames}
+          />
+          
+          {updatingTechnologies && (
+            <div className="mt-2 text-blue-400 text-sm">Saving your technology preferences...</div>
+          )}
+
+          <div className="mt-3 text-sm text-gray-400">
+            <p>• Select technologies like languages, frameworks, or tools</p>
+            <p>• This helps match you with relevant projects</p>
           </div>
         </div>
 
