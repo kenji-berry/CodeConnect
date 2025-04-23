@@ -11,50 +11,69 @@ export default function AuthCallback() {
 
   useEffect(() => {
     async function handleAuthCallback() {
+      let finalRedirectPath = '/';
+
       try {
-        // Exchange code for session as before
         const url = new URL(window.location.href);
         const code = url.searchParams.get('code');
-        
+
         if (code) {
           await supabase.auth.exchangeCodeForSession(code);
         }
-        
-        // Get session
+
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        
+
         if (sessionError) throw sessionError;
-        if (!session?.user) throw new Error("No user found");
-        
-        // Create profile if needed, but don't redirect
-        const { data: profile, error: profileError } = await supabase
+        if (!session?.user) throw new Error("No user found after session exchange");
+
+        let profileData;
+        const { data: existingProfile, error: profileError } = await supabase
           .from('profiles')
-          .select('is_changed')
+          .select('is_changed, onboarding_step')
           .eq('user_id', session.user.id)
           .single();
-          
+
         if (profileError && profileError.code === 'PGRST116') {
-          // Create profile
-          await supabase
+          const { data: newProfile, error: insertError } = await supabase
             .from('profiles')
-            .insert([{ 
-              user_id: session.user.id, 
+            .insert([{
+              user_id: session.user.id,
               display_name: `User-${Math.random().toString(36).substring(2, 7)}`,
-              is_changed: false
-            }]);
+              is_changed: false,
+              onboarding_step: 1
+            }])
+            .select('onboarding_step')
+            .single();
+          if (insertError) throw insertError;
+          profileData = newProfile;
+        } else if (profileError) {
+          throw profileError;
+        } else {
+          profileData = existingProfile;
         }
-        
+
+        const onboardingStep = profileData?.onboarding_step ?? 1;
+        if (onboardingStep < 5) {
+          finalRedirectPath = `/onboarding?step=${onboardingStep}`;
+        } else {
+          finalRedirectPath = '/';
+        }
+
       } catch (err) {
         console.error("Auth callback error:", err);
-        setError(err instanceof Error ? err.message : "An unknown error occurred");
-      } finally {
+        setError(err instanceof Error ? err.message : "An unknown error occurred during authentication callback");
         setLoading(false);
-        router.replace('/');
+        return;
+      } finally {
+        if (!error) {
+            setLoading(false);
+            router.replace(finalRedirectPath);
+        }
       }
     }
 
     handleAuthCallback();
-  }, [router]);
+  }, [router, error]);
 
   if (loading) {
     return (
