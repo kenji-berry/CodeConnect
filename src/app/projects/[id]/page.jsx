@@ -326,27 +326,28 @@ const ProjectDetails = () => {
     }
 
     const currentVote = commentVotes[commentId]?.userVote;
+    let scoreChange = 0;
+    let newUserVote = null;
+    let dbError = null;
 
     if (currentVote === voteType) {
+      // --- Removing vote ---
+      scoreChange = voteType === 'up' ? -1 : 1;
+      newUserVote = null;
+      
       const { error } = await supabase
         .from('project_comment_votes')
         .delete()
         .eq('comment_id', commentId)
         .eq('user_id', currentUser.id);
+      dbError = error;
 
-      if (!error) {
-        setCommentVotes(prev => ({
-          ...prev,
-          [commentId]: {
-            score: prev[commentId].score + (voteType === 'up' ? -1 : 1),
-            userVote: null
-          }
-        }));
-      }
     } else {
-      const voteChange =
-        currentVote === null ? (voteType === 'up' ? 1 : -1) :  
-          voteType === 'up' ? 2 : -2;
+      // --- Adding or changing vote ---
+      scoreChange =
+        currentVote === null ? (voteType === 'up' ? 1 : -1) // New vote
+        : (voteType === 'up' ? 2 : -2); // Flipping vote (e.g., down to up is +2)
+      newUserVote = voteType;
 
       const { error } = await supabase
         .from('project_comment_votes')
@@ -357,16 +358,26 @@ const ProjectDetails = () => {
             vote_type: voteType
           }
         ], { onConflict: ['comment_id', 'user_id'] });
+      dbError = error;
+    }
 
-      if (!error) {
-        setCommentVotes(prev => ({
+    // --- Update state only if DB operation was successful ---
+    if (!dbError) {
+      setCommentVotes(prev => {
+        // Safely access previous score, defaulting to 0 if commentId doesn't exist yet
+        const existingVoteData = prev[commentId] || { score: 0, userVote: null }; 
+        
+        return {
           ...prev,
           [commentId]: {
-            score: prev[commentId].score + voteChange,
-            userVote: voteType
+            score: existingVoteData.score + scoreChange,
+            userVote: newUserVote
           }
-        }));
-      }
+        };
+      });
+    } else {
+      console.error("Error updating vote in DB:", dbError);
+      // Optionally: Show an error message to the user
     }
   };
 
@@ -496,7 +507,7 @@ const ProjectDetails = () => {
       };
       
       setComments(prevComments => [newCommentWithProfile, ...prevComments]);
-      setNewComment('');
+      handleCommentChange({ target: { value: '' } });
       
       // Use the stored comment ID to ensure it exists
       setCommentVotes(prev => ({
@@ -633,7 +644,6 @@ const ProjectDetails = () => {
                   </svg>
                 </a>
               </h1>
-              <p className="text-base text-[--off-white] opacity-70 line-clamp-2">{project.repo_description || "No description provided."}</p>
             </div>
             <div className="flex items-center gap-3">
               <button
@@ -694,7 +704,7 @@ const ProjectDetails = () => {
                 >
                   {project.repo_owner}/{project.repo_name}
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M12.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                    <path fillRule="evenodd" d="M12.293 10.172a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
                   </svg>
                 </a>
               </div>
