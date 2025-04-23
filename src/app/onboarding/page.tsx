@@ -31,14 +31,18 @@ function OnboardingClient() {
 
   const [selectedDifficulties, setSelectedDifficulties] = useState<number[]>([]);
   const [savingDifficulty, setSavingDifficulty] = useState(false);
+  const [emailFrequency, setEmailFrequency] = useState<string>('never');
+  const [savingEmailFrequency, setSavingEmailFrequency] = useState(false);
 
   const router = useRouter();
   const searchParams = useSearchParams();
 
   useEffect(() => {
     const urlStep = searchParams ? Number(searchParams.get('step')) : null;
-    if (urlStep && [1, 2, 3].includes(urlStep)) {
+    if (urlStep && [1, 2, 3, 4].includes(urlStep)) {
       setCurrentStep(urlStep);
+    } else if (urlStep && urlStep >= 5) {
+      setSetupComplete(true);
     }
   }, [searchParams]);
 
@@ -48,7 +52,7 @@ function OnboardingClient() {
       const { data: { session } } = await supabase.auth.getSession();
 
       if (!session || !session.user) {
-        router.push('/');
+        router.replace('/');
         return;
       }
 
@@ -61,28 +65,38 @@ function OnboardingClient() {
         .eq('user_id', userId)
         .maybeSingle();
 
-      if (profile && profile.is_changed === true) {
-        router.push('/');
+      const { data: emailPrefs } = await supabase
+        .from('user_email_preferences')
+        .select('email_frequency')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (profile && profile.onboarding_step >= 5) {
+        setSetupComplete(true);
+        setLoading(false);
         return;
       }
 
-      if (profile && profile.onboarding_step && searchParams && !searchParams.get('step')) {
-        setCurrentStep(profile.onboarding_step);
+      const profileStep = profile?.onboarding_step;
+      const urlStep = searchParams ? Number(searchParams.get('step')) : null;
+      const effectiveStep = urlStep && [1, 2, 3, 4].includes(urlStep) ? urlStep : (profileStep && profileStep < 5 ? profileStep : 1);
+
+      setCurrentStep(effectiveStep);
+
+      if (profile) {
         if (profile.display_name) setDisplayName(profile.display_name);
         if (profile.difficulty) setSelectedDifficulties(profile.difficulty);
-      } else if (profile && profile.onboarding_step && !searchParams) {
-         setCurrentStep(profile.onboarding_step);
-         if (profile.display_name) setDisplayName(profile.display_name);
-         if (profile.difficulty) setSelectedDifficulties(profile.difficulty);
       }
-
+      if (emailPrefs) {
+        setEmailFrequency(emailPrefs.email_frequency || 'never');
+      }
 
       await fetchAllTags();
       setLoading(false);
     };
 
     checkUserProfile();
-  }, [router, searchParams]);
+  }, [router]);
 
   async function fetchAllTags() {
     try {
@@ -102,12 +116,20 @@ function OnboardingClient() {
     }
   }
 
-  const updateStep = async (step: number) => {
+  const updateStep = async (step: number, redirect: boolean = true) => {
     if (!userId) return;
     await supabase
       .from('profiles')
       .update({ onboarding_step: step })
       .eq('user_id', userId);
+
+    setCurrentStep(step);
+
+    if (redirect) {
+      const currentPath = window.location.pathname;
+      const newUrl = `${currentPath}?step=${step}`;
+      router.push(newUrl, { scroll: false });
+    }
   };
 
   const validateAndSaveDisplayName = async (e: React.FormEvent) => {
@@ -184,7 +206,6 @@ function OnboardingClient() {
       }
 
       await updateStep(2);
-      setCurrentStep(2);
       setIsSubmitting(false);
     } catch (e) {
       setError('An unexpected error occurred');
@@ -222,7 +243,6 @@ function OnboardingClient() {
         return;
       }
       await updateStep(3);
-      setCurrentStep(3);
       setSavingDifficulty(false);
     } catch (e) {
       setError('Failed to save difficulty selection');
@@ -272,13 +292,7 @@ function OnboardingClient() {
         }
       }
 
-      await supabase
-        .from('profiles')
-        .update({ is_changed: true, onboarding_step: 4 })
-        .eq('user_id', userId);
-
-      setSetupComplete(true);
-      setCurrentStep(4);
+      await updateStep(4);
       setSavingTags(false);
     } catch (e) {
       console.error("Error saving tag preferences:", e);
@@ -288,34 +302,85 @@ function OnboardingClient() {
     }
   };
 
+  const saveEmailPreferences = async () => {
+    if (!userId) return;
+    setSavingEmailFrequency(true);
+    setError('');
+    try {
+      const { error: emailError } = await supabase
+        .from('user_email_preferences')
+        .upsert({ user_id: userId, email_frequency: emailFrequency });
+
+      if (emailError) {
+        throw emailError;
+      }
+
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({ onboarding_step: 5, is_changed: true })
+        .eq('user_id', userId);
+
+      if (profileError) {
+        throw profileError;
+      }
+
+      setSetupComplete(true);
+      setCurrentStep(5);
+      setSavingEmailFrequency(false);
+    } catch (e) {
+      console.error("Error saving email preferences:", e);
+      const errorMessage = (e instanceof Error && e.message) ? e.message : 'Unknown error';
+      setError(`Failed to save email preferences: ${errorMessage}`);
+      setSavingEmailFrequency(false);
+    }
+  };
+
   if (loading) {
     return <LoadingFallback />;
+  }
+
+  if (setupComplete) {
+    return (
+      <div className="w-screen min-h-screen flex items-center justify-center">
+        <div className="max-w-[500px] w-full mx-4 radial-background rounded-lg shadow-lg p-8">
+          <div className="flex flex-col items-center justify-center py-12">
+            <div className="mb-4">
+              <svg className="h-16 w-16 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h1 className="text-2xl font-bold text-green-500 mb-2">Setup Complete!</h1>
+            <p className="text-[--off-white] mb-6 text-center">
+              Your profile is ready and personalized. You can now explore projects tailored to your interests.
+            </p>
+            <button
+              className="px-6 py-3 bg-blue-600 text-white rounded-full font-semibold hover:bg-blue-700 transition"
+              onClick={() => router.replace('/')}
+            >
+              Go to Dashboard
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="w-screen min-h-screen flex items-center justify-center">
       <div className="max-w-[500px] w-full mx-4 radial-background rounded-lg shadow-lg p-8">
-        <div className="flex mb-6 items-center">
-          {[1, 2, 3].map((step) => (
+        <div className="flex mb-6 items-center justify-center">
+          {[1, 2, 3, 4].map((step) => (
             <React.Fragment key={step}>
-              <div className={`rounded-full w-8 h-8 flex items-center justify-center
-                ${currentStep === step ? 'bg-blue-600 text-white' : 'bg-blue-900 text-blue-300'}`}>
-                {step}
+              <div className={`rounded-full w-8 h-8 flex items-center justify-center transition-colors duration-300
+                ${currentStep === step ? 'bg-blue-600 text-white' : (currentStep > step ? 'bg-green-600 text-white' : 'bg-blue-900 text-blue-300')}`}>
+                {currentStep > step ? '✓' : step}
               </div>
-              {step < 3 && <div className="h-1 w-8 mx-2 bg-gray-700"></div>}
+              {step < 4 && <div className={`h-1 w-8 mx-2 transition-colors duration-300 ${currentStep > step ? 'bg-green-600' : 'bg-gray-700'}`}></div>}
             </React.Fragment>
           ))}
-          {currentStep === 4 && (
-            <>
-              <div className="h-1 w-8 mx-2 bg-gray-700"></div>
-              <div className="rounded-full w-8 h-8 flex items-center justify-center bg-green-600 text-white">
-                ✓
-              </div>
-            </>
-          )}
         </div>
 
-        {currentStep === 1 ? (
+        {currentStep === 1 && (
           <>
             <h1 className="text-2xl inter-bold main-subtitle mb-4">Welcome to CodeConnect!</h1>
             <p className="mb-6">Please choose a display name to continue.</p>
@@ -344,7 +409,9 @@ function OnboardingClient() {
               </div>
             </form>
           </>
-        ) : currentStep === 2 ? (
+        )}
+
+        {currentStep === 2 && (
           <>
             <h1 className="text-2xl inter-bold main-subtitle mb-4">Select Your Preferred Difficulty</h1>
             <p className="mb-6">Choose one or more difficulty levels for projects you want to see.</p>
@@ -357,24 +424,23 @@ function OnboardingClient() {
             {error && <p className="text-red-500 mb-4">{error}</p>}
             <div className="flex justify-between">
               <button
-                onClick={async () => {
-                  await updateStep(1);
-                  setCurrentStep(1);
-                }}
+                onClick={() => updateStep(1)}
                 className="px-4 py-2 text-gray-400 rounded hover:bg-gray-800"
               >
                 Back
               </button>
               <button
                 onClick={saveDifficulty}
-                disabled={savingDifficulty}
+                disabled={savingDifficulty || selectedDifficulties.length === 0}
                 className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
               >
                 {savingDifficulty ? 'Saving...' : 'Continue'}
               </button>
             </div>
           </>
-        ) : currentStep === 3 ? (
+        )}
+
+        {currentStep === 3 && (
           <>
             <h1 className="text-2xl inter-bold main-subtitle mb-4">Select Your Interests</h1>
             <p className="mb-6">Choose topics you&apos;re interested in to help us personalize your recommendations.</p>
@@ -398,41 +464,85 @@ function OnboardingClient() {
 
             <div className="flex justify-between">
               <button
-                onClick={async () => {
-                  await updateStep(2);
-                  setCurrentStep(2);
-                }}
+                onClick={() => updateStep(2)}
                 className="px-4 py-2 text-gray-400 rounded hover:bg-gray-800"
               >
                 Back
               </button>
               <button
                 onClick={saveTagPreferences}
-                disabled={savingTags}
+                disabled={savingTags || selectedTagObjects.length === 0}
                 className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
               >
-                {savingTags ? 'Saving...' : 'Finish Setup'}
+                {savingTags ? 'Saving...' : 'Continue'}
               </button>
             </div>
           </>
-        ) : (
-          <div className="flex flex-col items-center justify-center py-12">
-            <div className="mb-4">
-              <svg className="h-16 w-16 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
+        )}
+
+        {currentStep === 4 && (
+          <>
+            <h1 className="text-2xl inter-bold main-subtitle mb-4">Email Notifications</h1>
+            <p className="mb-6">How often would you like to receive project recommendation emails?</p>
+
+            <div className="flex flex-col space-y-3 mb-6">
+              <label className="inline-flex items-center cursor-pointer">
+                <input
+                  type="radio"
+                  name="emailFrequency"
+                  value="never"
+                  checked={emailFrequency === 'never'}
+                  onChange={(e) => setEmailFrequency(e.target.value)}
+                  className="form-radio h-5 w-5 text-[var(--title-red)] focus:ring-[var(--title-red)] bg-gray-700 border-gray-600"
+                />
+                <span className="ml-3 text-[var(--off-white)]">Never</span>
+              </label>
+              <label className="inline-flex items-center cursor-pointer">
+                <input
+                  type="radio"
+                  name="emailFrequency"
+                  value="daily"
+                  checked={emailFrequency === 'daily'}
+                  onChange={(e) => setEmailFrequency(e.target.value)}
+                  className="form-radio h-5 w-5 text-[var(--title-red)] focus:ring-[var(--title-red)] bg-gray-700 border-gray-600"
+                />
+                <span className="ml-3 text-[var(--off-white)]">Daily</span>
+              </label>
+              <label className="inline-flex items-center cursor-pointer">
+                <input
+                  type="radio"
+                  name="emailFrequency"
+                  value="weekly"
+                  checked={emailFrequency === 'weekly'}
+                  onChange={(e) => setEmailFrequency(e.target.value)}
+                  className="form-radio h-5 w-5 text-[var(--title-red)] focus:ring-[var(--title-red)] bg-gray-700 border-gray-600"
+                />
+                <span className="ml-3 text-[var(--off-white)]">Weekly</span>
+              </label>
             </div>
-            <h1 className="text-2xl font-bold text-green-500 mb-2">Setup Complete!</h1>
-            <p className="text-[--off-white] mb-6 text-center">
-              Your profile is ready and personalized. You can now explore projects tailored to your interests.
-            </p>
-            <button
-              className="px-6 py-3 bg-blue-600 text-white rounded-full font-semibold hover:bg-blue-700 transition"
-              onClick={() => router.push('/')}
-            >
-              Go to Dashboard
-            </button>
-          </div>
+
+            <div className="mt-3 text-sm text-gray-400 mb-6">
+              <p>• Choose &quot;Never&quot; to opt out of all notification emails.</p>
+            </div>
+
+            {error && <p className="text-red-500 mb-4">{error}</p>}
+
+            <div className="flex justify-between">
+              <button
+                onClick={() => updateStep(3)}
+                className="px-4 py-2 text-gray-400 rounded hover:bg-gray-800"
+              >
+                Back
+              </button>
+              <button
+                onClick={saveEmailPreferences}
+                disabled={savingEmailFrequency}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+              >
+                {savingEmailFrequency ? 'Saving...' : 'Finish Setup'}
+              </button>
+            </div>
+          </>
         )}
       </div>
     </div>

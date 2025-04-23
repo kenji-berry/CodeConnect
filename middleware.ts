@@ -5,64 +5,81 @@ import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next();
   const supabase = createMiddlewareClient({ req, res });
-  
-  // Check if user is authenticated
+
+  await supabase.auth.getSession();
+
   const { data: { session } } = await supabase.auth.getSession();
-  
+
   const publicPaths = [
-    '/', 
-    '/login', 
-    '/about', 
-    '/onboarding', 
+    '/',
+    '/login',
+    '/about',
+    '/onboarding',
     '/auth-required',
     '/auth/callback',
     '/api/auth'
   ];
-  
+
   const path = req.nextUrl.pathname;
-  
+
   // Check if the current path starts with any of the public paths
-  const isPublicPath = publicPaths.some(publicPath => 
-    path === publicPath || path.startsWith(`${publicPath}/`)
+  const isPublicPath = publicPaths.some(publicPath =>
+    path === publicPath || (publicPath !== '/' && path.startsWith(publicPath))
   );
-  
+
   if (!session && !isPublicPath) {
-    // No session, redirect to auth-required page with returnTo parameter
     const returnUrl = new URL('/auth-required', req.url);
     returnUrl.searchParams.set('returnTo', path);
+    console.log(`[Middleware] No session, redirecting to: ${returnUrl.toString()}`);
     return NextResponse.redirect(returnUrl);
   }
-  
   if (session) {
     console.log('\n==================================');
-    console.log('🔑 Session found for user:', session.user.id);
-    
+    console.log('🔑 [Middleware] Session found for user:', session.user.id);
+
     const { data: profile, error } = await supabase
       .from('profiles')
       .select('is_changed, display_name, onboarding_step')
       .eq('user_id', session.user.id)
       .single();
-    
-    console.log('👤 Profile data:', JSON.stringify(profile, null, 2));
-    console.log('❌ Profile query error:', error?.message);
-    
-    const needsOnboarding = !profile || profile.is_changed === false;
-    const onboardingStep = profile?.onboarding_step ?? 1;
-    console.log('🚀 Needs onboarding?', needsOnboarding);
-    console.log('🌐 Current path:', path);
-    
+
+    console.log('👤 [Middleware] Profile data:', JSON.stringify(profile, null, 2));
+    if (error) {
+        console.error('❌ [Middleware] Profile query error:', error.message);
+    }
+    const needsOnboarding = !profile || (profile && profile.onboarding_step < 5);
+    const currentOnboardingStep = profile?.onboarding_step ?? 1;
+
+    console.log(`🚀 [Middleware] Needs onboarding? ${needsOnboarding} (Current Step: ${currentOnboardingStep})`);
+    console.log(`🌐 [Middleware] Current path: ${path}`);
+
     if (needsOnboarding && !path.startsWith('/onboarding')) {
-      console.log('🔄 Redirecting to onboarding...');
       const onboardingUrl = new URL('/onboarding', req.url);
-      onboardingUrl.searchParams.set('step', onboardingStep.toString());
+      onboardingUrl.searchParams.set('step', currentOnboardingStep.toString());
+      console.log(`🔄 [Middleware] Redirecting to onboarding: ${onboardingUrl.toString()}`);
+      console.log('==================================\n');
       return NextResponse.redirect(onboardingUrl);
     }
+
+    // If onboarding is complete (step >= 5) and user tries to access /onboarding, redirect them away (e.g., to home)
+    if (profile && profile.onboarding_step >= 5 && path.startsWith('/onboarding')) {
+        console.log(`✅ [Middleware] Onboarding complete, redirecting from /onboarding to /`);
+        console.log('==================================\n');
+        return NextResponse.redirect(new URL('/', req.url));
+    }
+
+
+    console.log('✅ [Middleware] Access granted.');
     console.log('==================================\n');
+  } else {
+      console.log('[Middleware] No session, allowing access to public path:', path);
   }
-  
+
   return res;
 }
 
 export const config = {
-  matcher: ['/((?!api|_next/static|_next/image|assets|favicon.ico).*)'],
+  matcher: [
+    '/((?!api|_next/static|_next/image|assets|favicon.ico).*)',
+  ],
 };
