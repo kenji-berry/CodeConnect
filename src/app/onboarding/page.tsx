@@ -29,6 +29,12 @@ function OnboardingClient() {
   const [selectedTagObjects, setSelectedTagObjects] = useState<{ id: string; name: string }[]>([]);
   const [savingTags, setSavingTags] = useState(false);
 
+  const [allTechnologyObjects, setAllTechnologyObjects] = useState<{ id: string; name: string }[]>([]);
+  const [allTechnologyNames, setAllTechnologyNames] = useState<string[]>([]);
+  const [selectedTechnologyNames, setSelectedTechnologyNames] = useState<string[]>([]);
+  const [selectedTechnologyObjects, setSelectedTechnologyObjects] = useState<{ id: string; name: string }[]>([]);
+  const [savingTechnologies, setSavingTechnologies] = useState(false);
+
   const [selectedDifficulties, setSelectedDifficulties] = useState<number[]>([]);
   const [savingDifficulty, setSavingDifficulty] = useState(false);
   const [emailFrequency, setEmailFrequency] = useState<string>('never');
@@ -39,9 +45,9 @@ function OnboardingClient() {
 
   useEffect(() => {
     const urlStep = searchParams ? Number(searchParams.get('step')) : null;
-    if (urlStep && [1, 2, 3, 4].includes(urlStep)) {
+    if (urlStep && [1, 2, 3, 4, 5].includes(urlStep)) {
       setCurrentStep(urlStep);
-    } else if (urlStep && urlStep >= 5) {
+    } else if (urlStep && urlStep >= 6) {
       setSetupComplete(true);
     }
   }, [searchParams]);
@@ -65,13 +71,23 @@ function OnboardingClient() {
         .eq('user_id', userId)
         .maybeSingle();
 
+      const { data: userTags } = await supabase
+        .from('user_tag_preferences')
+        .select('tags(id, name)')
+        .eq('user_id', userId);
+
+      const { data: userTechnologies } = await supabase
+        .from('user_technology_preferences')
+        .select('technologies(id, name)')
+        .eq('user_id', userId);
+
       const { data: emailPrefs } = await supabase
         .from('user_email_preferences')
         .select('email_frequency')
         .eq('user_id', userId)
         .maybeSingle();
 
-      if (profile && profile.onboarding_step >= 5) {
+      if (profile && profile.onboarding_step >= 6) {
         setSetupComplete(true);
         setLoading(false);
         return;
@@ -79,7 +95,7 @@ function OnboardingClient() {
 
       const profileStep = profile?.onboarding_step;
       const urlStep = searchParams ? Number(searchParams.get('step')) : null;
-      const effectiveStep = urlStep && [1, 2, 3, 4].includes(urlStep) ? urlStep : (profileStep && profileStep < 5 ? profileStep : 1);
+      const effectiveStep = urlStep && [1, 2, 3, 4, 5].includes(urlStep) ? urlStep : (profileStep && profileStep < 6 ? profileStep : 1);
 
       setCurrentStep(effectiveStep);
 
@@ -87,15 +103,27 @@ function OnboardingClient() {
         if (profile.display_name) setDisplayName(profile.display_name);
         if (profile.difficulty) setSelectedDifficulties(profile.difficulty);
       }
+      if (userTags) {
+        const tagNames = userTags.map((ut: any) => ut.tags.name);
+        setSelectedTagNames(tagNames);
+        setSelectedTagObjects(userTags.map((ut: any) => ({ id: ut.tags.id, name: ut.tags.name })));
+      }
+      if (userTechnologies) {
+        const techNames = userTechnologies.map((ut: any) => ut.technologies.name);
+        setSelectedTechnologyNames(techNames);
+        setSelectedTechnologyObjects(userTechnologies.map((ut: any) => ({ id: ut.technologies.id, name: ut.technologies.name })));
+      }
       if (emailPrefs) {
         setEmailFrequency(emailPrefs.email_frequency || 'never');
       }
 
       await fetchAllTags();
+      await fetchAllTechnologies();
       setLoading(false);
     };
 
     checkUserProfile();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
 
   async function fetchAllTags() {
@@ -113,6 +141,24 @@ function OnboardingClient() {
       console.error("Error fetching all tags:", error);
       setAllTagObjects([]);
       setAllTagNames([]);
+    }
+  }
+
+  async function fetchAllTechnologies() {
+    try {
+      const { data, error } = await supabase
+        .from('technologies')
+        .select('id, name')
+        .order('name');
+
+      if (error) throw error;
+
+      setAllTechnologyObjects(data || []);
+      setAllTechnologyNames((data || []).map(tech => tech.name));
+    } catch (error) {
+      console.error("Error fetching all technologies:", error);
+      setAllTechnologyObjects([]);
+      setAllTechnologyNames([]);
     }
   }
 
@@ -153,7 +199,8 @@ function OnboardingClient() {
       const { data: existingNames, error: nameCheckError } = await supabase
         .from('profiles')
         .select('user_id')
-        .eq('display_name', displayName.trim());
+        .eq('display_name', displayName.trim())
+        .neq('user_id', userId); // Ensure we don't block the user's own current name if unchanged
 
       if (nameCheckError) {
         setError('Error checking if display name exists. Please try again.');
@@ -217,9 +264,18 @@ function OnboardingClient() {
     setSelectedTagNames(names);
     const objects = names.map(name => {
       const obj = allTagObjects.find(t => t.name === name);
-      return obj || { id: '', name };
-    });
+      return obj ? { id: obj.id, name: name } : { id: '', name: name };
+    }).filter(obj => obj.id);
     setSelectedTagObjects(objects);
+  };
+
+  const handleTechnologiesChange = (names: string[]) => {
+    setSelectedTechnologyNames(names);
+    const objects = names.map(name => {
+      const obj = allTechnologyObjects.find(t => t.name === name);
+      return obj ? { id: obj.id, name: name } : { id: '', name: name };
+    }).filter(obj => obj.id);
+    setSelectedTechnologyObjects(objects);
   };
 
   const saveDifficulty = async () => {
@@ -265,7 +321,14 @@ function OnboardingClient() {
 
       const tagIds = selectedTagObjects
         .map(tag => tag.id)
-        .filter(Boolean);
+        .filter(id => id && id !== '');
+
+      if (tagIds.length !== selectedTagObjects.length) {
+          console.error("Mismatch in selected tag objects and valid IDs:", selectedTagObjects, tagIds);
+          setError('Error processing selected tags. Please try again.');
+          setSavingTags(false);
+          return;
+      }
 
       const { error: deleteError } = await supabase
         .from('user_tag_preferences')
@@ -273,6 +336,7 @@ function OnboardingClient() {
         .eq('user_id', userId);
 
       if (deleteError) {
+        console.error("Error deleting old tag preferences:", deleteError);
         throw deleteError;
       }
 
@@ -288,6 +352,7 @@ function OnboardingClient() {
           .insert(preferencesArray);
 
         if (insertError) {
+          console.error("Error inserting new tag preferences:", insertError);
           throw insertError;
         }
       }
@@ -299,6 +364,67 @@ function OnboardingClient() {
       const errorMessage = (e instanceof Error && e.message) ? e.message : 'Unknown error';
       setError(`Failed to save your tag preferences: ${errorMessage}`);
       setSavingTags(false);
+    }
+  };
+
+  const saveTechnologyPreferences = async () => {
+    if (!userId) return;
+
+    try {
+      setSavingTechnologies(true);
+      setError('');
+
+      if (selectedTechnologyObjects.length === 0) {
+        setError('Please select at least one technology');
+        setSavingTechnologies(false);
+        return;
+      }
+
+      const technologyIds = selectedTechnologyObjects
+        .map(tech => tech.id)
+        .filter(id => id && id !== '');
+
+      if (technologyIds.length !== selectedTechnologyObjects.length) {
+          console.error("Mismatch in selected technology objects and valid IDs:", selectedTechnologyObjects, technologyIds);
+          setError('Error processing selected technologies. Please try again.');
+          setSavingTechnologies(false);
+          return;
+      }
+
+      const { error: deleteError } = await supabase
+        .from('user_technology_preferences')
+        .delete()
+        .eq('user_id', userId);
+
+      if (deleteError) {
+        console.error("Error deleting old technology preferences:", deleteError);
+        throw deleteError;
+      }
+
+      if (technologyIds.length > 0) {
+        const preferencesArray = technologyIds.map(techId => ({
+          user_id: userId,
+          technology_id: techId,
+          created_at: new Date().toISOString()
+        }));
+
+        const { error: insertError } = await supabase
+          .from('user_technology_preferences')
+          .insert(preferencesArray);
+
+        if (insertError) {
+          console.error("Error inserting new technology preferences:", insertError);
+          throw insertError;
+        }
+      }
+
+      await updateStep(5);
+      setSavingTechnologies(false);
+    } catch (e) {
+      console.error("Error saving technology preferences:", e);
+      const errorMessage = (e instanceof Error && e.message) ? e.message : 'Unknown error';
+      setError(`Failed to save your technology preferences: ${errorMessage}`);
+      setSavingTechnologies(false);
     }
   };
 
@@ -317,7 +443,7 @@ function OnboardingClient() {
 
       const { error: profileError } = await supabase
         .from('profiles')
-        .update({ onboarding_step: 5, is_changed: true })
+        .update({ onboarding_step: 6, is_changed: true })
         .eq('user_id', userId);
 
       if (profileError) {
@@ -325,7 +451,7 @@ function OnboardingClient() {
       }
 
       setSetupComplete(true);
-      setCurrentStep(5);
+      setCurrentStep(6);
       setSavingEmailFrequency(false);
     } catch (e) {
       console.error("Error saving email preferences:", e);
@@ -369,13 +495,13 @@ function OnboardingClient() {
     <div className="w-screen min-h-screen flex items-center justify-center">
       <div className="max-w-[500px] w-full mx-4 radial-background rounded-lg shadow-lg p-8">
         <div className="flex mb-6 items-center justify-center">
-          {[1, 2, 3, 4].map((step) => (
+          {[1, 2, 3, 4, 5].map((step) => (
             <React.Fragment key={step}>
               <div className={`rounded-full w-8 h-8 flex items-center justify-center transition-colors duration-300
                 ${currentStep === step ? 'bg-blue-600 text-white' : (currentStep > step ? 'bg-green-600 text-white' : 'bg-blue-900 text-blue-300')}`}>
                 {currentStep > step ? '✓' : step}
               </div>
-              {step < 4 && <div className={`h-1 w-8 mx-2 transition-colors duration-300 ${currentStep > step ? 'bg-green-600' : 'bg-gray-700'}`}></div>}
+              {step < 5 && <div className={`h-1 w-8 mx-2 transition-colors duration-300 ${currentStep > step ? 'bg-green-600' : 'bg-gray-700'}`}></div>}
             </React.Fragment>
           ))}
         </div>
@@ -482,6 +608,46 @@ function OnboardingClient() {
 
         {currentStep === 4 && (
           <>
+            <h1 className="text-2xl inter-bold main-subtitle mb-4">Select Your Technologies</h1>
+            <p className="mb-6">Choose technologies you know or want to work with.</p>
+
+            <div className="mb-6">
+              <div className="main-page-filter-box px-2 py-4 rounded">
+                <MultiSelector
+                  availableTags={allTechnologyNames}
+                  onTagsChange={handleTechnologiesChange}
+                  initialTags={selectedTechnologyNames}
+                />
+              </div>
+
+              <div className="mt-3 text-sm text-gray-400">
+                <p>• Select technologies like languages, frameworks, or tools.</p>
+                <p>• This helps match you with relevant projects.</p>
+              </div>
+            </div>
+
+            {error && <p className="text-red-500 mb-4">{error}</p>}
+
+            <div className="flex justify-between">
+              <button
+                onClick={() => updateStep(3)}
+                className="px-4 py-2 text-gray-400 rounded hover:bg-gray-800"
+              >
+                Back
+              </button>
+              <button
+                onClick={saveTechnologyPreferences}
+                disabled={savingTechnologies || selectedTechnologyObjects.length === 0}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+              >
+                {savingTechnologies ? 'Saving...' : 'Continue'}
+              </button>
+            </div>
+          </>
+        )}
+
+        {currentStep === 5 && (
+          <>
             <h1 className="text-2xl inter-bold main-subtitle mb-4">Email Notifications</h1>
             <p className="mb-6">How often would you like to receive project recommendation emails?</p>
 
@@ -529,7 +695,7 @@ function OnboardingClient() {
 
             <div className="flex justify-between">
               <button
-                onClick={() => updateStep(3)}
+                onClick={() => updateStep(4)}
                 className="px-4 py-2 text-gray-400 rounded hover:bg-gray-800"
               >
                 Back

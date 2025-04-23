@@ -22,7 +22,6 @@ export async function middleware(req: NextRequest) {
 
   const path = req.nextUrl.pathname;
 
-  // Check if the current path starts with any of the public paths
   const isPublicPath = publicPaths.some(publicPath =>
     path === publicPath || (publicPath !== '/' && path.startsWith(publicPath))
   );
@@ -47,7 +46,7 @@ export async function middleware(req: NextRequest) {
     if (error) {
         console.error('❌ [Middleware] Profile query error:', error.message);
     }
-    const needsOnboarding = !profile || (profile && profile.onboarding_step < 5);
+    const needsOnboarding = !profile || (profile && profile.onboarding_step < 6);
     const currentOnboardingStep = profile?.onboarding_step ?? 1;
 
     console.log(`🚀 [Middleware] Needs onboarding? ${needsOnboarding} (Current Step: ${currentOnboardingStep})`);
@@ -61,8 +60,7 @@ export async function middleware(req: NextRequest) {
       return NextResponse.redirect(onboardingUrl);
     }
 
-    // If onboarding is complete (step >= 5) and user tries to access /onboarding, redirect them away (e.g., to home)
-    if (profile && profile.onboarding_step >= 5 && path.startsWith('/onboarding')) {
+    if (profile && profile.onboarding_step >= 6 && path.startsWith('/onboarding')) {
         console.log(`✅ [Middleware] Onboarding complete, redirecting from /onboarding to /`);
         console.log('==================================\n');
         return NextResponse.redirect(new URL('/', req.url));
