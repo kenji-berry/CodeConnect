@@ -570,6 +570,8 @@ function ProjectFormContent() {
   
     if (!customDescription.trim()) {
       errors.customDescription = 'Custom description is required';
+    } else if (customDescription.trim().length < 50) {
+      errors.customDescription = 'Custom description must be at least 50 characters long';
     }
   
     if (selectedTechnologies.length === 0) {
