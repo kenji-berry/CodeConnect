@@ -17,7 +17,11 @@ export async function middleware(req: NextRequest) {
     '/onboarding',
     '/auth-required',
     '/auth/callback',
-    '/api/auth'
+    '/api/auth',
+    '/settings',
+    '/trending',
+    '/popular',
+    '/newest'
   ];
 
   const path = req.nextUrl.pathname;
@@ -32,6 +36,7 @@ export async function middleware(req: NextRequest) {
     console.log(`[Middleware] No session, redirecting to: ${returnUrl.toString()}`);
     return NextResponse.redirect(returnUrl);
   }
+
   if (session) {
     console.log('\n==================================');
     console.log('🔑 [Middleware] Session found for user:', session.user.id);
@@ -44,7 +49,7 @@ export async function middleware(req: NextRequest) {
 
     console.log('👤 [Middleware] Profile data:', JSON.stringify(profile, null, 2));
     if (error) {
-        console.error('❌ [Middleware] Profile query error:', error.message);
+      console.error('❌ [Middleware] Profile query error:', error.message);
     }
     const needsOnboarding = !profile || (profile && profile.onboarding_step < 6);
     const currentOnboardingStep = profile?.onboarding_step ?? 1;
@@ -61,16 +66,15 @@ export async function middleware(req: NextRequest) {
     }
 
     if (profile && profile.onboarding_step >= 6 && path.startsWith('/onboarding')) {
-        console.log(`✅ [Middleware] Onboarding complete, redirecting from /onboarding to /`);
-        console.log('==================================\n');
-        return NextResponse.redirect(new URL('/', req.url));
+      console.log(`✅ [Middleware] Onboarding complete, redirecting from /onboarding to /`);
+      console.log('==================================\n');
+      return NextResponse.redirect(new URL('/', req.url));
     }
-
 
     console.log('✅ [Middleware] Access granted.');
     console.log('==================================\n');
   } else {
-      console.log('[Middleware] No session, allowing access to public path:', path);
+    console.log('[Middleware] No session, allowing access to public path:', path);
   }
 
   return res;
