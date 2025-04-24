@@ -1,5 +1,5 @@
 "use client";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import MultiSelector from "./MultiSelector";
 import SingleSelector from "./SingleSelector";
 import MultiDifficultySelector from "./MultiDifficultySelector";
@@ -28,16 +28,29 @@ export default function FilterSidebar({
   setupTimeMin = "",
   setupTimeMax = "",
   onSetupTimeMinChange,
-  onSetupTimeMaxChange
+  onSetupTimeMaxChange,
 }) {
-  // Filter options
-  const contributionTypes = [
-    "Documentation",
-    "Design",
-    "Testing",
-    "Code",
-    "Translation",
-  ];
+  const [contributionTypes, setContributionTypes] = useState([]);
+
+  useEffect(() => {
+    const fetchContributionTypes = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("contribution_type")
+          .select("name");
+
+        if (error) {
+          console.error("Error fetching contribution types:", error);
+        } else {
+          setContributionTypes(data.map((type) => type.name));
+        }
+      } catch (err) {
+        console.error("Unexpected error fetching contribution types:", err);
+      }
+    };
+
+    fetchContributionTypes();
+  }, []);
 
   const lastUpdated = ["Last 24 hours", "Last 7 days", "Last 30 days"];
 
@@ -47,7 +60,7 @@ export default function FilterSidebar({
     "GPL-3.0",
     "BSD-3-Clause",
     "Unlicense",
-    "Other"
+    "Other",
   ];
 
   const mentorshipOptions = ["Yes", "No"];
@@ -55,7 +68,7 @@ export default function FilterSidebar({
   return (
     <div className={`filter-sidebar ${className}`}>
       <h3 className="inter-bold text-xl mb-4">Filters</h3>
-      
+
       <div className="main-page-filter-box px-3 py-4 inria-sans-bold flex flex-col gap-4">
         <div>
           <p className="mb-2">Technologies/Languages:</p>
@@ -65,7 +78,7 @@ export default function FilterSidebar({
             initialTags={selectedTechnologies}
           />
         </div>
-        
+
         <div>
           <p className="mb-2">Tags:</p>
           <MultiSelector
@@ -74,7 +87,7 @@ export default function FilterSidebar({
             initialTags={selectedTags}
           />
         </div>
-        
+
         <div>
           <p className="mb-2">Contribution Type:</p>
           <MultiSelector
@@ -83,15 +96,15 @@ export default function FilterSidebar({
             initialTags={selectedContributionTypes}
           />
         </div>
-        
+
         <div>
           <p className="mb-2">Difficulty:</p>
           <MultiDifficultySelector
-            onDifficultiesChange={onDifficultiesChange} 
+            onDifficultiesChange={onDifficultiesChange}
             selectedDifficulties={selectedDifficulties}
           />
         </div>
-        
+
         <div>
           <p className="mb-2">Last Updated:</p>
           <SingleSelector
@@ -100,11 +113,11 @@ export default function FilterSidebar({
             initialValue={selectedLastUpdated}
           />
         </div>
-        
+
         <div>
           <p className="mb-2">Filter Mode:</p>
           <SingleSelector
-            values={['AND', 'OR']}
+            values={["AND", "OR"]}
             onValueChange={onFilterModeChange}
             initialValue={filterMode}
           />
@@ -143,8 +156,8 @@ export default function FilterSidebar({
               type="text"
               placeholder="Min"
               value={setupTimeMin}
-              onChange={e => {
-                const numericValue = e.target.value.replace(/\D/g, '');
+              onChange={(e) => {
+                const numericValue = e.target.value.replace(/\D/g, "");
                 onSetupTimeMinChange?.(numericValue);
               }}
               className="w-16 p-1 rounded border border-gray-300 text-black"
@@ -154,8 +167,8 @@ export default function FilterSidebar({
               type="text"
               placeholder="Max"
               value={setupTimeMax}
-              onChange={e => {
-                const numericValue = e.target.value.replace(/\D/g, '');
+              onChange={(e) => {
+                const numericValue = e.target.value.replace(/\D/g, "");
                 onSetupTimeMaxChange?.(numericValue);
               }}
               className="w-16 p-1 rounded border border-gray-300 text-black"
@@ -164,8 +177,8 @@ export default function FilterSidebar({
         </div>
 
         <div className="mt-2">
-          <button 
-            onClick={onClearFilters} 
+          <button
+            onClick={onClearFilters}
             className="flex items-center py-1.5 px-3 bg-red-700 hover:bg-red-900 rounded transition w-full justify-center"
           >
             Clear All Filters
