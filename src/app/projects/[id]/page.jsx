@@ -173,6 +173,12 @@ const ProjectDetails = () => {
               name,
               colour
             )
+          ),
+          project_contribution_type (
+            contribution_type (
+              id,
+              name
+            )
           )
         `)
         .eq('id', id)
@@ -181,11 +187,10 @@ const ProjectDetails = () => {
       if (error) {
         console.error('Error fetching project:', error);
       } else {
-        let processedProject = { ...projectData }; 
+        let processedProject = { ...projectData };
 
         // Parse links if they are JSON strings
         if (processedProject && processedProject.links) {
-          // If links is a string, try to parse it
           if (typeof processedProject.links === 'string') {
             try {
               processedProject.links = JSON.parse(processedProject.links);
@@ -194,13 +199,12 @@ const ProjectDetails = () => {
               processedProject.links = [];
             }
           }
-          
-          // Ensure links is an array
+
           if (!Array.isArray(processedProject.links)) {
             processedProject.links = [];
           }
         }
-        
+
         setProject(processedProject);
 
         if (currentUser && !viewTracked.current) {
@@ -892,6 +896,19 @@ const ProjectDetails = () => {
                 : <span className="text-gray-400">No tags specified</span>}
             </div>
           </section>
+        </div>
+
+        <div>
+          <h3 className="font-semibold text-[--orange] mb-1">Contribution Types</h3>
+          {project.project_contribution_type && project.project_contribution_type.length > 0 ? (
+            <ul className="list-disc ml-6 text-[--off-white]">
+              {project.project_contribution_type.map((ct) => (
+                <li key={ct.contribution_type.id}>{ct.contribution_type.name}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-[--off-white]">No contribution types specified</p>
+          )}
         </div>
         
         {/* Resource Links */}
