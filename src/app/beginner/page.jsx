@@ -8,23 +8,17 @@ import { supabase } from '@/supabaseClient';
 function BeginnerProjectsContent() {
   const [loading, setLoading] = useState(true);
   const [availableTags, setAvailableTags] = useState([]);
-
-  // Updated useProjectFilters to include tags and numeric difficulty
   const filterProps = useProjectFilters([], {
     includeTags: true,
     numericDifficulty: true,
-    defaultDifficulty: 1  // Default to beginner level
+    defaultDifficulty: 1
   });
-
   const { filteredProjects, updateProjects } = filterProps;
 
-  // Fetch available tags for filtering
   useEffect(() => {
     const fetchTags = async () => {
       try {
-        const { data, error } = await supabase
-          .from('tags')
-          .select('name');
+        const { data, error } = await supabase.from('tags').select('name');
         if (error) throw error;
         setAvailableTags(data.map(tag => tag.name));
       } catch (error) {
@@ -42,18 +36,15 @@ function BeginnerProjectsContent() {
       setLoading(true);
 
       try {
-        // Get beginner projects
         const { data: beginnerIds, error: idError } = await supabase.rpc('get_beginner_projects', {
           results_limit: 15
         });
 
         if (idError || !beginnerIds || beginnerIds.length === 0) {
-          console.error('Error fetching beginner projects:', idError);
           if (isMounted) updateProjects([]);
           return;
         }
 
-        // Extract project IDs safely
         const projectIds = beginnerIds.map(item => item.project_id).filter(Boolean);
 
         if (projectIds.length === 0) {
@@ -61,7 +52,6 @@ function BeginnerProjectsContent() {
           return;
         }
 
-        // Fetch project details
         const { data: projects, error: projectError } = await supabase
           .from('project')
           .select(`
@@ -71,18 +61,15 @@ function BeginnerProjectsContent() {
           .in('id', projectIds);
 
         if (projectError || !projects || projects.length === 0) {
-          console.error('Error fetching project details:', projectError);
           if (isMounted) updateProjects([]);
           return;
         }
 
-        // Fetch open issue counts for all project IDs in one query
         const { data: issuesData } = await supabase
           .from('project_issues')
           .select('project_id, state')
           .in('project_id', projectIds);
 
-        // Build a map of project_id -> open issue count
         const openIssueCountMap = {};
         if (issuesData) {
           issuesData.forEach(issue => {
@@ -92,27 +79,21 @@ function BeginnerProjectsContent() {
           });
         }
 
-        // Fetch all commits for these projects
         const { data: commitsData } = await supabase
           .from('project_commits')
           .select('project_id, timestamp')
           .in('project_id', projectIds);
 
-        // Build a map of project_id -> latest commit timestamp
         const latestCommitMap = {};
         if (commitsData) {
           commitsData.forEach(commit => {
             const ts = new Date(commit.timestamp);
-            if (
-              !latestCommitMap[commit.project_id] ||
-              ts > latestCommitMap[commit.project_id]
-            ) {
+            if (!latestCommitMap[commit.project_id] || ts > latestCommitMap[commit.project_id]) {
               latestCommitMap[commit.project_id] = ts;
             }
           });
         }
 
-        // Process projects in smaller batches to avoid resource exhaustion
         const projectsWithData = [];
         const BATCH_SIZE = 5;
 
@@ -130,7 +111,7 @@ function BeginnerProjectsContent() {
                     .eq('project_id', project.id),
                   supabase
                     .from('project_tags')  
-                    .select(`tag_id, tags!inner (name), is_highlighted`)
+                    .select(`tag_id, tags!inner (name, colour), is_highlighted`)
                     .eq('project_id', project.id)
                 ]);
 
@@ -142,13 +123,14 @@ function BeginnerProjectsContent() {
                   })) || [],
                   tags: tagResult.data?.map(tag => ({
                     name: tag.tags.name,
+                    colour: tag.tags.colour || null,
                     is_highlighted: tag.is_highlighted
                   })) || [],
                   issueCount: openIssueCountMap[project.id] || 0,
                   last_commit_at: latestCommitMap[project.id] || null
                 };
               } catch (error) {
-                console.error(`Error processing project ${project.id}:`, error);
+console.error(`Error processing project ${project.id}:`, error);
                 return {
                   ...project,
                   technologies: [],
@@ -165,7 +147,7 @@ function BeginnerProjectsContent() {
 
         if (isMounted) updateProjects(projectsWithData);
       } catch (error) {
-        console.error('Error in fetchBeginnerProjects:', error);
+console.error('Error in fetchBeginnerProjects:', error);
         if (isMounted) updateProjects([]);
       } finally {
         if (isMounted) setLoading(false);

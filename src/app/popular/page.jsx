@@ -7,30 +7,26 @@ import { supabase } from '@/supabaseClient';
 
 function PopularProjectsContent() {
   const [loading, setLoading] = useState(true);
-  // Enable includeTags option
   const filterProps = useProjectFilters([], { includeTags: true });
   const { filteredProjects, updateProjects } = filterProps;
 
   useEffect(() => {
-    let isMounted = true; // Flag to prevent state updates after unmount
+    let isMounted = true;
 
     const fetchPopularProjects = async () => {
       if (!isMounted) return;
       setLoading(true);
 
       try {
-        // Get popular projects
         const { data: popularIds, error: idError } = await supabase.rpc('get_popular_projects', {
           results_limit: 15
         });
 
         if (idError || !popularIds || popularIds.length === 0) {
-          console.error('Error fetching popular projects:', idError);
           if (isMounted) updateProjects([]);
           return;
         }
 
-        // Extract project IDs safely
         const projectIds = popularIds.map(item => item.project_id).filter(Boolean);
 
         if (projectIds.length === 0) {
@@ -38,7 +34,6 @@ function PopularProjectsContent() {
           return;
         }
 
-        // Fetch project details
         const { data: projects, error: projectError } = await supabase
           .from('project')
           .select(`
@@ -49,18 +44,15 @@ function PopularProjectsContent() {
           .in('id', projectIds);
 
         if (projectError || !projects || projects.length === 0) {
-          console.error('Error fetching project details:', projectError);
           if (isMounted) updateProjects([]);
           return;
         }
 
-        // Fetch open issue counts for all project IDs in one query
         const { data: issuesData } = await supabase
           .from('project_issues')
           .select('project_id, state')
           .in('project_id', projectIds);
 
-        // Build a map of project_id -> open issue count
         const openIssueCountMap = {};
         if (issuesData) {
           issuesData.forEach(issue => {
@@ -70,27 +62,21 @@ function PopularProjectsContent() {
           });
         }
 
-        // Fetch all commits for these projects
         const { data: commitsData } = await supabase
           .from('project_commits')
           .select('project_id, timestamp')
           .in('project_id', projectIds);
 
-        // Build a map of project_id -> latest commit timestamp
         const latestCommitMap = {};
         if (commitsData) {
           commitsData.forEach(commit => {
             const ts = new Date(commit.timestamp);
-            if (
-              !latestCommitMap[commit.project_id] ||
-              ts > latestCommitMap[commit.project_id]
-            ) {
+            if (!latestCommitMap[commit.project_id] || ts > latestCommitMap[commit.project_id]) {
               latestCommitMap[commit.project_id] = ts;
             }
           });
         }
 
-        // Process projects in smaller batches to avoid resource exhaustion
         const projectsWithData = [];
         const BATCH_SIZE = 5;
 
@@ -108,7 +94,7 @@ function PopularProjectsContent() {
                     .eq('project_id', project.id),
                   supabase
                     .from('project_tags')  
-                    .select(`tag_id, tags!inner (name), is_highlighted`)
+                    .select(`tag_id, tags!inner (name, colour), is_highlighted`)
                     .eq('project_id', project.id)
                 ]);
 
@@ -120,13 +106,13 @@ function PopularProjectsContent() {
                   })) || [],
                   tags: tagResult.data?.map(tag => ({
                     name: tag.tags.name,
+                    colour: tag.tags.colour || null,
                     is_highlighted: tag.is_highlighted
                   })) || [],
                   issueCount: openIssueCountMap[project.id] || 0,
                   last_commit_at: latestCommitMap[project.id] || null
                 };
               } catch (error) {
-                console.error(`Error processing project ${project.id}:`, error);
                 return {
                   ...project,
                   technologies: [],
@@ -143,7 +129,6 @@ function PopularProjectsContent() {
 
         if (isMounted) updateProjects(projectsWithData);
       } catch (error) {
-        console.error('Error in fetchPopularProjects:', error);
         if (isMounted) updateProjects([]);
       } finally {
         if (isMounted) setLoading(false);
@@ -153,9 +138,9 @@ function PopularProjectsContent() {
     fetchPopularProjects();
 
     return () => {
-      isMounted = false; // Cleanup function to prevent state updates after unmount
+      isMounted = false;
     };
-  }, []); // Remove updateProjects from dependencies
+  }, []);
 
   return (
     <ProjectPageLayout

@@ -5,13 +5,10 @@ import ProjectPageLayout from "../Components/ProjectPageLayout";
 import useProjectFilters from "../hooks/useProjectFilters";
 import { supabase } from '@/supabaseClient';
 
-// Function to get trending projects
 async function getTrendingProjects(limit = 15) {
   try {
     const oneWeekAgo = new Date();
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-
-    console.log(`Fetching trending projects for past 7 days`);
 
     const { data, error } = await supabase.rpc('get_trending_projects', {
       lookback_days: 7,
@@ -36,14 +33,13 @@ function TrendingProjectsContent() {
   const { filteredProjects, updateProjects } = filterProps;
 
   useEffect(() => {
-    let isMounted = true; // Flag to prevent state updates after unmount
+    let isMounted = true;
 
     const fetchTrendingProjects = async () => {
       if (!isMounted) return;
       setLoading(true);
 
       try {
-        // Get trending projects based on combined likes and comments
         const trendingIds = await getTrendingProjects(15);
 
         if (!trendingIds || trendingIds.length === 0) {
@@ -53,7 +49,6 @@ function TrendingProjectsContent() {
 
         const projectIds = trendingIds.map(item => item.project_id);
 
-        // Fetch the actual project details for each trending ID
         const { data: projects, error: projectsError } = await supabase
           .from('project')
           .select(`
@@ -64,18 +59,15 @@ function TrendingProjectsContent() {
           .in('id', projectIds);
 
         if (projectsError || !projects || projects.length === 0) {
-          console.error('Error fetching project details:', projectsError);
           if (isMounted) updateProjects([]);
           return;
         }
 
-        // Fetch open issue counts for all project IDs in one query
         const { data: issuesData } = await supabase
           .from('project_issues')
           .select('project_id, state')
           .in('project_id', projectIds);
 
-        // Build a map of project_id -> open issue count
         const openIssueCountMap = {};
         if (issuesData) {
           issuesData.forEach(issue => {
@@ -85,32 +77,26 @@ function TrendingProjectsContent() {
           });
         }
 
-        // Fetch all commits for these projects
         const { data: commitsData } = await supabase
           .from('project_commits')
           .select('project_id, timestamp')
           .in('project_id', projectIds);
 
-        // Build a map of project_id -> latest commit timestamp
         const latestCommitMap = {};
         if (commitsData) {
           commitsData.forEach(commit => {
             const ts = new Date(commit.timestamp);
-            if (
-              !latestCommitMap[commit.project_id] ||
-              ts > latestCommitMap[commit.project_id]
-            ) {
+            if (!latestCommitMap[commit.project_id] || ts > latestCommitMap[commit.project_id]) {
               latestCommitMap[commit.project_id] = ts;
             }
           });
         }
 
-        // Process projects in smaller batches to avoid resource exhaustion
         const projectsWithData = [];
         const BATCH_SIZE = 5;
 
         for (let i = 0; i < projects.length; i += BATCH_SIZE) {
-          if (!isMounted) return; // Check if still mounted before processing each batch
+          if (!isMounted) return;
 
           const batch = projects.slice(i, i + BATCH_SIZE);
           const batchResults = await Promise.all(
@@ -123,7 +109,7 @@ function TrendingProjectsContent() {
                     .eq('project_id', project.id),
                   supabase
                     .from('project_tags')  
-                    .select(`tag_id, tags!inner (name), is_highlighted`)
+                    .select(`tag_id, tags!inner (name, colour), is_highlighted`)
                     .eq('project_id', project.id)
                 ]);
 
@@ -135,13 +121,13 @@ function TrendingProjectsContent() {
                   })) || [],
                   tags: tagResult.data?.map(tag => ({
                     name: tag.tags.name,
+                    colour: tag.tags.colour || null,
                     is_highlighted: tag.is_highlighted
                   })) || [],
                   issueCount: openIssueCountMap[project.id] || 0,
                   last_commit_at: latestCommitMap[project.id] || null
                 };
               } catch (error) {
-                console.error(`Error processing project ${project.id}:`, error);
                 return {
                   ...project,
                   technologies: [],
@@ -158,7 +144,6 @@ function TrendingProjectsContent() {
 
         if (isMounted) updateProjects(projectsWithData);
       } catch (error) {
-        console.error('Error fetching trending projects:', error);
         if (isMounted) updateProjects([]);
       } finally {
         if (isMounted) setLoading(false);
@@ -168,9 +153,9 @@ function TrendingProjectsContent() {
     fetchTrendingProjects();
 
     return () => {
-      isMounted = false; // Cleanup function to prevent state updates after unmount
+      isMounted = false;
     };
-  }, []); // Remove updateProjects from dependencies
+  }, []);
 
   return (
     <ProjectPageLayout

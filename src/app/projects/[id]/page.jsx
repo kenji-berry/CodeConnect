@@ -167,9 +167,11 @@ const ProjectDetails = () => {
             )
           ),
           project_tags (
+            is_highlighted,
             tags (
               id,
-              name
+              name,
+              colour
             )
           )
         `)
@@ -864,18 +866,29 @@ const ProjectDetails = () => {
             <h2 className="text-xl font-bold text-[var(--off-white)] mb-4">Tags</h2>
             <div className="flex flex-wrap gap-2">
               {project.project_tags && project.project_tags.length > 0
-                ? project.project_tags.map(pt =>
-                    <span 
-                      key={pt.tags.id} 
-                      className={`inline-block px-3 py-1 rounded-full text-sm font-medium shadow ${
-                        pt.is_highlighted
-                          ? "bg-[#232323] text-[var(--off-white)] border-2 border-amber-500 hover:border-amber-400"
-                          : "bg-[#232323] text-[var(--off-white)] border border-[var(--muted-red)] hover:border-[var(--title-red)]"
-                      }`}
-                    >
-                      {pt.tags.name}{pt.is_highlighted ? " ★" : ""}
-                    </span>
-                  )
+                ? project.project_tags.map(pt => {
+                    const tagColor = pt.tags.colour ? `#${pt.tags.colour}` : null;
+                    
+                    return (
+                      <span 
+                        key={pt.tags.id} 
+                        className={`inline-block px-3 py-1 rounded-full text-sm font-medium shadow ${
+                          pt.is_highlighted
+                            ? "bg-[#232323] text-[var(--off-white)] border-2 border-amber-500 hover:border-amber-400"
+                            : "bg-[#232323] text-[var(--off-white)] border border-[var(--muted-red)] hover:border-[var(--title-red)]"
+                        }`}
+                        style={tagColor ? {
+                          borderColor: tagColor,
+                          borderLeftColor: tagColor,
+                          borderRightColor: tagColor,
+                          borderTopColor: tagColor,
+                          borderBottomColor: tagColor
+                        } : {}}
+                      >
+                        {pt.tags.name}{pt.is_highlighted ? " ★" : ""}
+                      </span>
+                    );
+                  })
                 : <span className="text-gray-400">No tags specified</span>}
             </div>
           </section>

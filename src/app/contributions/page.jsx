@@ -84,7 +84,7 @@ function ContributionsContent() {
                     .eq('project_id', project.id),
                   supabase
                     .from('project_tags')
-                    .select(`tag_id, tags!inner (name), is_highlighted`)
+                    .select(`tag_id, tags!inner (name, colour), is_highlighted`) 
                     .eq('project_id', project.id)
                 ]);
 
@@ -96,6 +96,7 @@ function ContributionsContent() {
                   })) || [],
                   tags: tagResult.data?.map(tag => ({
                     name: tag.tags?.name || '',
+                    colour: tag.tags?.colour || null,
                     is_highlighted: tag.is_highlighted || false,
                   })) || [],
                   issueCount: openIssueCountMap[project.id] || 0
