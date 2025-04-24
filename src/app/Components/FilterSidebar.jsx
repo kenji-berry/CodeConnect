@@ -60,7 +60,7 @@ export default function FilterSidebar({
     "Apache-2.0",
     "GPL-3.0",
     "BSD-3-Clause",
-    "Unlicense",
+    "Unlicensed",
     "Other",
   ];
 

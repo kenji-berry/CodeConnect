@@ -159,9 +159,9 @@ export default function useProjectFilters(initialProjects = [], options = {}) {
   // Apply filters when filter state or projects change
   useEffect(() => {
     if (!projects.length) return;
-    
+
     let filtered = [...projects];
-    
+
     // Apply technology filter
     if (selectedTechnologies.length > 0) {
       filtered = filtered.filter(project => {
@@ -228,31 +228,36 @@ export default function useProjectFilters(initialProjects = [], options = {}) {
 
     // License filter
     if (selectedLicense) {
-      filtered = filtered.filter(project =>
-        (project.license || "").toLowerCase() === selectedLicense.toLowerCase()
+      filtered = filtered.filter(
+        (project) => project.license === selectedLicense
       );
     }
 
     // Mentorship filter
     if (selectedMentorship) {
-      filtered = filtered.filter(project =>
-        (project.mentorship === true && selectedMentorship === "Yes") ||
-        (project.mentorship === false && selectedMentorship === "No")
+      filtered = filtered.filter(
+        (project) =>
+          (project.mentorship === true && selectedMentorship === "Yes") ||
+          (project.mentorship === false && selectedMentorship === "No")
       );
     }
 
     // Setup time filter
     if (setupTimeMin) {
-      filtered = filtered.filter(project =>
-        project.setup_time !== null && Number(project.setup_time) >= Number(setupTimeMin)
+      filtered = filtered.filter(
+        (project) =>
+          project.setup_time !== null &&
+          Number(project.setup_time) >= Number(setupTimeMin)
       );
     }
     if (setupTimeMax) {
-      filtered = filtered.filter(project =>
-        project.setup_time !== null && Number(project.setup_time) <= Number(setupTimeMax)
+      filtered = filtered.filter(
+        (project) =>
+          project.setup_time !== null &&
+          Number(project.setup_time) <= Number(setupTimeMax)
       );
     }
-    
+
     setFilteredProjects(filtered);
   }, [
     projects,
@@ -264,10 +269,10 @@ export default function useProjectFilters(initialProjects = [], options = {}) {
     selectedLastUpdated,
     filterMode,
     numericDifficulty,
-    selectedLicense,
+    selectedLicense, // Ensure this is included in the dependency array
     selectedMentorship,
     setupTimeMin,
-    setupTimeMax
+    setupTimeMax,
   ]);
 
   // Memoize updateProjects to prevent unnecessary re-renders
