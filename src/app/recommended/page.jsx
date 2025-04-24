@@ -5,7 +5,7 @@ import ProjectPreview from "../Components/ProjectPreview";
 import ProjectPageLayout from "../Components/ProjectPageLayout";
 import useProjectFilters from "../hooks/useProjectFilters";
 import { supabase } from '@/supabaseClient';
-import { getHybridRecommendations, getPopularProjects } from '@/services/recommendation-service';
+import { getHybridRecommendations } from '@/services/recommendation-service';
 
 const fetchTagsAndTech = async (projectId) => {
   if (typeof projectId === 'undefined' || projectId === null) {
@@ -41,7 +41,7 @@ const fetchTagsAndTech = async (projectId) => {
 
 function RecommendedProjectsContent() {
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState(undefined); // Initialize as undefined
+  const [user, setUser] = useState(undefined);
   const [page, setPage] = useState(1);
   const router = useRouter();
   const { filteredProjects, updateProjects: originalUpdateProjects, ...restFilterProps } = useProjectFilters([]);
@@ -70,19 +70,14 @@ function RecommendedProjectsContent() {
     let isMounted = true;
 
     const fetchRecommendedProjects = async () => {
-      if (!isMounted) return;
-      setLoading(true);
+      if (!isMounted || !user) return;
 
+      setLoading(true);
       try {
-        let initialProjectsData;
-        if (user) {
-          initialProjectsData = await getHybridRecommendations(user.id, 15, true);
-        } else {
-          initialProjectsData = await getPopularProjects(15);
-        }
+        const initialProjectsData = await getHybridRecommendations(user.id, 15, true);
 
         if (!Array.isArray(initialProjectsData)) {
-            initialProjectsData = [];
+            throw new Error("Recommendations data is not an array");
         }
 
         let projectsWithDetails = [];
@@ -107,7 +102,7 @@ function RecommendedProjectsContent() {
             updateProjects(projectsWithDetails || []);
         }
       } catch (error) {
-        console.error('Error fetching recommended/popular projects:', error);
+        console.error('Error fetching recommended projects:', error);
         if (isMounted) updateProjects([]);
       } finally {
         if (isMounted) {
@@ -116,8 +111,13 @@ function RecommendedProjectsContent() {
       }
     };
 
-    if (user !== undefined) {
-        fetchRecommendedProjects();
+    if (user === undefined) {
+      setLoading(true);
+    } else if (user === null) {
+      setLoading(false);
+      updateProjects([]);
+    } else {
+      fetchRecommendedProjects();
     }
 
     return () => {
@@ -127,15 +127,15 @@ function RecommendedProjectsContent() {
 
   return (
     <ProjectPageLayout
-      title={user ? "Recommended Projects" : "Popular Projects"}
+      title={user ? "Recommended Projects" : "Log in for Recommendations"}
       loading={loading}
       filterProps={filterProps}
-      projectCount={filteredProjects.length}
+      projectCount={user && !loading ? filteredProjects.length : 0}
     >
       {!user && !loading && user !== undefined && (
         <div className="bg-gray-900 rounded-lg p-6 mb-6 text-center">
           <h3 className="text-xl font-bold mb-2">Log in for personalized recommendations</h3>
-          <p className="mb-4">Currently showing popular projects. Sign in to see projects tailored to your interests.</p>
+          <p className="mb-4">Sign in to see projects tailored to your interests.</p>
           <button
             onClick={() => router.push('/login')}
             className="px-4 py-2 bg-red-600 rounded hover:bg-red-700 transition"
