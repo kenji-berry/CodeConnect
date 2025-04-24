@@ -499,11 +499,7 @@ function HomeContent() {
                         ? project.tags.filter(tag => tag.is_highlighted)
                         : project.tags.slice(0, 3)
                     }
-                    description={
-                      project.description_type === "Write your Own" 
-                        ? project.custom_description 
-                        : "GitHub project description"
-                    }
+                    description={project.custom_description}
                     techStack={project.technologies
                       .filter(tech => tech.is_highlighted)
                       .map(tech => tech.name)}
@@ -547,11 +543,7 @@ function HomeContent() {
                       name={project.repo_name}
                       date={project.created_at}
                       tags={tagsToShow}
-                      description={
-                        project.description_type === "Write your Own"
-                          ? project.custom_description
-                          : "GitHub project description"
-                      }
+                      description={project.custom_description}
                       techStack={project.technologies
                         .filter(tech => tech.is_highlighted)
                         .map(tech => tech.name)}
@@ -596,11 +588,7 @@ function HomeContent() {
                       name={project.repo_name}
                       date={project.created_at}
                       tags={tagsToShow}
-                      description={
-                        project.description_type === "Write your Own"
-                          ? project.custom_description
-                          : "GitHub project description"
-                      }
+                      description={project.custom_description}
                       techStack={project.technologies
                         .filter(tech => tech.is_highlighted)
                         .map(tech => tech.name)}
@@ -645,11 +633,7 @@ function HomeContent() {
                       name={project.repo_name}
                       date={project.created_at}
                       tags={tagsToShow}
-                      description={
-                        project.description_type === "Write your Own"
-                          ? project.custom_description
-                          : "GitHub project description"
-                      }
+                      description={project.custom_description}
                       techStack={project.technologies
                         .filter(tech => tech.is_highlighted)
                         .map(tech => tech.name)}
@@ -694,11 +678,7 @@ function HomeContent() {
                       name={project.repo_name}
                       date={project.created_at}
                       tags={tagsToShow}
-                      description={
-                        project.description_type === "Write your Own"
-                          ? project.custom_description
-                          : "GitHub project description"
-                      }
+                      description={project.custom_description}
                       techStack={project.technologies
                         .filter(tech => tech.is_highlighted)
                         .map(tech => tech.name)}

@@ -181,11 +181,7 @@ function PopularProjectsContent() {
                 name={project.repo_name}
                 date={project.created_at}
                 tags={tagsToShow}
-                description={
-                  project.description_type === "Write your Own" 
-                    ? project.custom_description 
-                    : "GitHub project description"
-                }
+                description={project.custom_description}
                 techStack={project.technologies
                   .filter(tech => tech.is_highlighted)
                   .map(tech => tech.name)}
