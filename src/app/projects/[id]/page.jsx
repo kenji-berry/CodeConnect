@@ -181,8 +181,22 @@ const ProjectDetails = () => {
       } else {
         let processedProject = { ...projectData }; 
 
-        if (processedProject && !Array.isArray(processedProject.links)) {
-          processedProject.links = [];
+        // Parse links if they are JSON strings
+        if (processedProject && processedProject.links) {
+          // If links is a string, try to parse it
+          if (typeof processedProject.links === 'string') {
+            try {
+              processedProject.links = JSON.parse(processedProject.links);
+            } catch (e) {
+              console.error('Error parsing links JSON:', e);
+              processedProject.links = [];
+            }
+          }
+          
+          // Ensure links is an array
+          if (!Array.isArray(processedProject.links)) {
+            processedProject.links = [];
+          }
         }
         
         setProject(processedProject);
@@ -697,7 +711,7 @@ const ProjectDetails = () => {
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       strokeWidth={2}
-                      d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 00-2-2v-4M14 4h6m0 0v6m0-6L10 14"
+                      d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 00-2-2v-4M14 4h6m0 0v6m0-6L10 14"
                     />
                   </svg>
                 </a>
@@ -872,20 +886,36 @@ const ProjectDetails = () => {
           <section className="rounded-xl shadow-lg bg-[#232323] border border-[var(--muted-red)] p-8 mb-8">
             <h2 className="text-xl font-bold text-[var(--off-white)] mb-4">Resource Links</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {project.links.map((link, index) => (
-                <a
-                  key={index}
-                  href={link.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center p-3 rounded-lg bg-[#1a1a1a] border border-[var(--muted-red)] hover:border-[var(--title-red)] transition-colors"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-[var(--orange)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                  </svg>
-                  <span className="text-[var(--off-white)]">{link.name}</span>
-                </a>
-              ))}
+              {project.links.map((link, index) => {
+                // Parse the link if it's a string
+                let linkObj = link;
+                if (typeof link === 'string') {
+                  try {
+                    linkObj = JSON.parse(link);
+                  } catch (e) {
+                    console.error('Error parsing link JSON:', e);
+                    return null;
+                  }
+                }
+                
+                return (
+                  <a
+                    key={index}
+                    href={linkObj.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center p-3 rounded-lg bg-[#1a1a1a] border border-[var(--muted-red)] hover:border-[var(--title-red)] transition-colors group"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-[var(--orange)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                    </svg>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-[var(--off-white)] block truncate group-hover:text-[var(--orange)] transition-colors">{linkObj.name}</span>
+                      <span className="text-xs text-gray-400 truncate block">{linkObj.url}</span>
+                    </div>
+                  </a>
+                );
+              })}
             </div>
           </section>
         )}
