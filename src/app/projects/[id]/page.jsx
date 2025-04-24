@@ -155,7 +155,7 @@ const ProjectDetails = () => {
     };
 
     const fetchProject = async () => {
-      const { data: project, error } = await supabase
+      const { data: projectData, error } = await supabase
         .from('project')
         .select(`
           *,
@@ -179,24 +179,17 @@ const ProjectDetails = () => {
       if (error) {
         console.error('Error fetching project:', error);
       } else {
-        if (project && typeof project.links === 'string') {
-          try {
-            // Assuming the string contains a JSON array
-            project.links = JSON.parse(project.links); 
-          } catch (parseError) {
-            console.error('Error parsing project links JSON string:', parseError);
-            project.links = []; 
-          }
-        } else if (project && !Array.isArray(project.links)) {
-          // Ensure links is an array if it's null, undefined, or not an array
-          project.links = [];
+        let processedProject = { ...projectData }; 
+
+        if (processedProject && !Array.isArray(processedProject.links)) {
+          processedProject.links = [];
         }
         
-        setProject(project);
+        setProject(processedProject);
 
         if (currentUser && !viewTracked.current) {
           viewTracked.current = true;
-          trackProjectView(currentUser.id, project.id)
+          trackProjectView(currentUser.id, processedProject.id)
             .then(result => {
               if (result.error) {
                 console.error('Failed to track view:', result.error);
@@ -704,7 +697,7 @@ const ProjectDetails = () => {
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       strokeWidth={2}
-                      d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                      d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 00-2-2v-4M14 4h6m0 0v6m0-6L10 14"
                     />
                   </svg>
                 </a>
