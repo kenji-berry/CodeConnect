@@ -600,6 +600,14 @@ function HomeContent() {
                 })}
               </div>
             )}
+            <div className="w-full text-center mt-8">
+              <a
+                href="/newest"
+                className="px-6 py-3 bg-[--title-red] text-white rounded-full font-bold hover:bg-[--orange] transition-colors"
+              >
+                Browse All Projects
+              </a>
+            </div>
           </div>
 
           {/* --- Popular Section --- */}
