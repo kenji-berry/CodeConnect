@@ -83,25 +83,27 @@ function RecommendedProjectsContent() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredProjects.map(project => (
-            <ProjectPreview
-              key={project.id}
-              id={project.id}
-              name={project.repo_name}
-              date={project.created_at}
-              tags={project.tags.slice(0, 3)}
-              description={
-                project.description_type === "Write your Own"
-                  ? project.custom_description
-                  : "GitHub project description"
-              }
-              techStack={project.technologies
-                .filter(tech => tech.is_highlighted)
-                .map(tech => tech.name)}
-              issueCount={0}
-              recommended={true}
-            />
-          ))}
+          {filteredProjects.map(project => {
+            const highlightedTags = project.tags?.filter(tag => tag.is_highlighted) || [];
+            const tagsToShow = highlightedTags.length > 0 ? highlightedTags : project.tags?.slice(0, 3) || [];
+            const techStackToShow = project.technologies
+              ?.filter(tech => tech.is_highlighted)
+              .map(tech => tech.name) || [];
+
+            return (
+              <ProjectPreview
+                key={project.id}
+                id={project.id}
+                name={project.repo_name}
+                date={project.created_at}
+                tags={tagsToShow}
+                description={project.custom_description || "No custom description provided."}
+                techStack={techStackToShow}
+                recommended={true}
+                image={project.image}
+              />
+            );
+          })}
         </div>
       )}
     </ProjectPageLayout>
