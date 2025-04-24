@@ -179,6 +179,19 @@ const ProjectDetails = () => {
       if (error) {
         console.error('Error fetching project:', error);
       } else {
+        if (project && typeof project.links === 'string') {
+          try {
+            // Assuming the string contains a JSON array
+            project.links = JSON.parse(project.links); 
+          } catch (parseError) {
+            console.error('Error parsing project links JSON string:', parseError);
+            project.links = []; 
+          }
+        } else if (project && !Array.isArray(project.links)) {
+          // Ensure links is an array if it's null, undefined, or not an array
+          project.links = [];
+        }
+        
         setProject(project);
 
         if (currentUser && !viewTracked.current) {
