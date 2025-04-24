@@ -124,7 +124,7 @@ const MultiSelector: React.FC<MultiSelectorProps> = ({
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-2 text-[var(--muted-red)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                   </svg>
-                  {tag.toUpperCase()}
+                  {tag}
                 </div>
               </li>
             ))}
@@ -142,7 +142,7 @@ const MultiSelector: React.FC<MultiSelectorProps> = ({
             tabIndex={0}
             aria-label={nonRemovableTags.includes(tag) ? `${tag} (locked)` : `Remove tag ${tag}`}
           >
-            <span>{tag.toUpperCase()}</span>
+            <span>{tag}</span>
             {!nonRemovableTags.includes(tag) && (
               <button
                 type="button"

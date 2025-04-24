@@ -142,7 +142,7 @@ const HighlightableMultiSelector: React.FC<HighlightableMultiSelectorProps> = ({
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-2 text-[var(--muted-red)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                   </svg>
-                  {tag.toUpperCase()}
+                  {tag}
                 </div>
               </li>
             ))}
@@ -162,7 +162,7 @@ const HighlightableMultiSelector: React.FC<HighlightableMultiSelectorProps> = ({
             tabIndex={0}
             aria-label={nonRemovableTags.includes(tag) ? `${tag} (locked)` : `Tag ${tag}`}
           >
-            <span className="truncate max-w-[120px]">{tag.toUpperCase()}</span>
+            <span className="max-w-[120px]">{tag}</span>
             <button
               type="button"
               onClick={(e) => handleHighlightChange(e, tag)}
