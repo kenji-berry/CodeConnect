@@ -248,24 +248,24 @@ function formatRecommendationEmail(recommendations: Recommendation[]): string {
     
     emailContent += `
       <div class="project-card">
-        <h3 class="project-title" style="color: #EC7373;">${project.repo_name}</h3>
+        <h3 class="project-title">${project.repo_name}</h3>
         
-        <div class="project-meta" style="color: #FFFFF0;">
+        <div class="project-meta">
           <strong>👤 Owner:</strong> ${project.repo_owner} &nbsp;|&nbsp; 
           <strong>Difficulty:</strong> ${project.difficulty_level || 'Not specified'}
         </div>
         
-        <p class="project-desc" style="color: #F9F9F9;">${description}</p>
+        <p class="project-desc">${description}</p>
         
         <div class="tags-container">
           ${tagsHtml}
         </div>
         
-        <p class="reason" style="color: #FE8A18;">
+        <p class="reason">
           💬 ${project.recommendationReason?.[0] || 'Based on your preferences'}
         </p>
         
-        <a href="${domainUrl}/projects/${project.id}" class="button" style="background-color: #FF8200; color: #2f2c34;">👀 View Project</a>
+        <a href="${domainUrl}/projects/${project.id}" class="button">👀 View Project</a>
       </div>
     `;
   });
@@ -273,11 +273,11 @@ function formatRecommendationEmail(recommendations: Recommendation[]): string {
   emailContent += `
           </div>
         </div>
-        <div class="footer" style="color: #F9B02F;">
-          <p>🌐 Visit <a href="${domainUrl}" style="color: #FE8A18;">CodeConnect</a> to discover more open source projects to contribute to!</p>
+        <div class="footer">
+          <p>🌐 Visit <a href="${domainUrl}">CodeConnect</a> to discover more open source projects to contribute to!</p>
           <p>
             📧 You received this email because you're subscribed to project recommendations.
-            <br>⚙️ You can change your email preferences in your <a href="${domainUrl}/settings" style="color: #FE8A18;">account settings</a>.
+            <br>⚙️ You can change your email preferences in your <a href="${domainUrl}/settings">account settings</a>.
           </p>
         </div>
       </div>
@@ -291,16 +291,20 @@ function formatRecommendationEmail(recommendations: Recommendation[]): string {
 // Record that we sent an email
 async function recordEmailSent(userId: string): Promise<void> {
   try {
-    await supabase
+    const { error } = await supabase
       .from('user_email_logs') 
       .insert({
         user_id: userId,
         email_type: 'recommendations',
         sent_at: new Date().toISOString()
       });
-    
-    console.log(`[EMAIL SERVICE] Logged email sent to user ${userId}`);
+      
+    if (error) {
+      console.error(`[EMAIL SERVICE] Error logging email sent to user ${userId}:`, error);
+    } else {
+      console.log(`[EMAIL SERVICE] Logged email sent to user ${userId}`);
+    }
   } catch (error) {
-    console.error('Error logging email:', error);
+    console.error('[EMAIL SERVICE] Exception logging email:', error);
   }
 }
