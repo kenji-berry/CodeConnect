@@ -35,7 +35,8 @@ const MultiSelector: React.FC<MultiSelectorProps> = ({
       .filter(tag =>
         tag.toLowerCase().includes((searchTerm || "").toLowerCase()) &&
         !selectedTags.includes(tag)
-      );
+      )
+      .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
   }, [availableTags, searchTerm, selectedTags]);
 
   const handleTagChange = (tag: string) => {
