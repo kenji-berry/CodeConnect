@@ -83,6 +83,6 @@ export async function middleware(req: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!api|_next/static|_next/image|assets|favicon.ico|/CodeConnectLogo.svg).*)',
+    '/((?!api|_next/static|_next/image|assets|favicon.ico|public/CodeConnectLogo.svg|CodeConnectLogo.svg).*)',
   ],
 };
