@@ -389,7 +389,7 @@ function ProjectFormContent() {
           .single();
 
         if (project) {
-          setIsEditMode(true);
+          setIsEditMode(true); 
           setProjectId(project.id);
           
           setHasRepoAccess(true);
@@ -419,11 +419,27 @@ function ProjectFormContent() {
             .map((pt: ProjectTechnology) => pt.technologies?.name)
             .filter(Boolean));
           
-          setResourceLinks(Array.isArray(project.links) ? project.links.map((l: { name: string; url: string }) => ({
-            name: l.name,
-            url: l.url,
-            isValid: !!l.url
-          })) : []);
+          if (project.links) {
+            let processedLinks;
+            if (typeof project.links === 'string') {
+              try {
+                processedLinks = JSON.parse(project.links);
+              } catch (e) {
+                console.error('Error parsing links JSON:', e);
+                processedLinks = [];
+              }
+            } else {
+              processedLinks = project.links;
+            }
+            
+            setResourceLinks(Array.isArray(processedLinks) ? processedLinks.map((l) => ({
+              name: l?.name || '',
+              url: l?.url || '',
+              isValid: !!l?.url
+            })) : []);
+          } else {
+            setResourceLinks([]);
+          }
           
           const projectContributionTypes = (project.project_contribution_type || [])
             .map((pct: ProjectContributionType) => pct.contribution_type?.name)
@@ -600,7 +616,7 @@ function ProjectFormContent() {
   
     const invalidLinks = resourceLinks.filter(link => link.url && !link.isValid);
     if (invalidLinks.length > 0) {
-      errors.resourceLinks = `Invalid resource links found: ${invalidLinks.map(l => l.name).join(', ')}`;
+      errors.resourceLinks = `Invalid resource links found: ${invalidLinks.map(l => l.name || 'Unnamed link').join(', ')}`;
     }
 
     if (selectedContributionTypes.length === 0) {
@@ -678,10 +694,13 @@ function ProjectFormContent() {
       formData.append('highlighted_tags', JSON.stringify(highlightedTags));
       formData.append('technologies', JSON.stringify(selectedTechnologies));
       formData.append('highlighted_technologies', JSON.stringify(highlightedTechnologies));
-      formData.append('links', JSON.stringify(resourceLinks.filter(link => link.name && link.url && link.isValid).map(link => ({
-        name: link.name,
-        url: link.url
-      }))));
+      formData.append('links', JSON.stringify(resourceLinks
+        .filter(link => link && link.name && link.url && link.isValid)
+        .map(link => ({
+          name: link.name || '',
+          url: link.url || ''
+        }))
+      ));
       formData.append('status', projectStatus);
       formData.append('contribution_types', JSON.stringify(selectedContributionTypes));
       formData.append('mentorship', mentorship);
@@ -788,7 +807,7 @@ function ProjectFormContent() {
               >
                 <span className="sr-only">Close</span>
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
                 </svg>
               </button>
             </div>
@@ -828,7 +847,7 @@ function ProjectFormContent() {
                       aria-label="Remove image"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
                       </svg>
                     </button>
                   </div>
@@ -1204,9 +1223,9 @@ function ProjectFormContent() {
                       type="text"
                       placeholder="Link Title"
                       className={`w-full p-2 rounded-lg bg-[#18181b] border ${
-                        !link.name.trim() ? 'border-[var(--muted-red)]' : 'border-gray-600'
+                        !link.name?.trim() ? 'border-[var(--muted-red)]' : 'border-gray-600'
                       } text-[var(--off-white)] outline-none`}
-                      value={link.name}
+                      value={link.name || ''}
                       onChange={(e) => {
                         const newLinks = [...resourceLinks];
                         newLinks[index].name = e.target.value;
@@ -1244,7 +1263,7 @@ function ProjectFormContent() {
                       aria-label="Remove link"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
                       </svg>
                     </button>
                   </div>

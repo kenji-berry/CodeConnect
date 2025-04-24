@@ -417,11 +417,109 @@ export default async function handler(req, res) {
     if (!isUpdate && github_link && owner && repoName && githubToken) {
       console.log('🔄 API: Starting GitHub data fetch (async, non-critical)');
       fetchAllFromGitHub(`https://api.github.com/repos/${owner}/${repoName}/issues?state=all`, githubToken)
-        .then(/* ... handle issues ... */)
+        .then(async (issues) => {
+          console.log(`🔄 API: Processing ${issues.length} GitHub issues`);
+          // Filter out pull requests (they appear in issues endpoint but have pull_request property)
+          const onlyIssues = issues.filter(issue => !issue.pull_request);
+          
+          // Batch insert issues
+          if (onlyIssues.length > 0) {
+            const issuesToInsert = onlyIssues.map(issue => ({
+              project_id: finalProjectId,
+              issue_number: issue.number,
+              title: issue.title,
+              body: issue.body,
+              state: issue.state,
+              created_at: issue.created_at,
+              updated_at: issue.updated_at,
+              closed_at: issue.closed_at,
+              github_id: String(issue.id),
+              github_url: issue.html_url,
+              user_login: issue.user?.login || null,
+              user_avatar: issue.user?.avatar_url || null,
+              labels: issue.labels?.map(label => label.name) || []
+            }));
+            
+            // Insert in batches of 50
+            for (let i = 0; i < issuesToInsert.length; i += 50) {
+              const batch = issuesToInsert.slice(i, i + 50);
+              const { error } = await supabase.from('project_issues').insert(batch);
+              if (error) {
+                console.error(`❌ API: Error inserting issues batch ${i}-${i+50}:`, error);
+              }
+            }
+            
+            console.log(`✅ API: Successfully imported ${onlyIssues.length} issues`);
+          }
+          return issues;
+        })
         .then(() => fetchAllFromGitHub(`https://api.github.com/repos/${owner}/${repoName}/pulls?state=all`, githubToken))
-        .then(/* ... handle PRs ... */)
+        .then(async (pulls) => {
+          console.log(`🔄 API: Processing ${pulls.length} GitHub pull requests`);
+          
+          if (pulls.length > 0) {
+            const prsToInsert = pulls.map(pr => ({
+              project_id: finalProjectId,
+              pr_number: pr.number,
+              title: pr.title,
+              body: pr.body,
+              state: pr.state,
+              created_at: pr.created_at,
+              updated_at: pr.updated_at,
+              closed_at: pr.closed_at,
+              merged_at: pr.merged_at,
+              github_id: String(pr.id),
+              github_url: pr.html_url,
+              user_login: pr.user?.login || null,
+              user_avatar: pr.user?.avatar_url || null,
+              draft: pr.draft || false,
+              merged: !!pr.merged_at
+            }));
+            
+            // Insert in batches of 50
+            for (let i = 0; i < prsToInsert.length; i += 50) {
+              const batch = prsToInsert.slice(i, i + 50);
+              const { error } = await supabase.from('project_pull_requests').insert(batch);
+              if (error) {
+                console.error(`❌ API: Error inserting PRs batch ${i}-${i+50}:`, error);
+              }
+            }
+            
+            console.log(`✅ API: Successfully imported ${pulls.length} pull requests`);
+          }
+          return pulls;
+        })
         .then(() => fetchAllFromGitHub(`https://api.github.com/repos/${owner}/${repoName}/commits`, githubToken))
-        .then(/* ... handle commits ... */)
+        .then(async (commits) => {
+          console.log(`🔄 API: Processing ${commits.length} GitHub commits`);
+          
+          if (commits.length > 0) {
+            const commitsToInsert = commits.map(commit => ({
+              project_id: finalProjectId,
+              sha: commit.sha,
+              message: commit.commit?.message || '',
+              author_name: commit.commit?.author?.name || null,
+              author_email: commit.commit?.author?.email || null,
+              author_date: commit.commit?.author?.date || null,
+              github_url: commit.html_url,
+              author_login: commit.author?.login || null,
+              author_avatar: commit.author?.avatar_url || null,
+              verified: commit.commit?.verification?.verified || false
+            }));
+            
+            // Insert in batches of 50
+            for (let i = 0; i < commitsToInsert.length; i += 50) {
+              const batch = commitsToInsert.slice(i, i + 50);
+              const { error } = await supabase.from('project_commits').insert(batch);
+              if (error) {
+                console.error(`❌ API: Error inserting commits batch ${i}-${i+50}:`, error);
+              }
+            }
+            
+            console.log(`✅ API: Successfully imported ${commits.length} commits`);
+          }
+          return commits;
+        })
         .then(() => console.log('✅ API: Background GitHub data fetch completed for project', finalProjectId))
         .catch(err => console.error('❌ API: Background GitHub data fetch failed for project', finalProjectId, err));
     }
