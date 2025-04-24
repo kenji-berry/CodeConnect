@@ -432,11 +432,35 @@ function ProjectFormContent() {
               processedLinks = project.links;
             }
             
-            setResourceLinks(Array.isArray(processedLinks) ? processedLinks.map((l) => ({
-              name: l?.name || '',
-              url: l?.url || '',
-              isValid: !!l?.url
-            })) : []);
+            if (Array.isArray(processedLinks)) {
+              const parsedLinks = processedLinks.map(link => {
+                if (typeof link === 'string') {
+                  try {
+                    // Parse each individual link string
+                    const parsedLink = JSON.parse(link);
+                    return {
+                      name: parsedLink.name || '',
+                      url: parsedLink.url || '',
+                      isValid: isValidUrl(parsedLink.url || '')
+                    };
+                  } catch (e) {
+                    console.error('Error parsing individual link:', e);
+                    return { name: '', url: '', isValid: false };
+                  }
+                } else if (link && typeof link === 'object') {
+                  return {
+                    name: link.name || '',
+                    url: link.url || '',
+                    isValid: isValidUrl(link.url || '')
+                  };
+                }
+                return { name: '', url: '', isValid: false };
+              });
+              
+              setResourceLinks(parsedLinks);
+            } else {
+              setResourceLinks([]);
+            }
           } else {
             setResourceLinks([]);
           }
