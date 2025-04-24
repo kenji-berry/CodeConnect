@@ -21,7 +21,8 @@ export async function middleware(req: NextRequest) {
     '/settings',
     '/trending',
     '/popular',
-    '/newest'
+    '/newest',
+    '/beginner'
   ];
 
   const path = req.nextUrl.pathname;
@@ -82,6 +83,6 @@ export async function middleware(req: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!api|_next/static|_next/image|assets|favicon.ico).*)',
+    '/((?!api|_next/static|_next/image|assets|favicon.ico|/CodeConnectLogo.svg).*)',
   ],
 };
