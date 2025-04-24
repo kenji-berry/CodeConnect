@@ -830,14 +830,21 @@ const ProjectDetails = () => {
             </div>
 
             <div>
-              <h3 className="font-semibold text-[--orange] mb-1">Last Updated</h3>
-              <p className="text-[--off-white]">
-                {project.updated_at ? new Date(project.updated_at).toLocaleDateString('en-US', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric'
-                }) : "Unknown"}
-              </p>
+              <h3 className="font-semibold text-[--orange] mb-1">Contribution Types</h3>
+              {project.project_contribution_type && project.project_contribution_type.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {project.project_contribution_type.map((ct) => (
+                    <span
+                      key={ct.contribution_type.id}
+                      className="inline-block px-3 py-1 rounded-full text-sm font-medium shadow bg-[#232323] text-[var(--off-white)] border border-[var(--muted-red)] hover:border-[var(--title-red)]"
+                    >
+                      {ct.contribution_type.name}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-400">No contribution types specified</p>
+              )}
             </div>
           </div>
         </section>
@@ -896,19 +903,6 @@ const ProjectDetails = () => {
                 : <span className="text-gray-400">No tags specified</span>}
             </div>
           </section>
-        </div>
-
-        <div>
-          <h3 className="font-semibold text-[--orange] mb-1">Contribution Types</h3>
-          {project.project_contribution_type && project.project_contribution_type.length > 0 ? (
-            <ul className="list-disc ml-6 text-[--off-white]">
-              {project.project_contribution_type.map((ct) => (
-                <li key={ct.contribution_type.id}>{ct.contribution_type.name}</li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-[--off-white]">No contribution types specified</p>
-          )}
         </div>
         
         {/* Resource Links */}
