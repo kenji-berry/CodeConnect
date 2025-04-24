@@ -189,11 +189,7 @@ function ContributionsContent() {
                   name={project.repo_name || "Untitled Project"}
                   date={new Date(project.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
                   tags={tagsToShow}
-                  description={
-                    project.description_type === "Write your Own"
-                      ? project.custom_description
-                      : "Loading GitHub description..."
-                  }
+                  description={project.custom_description}
                   techStack={project.technologies
                     .filter(tech => tech.is_highlighted)
                     .map(tech => tech.name)}
