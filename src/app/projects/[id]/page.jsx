@@ -46,6 +46,10 @@ const ProjectDetails = () => {
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [isDeletingProject, setIsDeletingProject] = useState(false);
 
+  const [showDeleteCommentModal, setShowDeleteCommentModal] = useState(false);
+  const [commentToDeleteId, setCommentToDeleteId] = useState(null);
+  const [isDeletingComment, setIsDeletingComment] = useState(false);
+
   const [copiedSecret, setCopiedSecret] = useState(false);
 
   const isOwner = currentUser && project && currentUser.id === project.user_id;
@@ -391,39 +395,45 @@ const ProjectDetails = () => {
     const commentToDelete = comments.find(comment => comment.id === commentId);
     if (!commentToDelete || commentToDelete.user_id !== currentUser.id) {
       console.error("User is not authorized to delete this comment or comment not found.");
-      alert("You can only delete your own comments.");
       return;
     }
 
-    // Optional: Add a confirmation dialog
-    if (!window.confirm("Are you sure you want to delete this comment? This action cannot be undone.")) {
-      return;
-    }
+    // Set the comment ID and show the confirmation modal
+    setCommentToDeleteId(commentId);
+    setShowDeleteCommentModal(true);
+  };
+
+  const confirmCommentDelete = async () => {
+    if (!commentToDeleteId || !currentUser) return;
+
+    setIsDeletingComment(true);
 
     try {
       const { error } = await supabase
         .from('project_comments')
         .delete()
-        .eq('id', commentId)
-        .eq('user_id', currentUser.id); // Ensure only the owner can delete
+        .eq('id', commentToDeleteId)
+        .eq('user_id', currentUser.id);
 
       if (error) {
         console.error('Error deleting comment:', error);
         alert('Failed to delete comment. Please try again.');
       } else {
-        // Update comments state
-        setComments(prevComments => prevComments.filter(comment => comment.id !== commentId));
+        setComments(prevComments => prevComments.filter(comment => comment.id !== commentToDeleteId));
 
-        // Update comment votes state
         setCommentVotes(prevVotes => {
           const newVotes = { ...prevVotes };
-          delete newVotes[commentId];
+          delete newVotes[commentToDeleteId];
           return newVotes;
         });
       }
     } catch (err) {
       console.error('Unexpected error deleting comment:', err);
       alert('An unexpected error occurred while deleting the comment.');
+    } finally {
+      setIsDeletingComment(false);
+      setShowDeleteCommentModal(false);
+      setCommentToDeleteId(null);
     }
   };
 
@@ -526,17 +536,14 @@ const ProjectDetails = () => {
         return;
       }
       
-      // Make sure data exists and has at least one item
       if (!data || !data[0]) {
         console.error('No data returned after comment insertion');
         alert('Failed to submit comment. Please try again.');
         return;
       }
 
-      // Store the comment ID before making the next request
       const newCommentId = data[0].id;
       
-      // Get profile data
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('display_name')
@@ -555,7 +562,6 @@ const ProjectDetails = () => {
       setComments(prevComments => [newCommentWithProfile, ...prevComments]);
       handleCommentChange({ target: { value: '' } });
       
-      // Use the stored comment ID to ensure it exists
       setCommentVotes(prev => ({
         ...prev,
         [newCommentId]: {
@@ -614,7 +620,7 @@ const ProjectDetails = () => {
         {isOwner && project && !project.webhook_active && (
           <div className="bg-[--title-red] bg-opacity-90 text-[--off-white] p-6 rounded-xl border-b-2 border-[--orange] flex items-start gap-4 mb-8 shadow-lg">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 mr-2 mt-0.5 text-[--orange]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77-1.333.192 3 1.732 3z" />
             </svg>
             <div>
               <h3 className="font-bold text-xl mb-1 tracking-tight">GitHub Webhook Required</h3>
@@ -1154,6 +1160,54 @@ const ProjectDetails = () => {
                 disabled={deleteConfirmation !== project.repo_name || isDeletingProject}
               >
                 {isDeletingProject ? 'Deleting...' : 'Delete Project'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Comment Modal */}
+      {showDeleteCommentModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+          <div className="bg-gray-900 rounded-2xl p-8 w-full max-w-md text-[--off-white] border border-red-500 shadow-2xl">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-red-500">Delete Comment</h2>
+              <button
+                onClick={() => {
+                  setShowDeleteCommentModal(false);
+                  setCommentToDeleteId(null);
+                }}
+                className="text-gray-400 hover:text-white text-2xl"
+                aria-label="Close"
+                disabled={isDeletingComment}
+              >
+                &times;
+              </button>
+            </div>
+            <div className="mb-6">
+              <p className="text-[--off-white]">
+                Are you sure you want to delete this comment? This action cannot be undone.
+              </p>
+            </div>
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowDeleteCommentModal(false);
+                  setCommentToDeleteId(null);
+                }}
+                className="px-4 py-2 rounded mr-2 bg-gray-700 hover:bg-gray-600"
+                disabled={isDeletingComment}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmCommentDelete}
+                className="px-4 py-2 rounded font-semibold bg-red-600 hover:bg-red-700"
+                disabled={isDeletingComment}
+              >
+                {isDeletingComment ? 'Deleting...' : 'Delete Comment'}
               </button>
             </div>
           </div>
