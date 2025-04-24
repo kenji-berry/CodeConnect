@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import MultiSelector from "./MultiSelector";
 import SingleSelector from "./SingleSelector";
 import MultiDifficultySelector from "./MultiDifficultySelector";
+import { supabase } from "@/supabaseClient";
 
 export default function FilterSidebar({
   availableTechnologies = [],
