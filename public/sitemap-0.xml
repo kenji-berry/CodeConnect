@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:news="http://www.google.com/schemas/sitemap-news/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:mobile="http://www.google.com/schemas/sitemap-mobile/1.0" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1" xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">
+<url><loc>https://www.codeconnect.cc/icon.ico</loc><lastmod>2025-04-25T19:57:14.912Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+<url><loc>https://www.codeconnect.cc/newest</loc><lastmod>2025-04-25T19:57:14.913Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+<url><loc>https://www.codeconnect.cc/contributions</loc><lastmod>2025-04-25T19:57:14.913Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+<url><loc>https://www.codeconnect.cc/beginner</loc><lastmod>2025-04-25T19:57:14.913Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+<url><loc>https://www.codeconnect.cc</loc><lastmod>2025-04-25T19:57:14.913Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+<url><loc>https://www.codeconnect.cc/popular</loc><lastmod>2025-04-25T19:57:14.913Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+<url><loc>https://www.codeconnect.cc/auth/callback</loc><lastmod>2025-04-25T19:57:14.913Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+<url><loc>https://www.codeconnect.cc/login</loc><lastmod>2025-04-25T19:57:14.913Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+<url><loc>https://www.codeconnect.cc/preview</loc><lastmod>2025-04-25T19:57:14.913Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+<url><loc>https://www.codeconnect.cc/settings</loc><lastmod>2025-04-25T19:57:14.913Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+<url><loc>https://www.codeconnect.cc/trending</loc><lastmod>2025-04-25T19:57:14.913Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+<url><loc>https://www.codeconnect.cc/recommended</loc><lastmod>2025-04-25T19:57:14.913Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+<url><loc>https://www.codeconnect.cc/about</loc><lastmod>2025-04-25T19:57:14.913Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+<url><loc>https://www.codeconnect.cc/post-project/project-form</loc><lastmod>2025-04-25T19:57:14.913Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+<url><loc>https://www.codeconnect.cc/post-project</loc><lastmod>2025-04-25T19:57:14.913Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+<url><loc>https://www.codeconnect.cc/onboarding</loc><lastmod>2025-04-25T19:57:14.913Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+</urlset>
