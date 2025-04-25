@@ -64,10 +64,12 @@ const NavBar = () => {
         if (!lastEvent || now - parseInt(lastEvent) > debounceTimeMs) {
           localStorage.setItem(lastAuthEventKey, now.toString());
           
+          /*
           setNotification({
             message: isCurrentlyLoggedIn ? 'Logged in successfully' : 'Logged out successfully',
             type: 'success'
           });
+          */
         }
       }
       
