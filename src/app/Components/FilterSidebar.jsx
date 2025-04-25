@@ -9,6 +9,9 @@ export default function FilterSidebar({
   availableTechnologies = [],
   selectedTechnologies = [],
   onTechnologiesChange,
+  availableTags = [],
+  selectedTags = [],
+  onTagsChange,
   selectedContributionTypes = [],
   onContributionTypesChange,
   selectedDifficulties = [],
@@ -17,22 +20,19 @@ export default function FilterSidebar({
   onLastUpdatedChange,
   filterMode = "AND",
   onFilterModeChange,
-  availableTags = [],
-  selectedTags = [],
-  onTagsChange,
-  onClearFilters,
-  className = "",
   selectedLicense = "",
   onLicenseChange,
   selectedMentorship = "",
   onMentorshipChange,
   setupTimeMin = "",
-  setupTimeMax = "",
   onSetupTimeMinChange,
+  setupTimeMax = "",
   onSetupTimeMaxChange,
+  onClearFilters,
+  className = "",
+  numericDifficulty,
 }) {
   const [contributionTypes, setContributionTypes] = useState([]);
-
   useEffect(() => {
     const fetchContributionTypes = async () => {
       try {
@@ -69,7 +69,6 @@ export default function FilterSidebar({
   return (
     <div className={`filter-sidebar ${className}`}>
       <h3 className="inter-bold text-xl mb-4">Filters</h3>
-
       <div className="main-page-filter-box px-3 py-4 inria-sans-bold flex flex-col gap-4">
         <div>
           <p className="mb-2">Technologies/Languages:</p>
@@ -80,14 +79,16 @@ export default function FilterSidebar({
           />
         </div>
 
-        <div>
-          <p className="mb-2">Tags:</p>
-          <MultiSelector
-            availableTags={availableTags}
-            onTagsChange={onTagsChange}
-            initialTags={selectedTags}
-          />
-        </div>
+        {availableTags.length > 0 && (
+           <div>
+             <p className="mb-2">Tags:</p>
+             <MultiSelector
+               availableTags={availableTags}
+               onTagsChange={onTagsChange}
+               initialTags={selectedTags}
+             />
+           </div>
+        )}
 
         <div>
           <p className="mb-2">Contribution Type:</p>
@@ -103,6 +104,7 @@ export default function FilterSidebar({
           <MultiDifficultySelector
             onDifficultiesChange={onDifficultiesChange}
             selectedDifficulties={selectedDifficulties}
+            // isNumeric={numericDifficulty} // Pass if needed
           />
         </div>
 
@@ -128,11 +130,7 @@ export default function FilterSidebar({
           <p className="mb-2">License:</p>
           <SingleSelector
             values={licenseOptions}
-            onValueChange={(value) => {
-              if (onLicenseChange) {
-                onLicenseChange(value);
-              }
-            }}
+            onValueChange={onLicenseChange}
             initialValue={selectedLicense}
           />
         </div>
@@ -141,11 +139,7 @@ export default function FilterSidebar({
           <p className="mb-2">Mentorship:</p>
           <SingleSelector
             values={mentorshipOptions}
-            onValueChange={(value) => {
-              if (onMentorshipChange) {
-                onMentorshipChange(value);
-              }
-            }}
+            onValueChange={onMentorshipChange}
             initialValue={selectedMentorship}
           />
         </div>
@@ -153,27 +147,27 @@ export default function FilterSidebar({
         <div>
           <p className="mb-2">Setup Time (min):</p>
           <div className="flex items-center gap-2">
-            <input
-              type="text"
-              placeholder="Min"
-              value={setupTimeMin}
-              onChange={(e) => {
-                const numericValue = e.target.value.replace(/\D/g, "");
-                onSetupTimeMinChange?.(numericValue);
-              }}
-              className="w-16 p-1 rounded border border-gray-300 text-black"
-            />
-            <span className="mx-2 text-gray-400">—</span>
-            <input
-              type="text"
-              placeholder="Max"
-              value={setupTimeMax}
-              onChange={(e) => {
-                const numericValue = e.target.value.replace(/\D/g, "");
-                onSetupTimeMaxChange?.(numericValue);
-              }}
-              className="w-16 p-1 rounded border border-gray-300 text-black"
-            />
+             <input
+               type="text"
+               placeholder="Min"
+               value={setupTimeMin}
+               onChange={(e) => {
+                 const numericValue = e.target.value.replace(/\D/g, "");
+                 onSetupTimeMinChange?.(numericValue);
+               }}
+               className="w-16 p-1 rounded border border-gray-300 text-black"
+             />
+             <span className="mx-2 text-gray-400">—</span>
+             <input
+               type="text"
+               placeholder="Max"
+               value={setupTimeMax}
+               onChange={(e) => {
+                 const numericValue = e.target.value.replace(/\D/g, "");
+                 onSetupTimeMaxChange?.(numericValue);
+               }}
+               className="w-16 p-1 rounded border border-gray-300 text-black"
+             />
           </div>
         </div>
 

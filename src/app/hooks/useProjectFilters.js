@@ -1,13 +1,12 @@
 "use client";
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/supabaseClient';
 
-export default function useProjectFilters(initialProjects = [], options = {}) {
+export default function useProjectFilters(options = {}) {
   const {
     includeTags = false,
     numericDifficulty = false,
-    defaultDifficulty = 1
   } = options;
 
   const router = useRouter();
@@ -15,8 +14,7 @@ export default function useProjectFilters(initialProjects = [], options = {}) {
 
   const [availableTechnologies, setAvailableTechnologies] = useState([]);
   const [availableTags, setAvailableTags] = useState([]);
-  const [projects, setProjects] = useState(initialProjects);
-  const [filteredProjects, setFilteredProjects] = useState(initialProjects);
+
   const [selectedTechnologies, setSelectedTechnologies] = useState([]);
   const [selectedContributionTypes, setSelectedContributionTypes] = useState([]);
   const [selectedDifficulties, setSelectedDifficulties] = useState([]);
@@ -28,37 +26,61 @@ export default function useProjectFilters(initialProjects = [], options = {}) {
   const [setupTimeMin, setSetupTimeMin] = useState("");
   const [setupTimeMax, setSetupTimeMax] = useState("");
 
+  const isInitialSyncDone = useRef(false);
+
   useEffect(() => {
-    const technologies = searchParams.get("technologies")?.split(",") || [];
-    const contributionTypes = searchParams.get("contributionTypes")?.split(",") || [];
-    const tags = includeTags ? (searchParams.get("tags")?.split(",") || []) : [];
-    const difficultiesParam = searchParams.get("difficulties");
-    const lastUpdated = searchParams.get("lastUpdated") || "";
-    const mode = searchParams.get("filterMode") || 'AND';
-    const license = searchParams.get("license") || "";
-    const mentorship = searchParams.get("mentorship") || "";
-    const setupMin = searchParams.get("setupTimeMin") || "";
-    const setupMax = searchParams.get("setupTimeMax") || "";
+    const urlTechnologies = searchParams.get("technologies")?.split(",").filter(Boolean) || [];
+    const urlContributionTypes = searchParams.get("contributionTypes")?.split(",").filter(Boolean) || [];
+    const urlTags = includeTags ? (searchParams.get("tags")?.split(",").filter(Boolean) || []) : [];
+    const urlDifficultiesParam = searchParams.get("difficulties");
+    const urlLastUpdated = searchParams.get("lastUpdated") || "";
+    const urlMode = searchParams.get("filterMode") || 'AND';
+    const urlLicense = searchParams.get("license") || "";
+    const urlMentorship = searchParams.get("mentorship") || "";
+    const urlSetupMin = searchParams.get("setupTimeMin") || "";
+    const urlSetupMax = searchParams.get("setupTimeMax") || "";
 
-    setSelectedTechnologies(technologies.filter(Boolean));
-    setSelectedContributionTypes(contributionTypes.filter(Boolean));
-    setSelectedTags(tags.filter(Boolean));
-
-    let difficultiesValue = [];
-    if (numericDifficulty) {
-      difficultiesValue = difficultiesParam ? difficultiesParam.split(",").map(Number) : [];
-    } else {
-      difficultiesValue = difficultiesParam ? difficultiesParam.split(",") : [];
+    let urlDifficultiesValue = [];
+    if (urlDifficultiesParam) {
+        urlDifficultiesValue = numericDifficulty
+            ? urlDifficultiesParam.split(",").map(Number).filter(n => !isNaN(n))
+            : urlDifficultiesParam.split(",").filter(Boolean);
     }
-    setSelectedDifficulties(difficultiesValue);
 
-    setSelectedLastUpdated(lastUpdated);
-    setFilterMode(mode);
-    setSelectedLicense(license);
-    setSelectedMentorship(mentorship);
-    setSetupTimeMin(setupMin);
-    setSetupTimeMax(setupMax);
-  }, [searchParams, includeTags, numericDifficulty]);
+    if (JSON.stringify(urlTechnologies) !== JSON.stringify(selectedTechnologies)) {
+      setSelectedTechnologies(urlTechnologies);
+    }
+    if (JSON.stringify(urlContributionTypes) !== JSON.stringify(selectedContributionTypes)) {
+      setSelectedContributionTypes(urlContributionTypes);
+    }
+    if (includeTags && JSON.stringify(urlTags) !== JSON.stringify(selectedTags)) {
+      setSelectedTags(urlTags);
+    }
+    if (JSON.stringify(urlDifficultiesValue) !== JSON.stringify(selectedDifficulties)) {
+        setSelectedDifficulties(urlDifficultiesValue);
+    }
+    if (urlLastUpdated !== selectedLastUpdated) {
+      setSelectedLastUpdated(urlLastUpdated);
+    }
+    if (urlMode !== filterMode) {
+      setFilterMode(urlMode);
+    }
+    if (urlLicense !== selectedLicense) {
+      setSelectedLicense(urlLicense);
+    }
+    if (urlMentorship !== selectedMentorship) {
+      setSelectedMentorship(urlMentorship);
+    }
+    if (urlSetupMin !== setupTimeMin) {
+      setSetupTimeMin(urlSetupMin);
+    }
+    if (urlSetupMax !== setupTimeMax) {
+      setSetupTimeMax(urlSetupMax);
+    }
+
+    isInitialSyncDone.current = true;
+
+  }, [searchParams, includeTags, numericDifficulty, selectedTechnologies, selectedContributionTypes, selectedTags, selectedDifficulties, selectedLastUpdated, filterMode, selectedLicense, selectedMentorship, setupTimeMin, setupTimeMax]);
 
   useEffect(() => {
     const fetchTechnologies = async () => {
@@ -67,287 +89,100 @@ export default function useProjectFilters(initialProjects = [], options = {}) {
           .from('technologies')
           .select('id, name')
           .order('name');
-
-        if (error) {
-          console.error('Error fetching technologies:', error);
-          return;
-        }
-
-        if (data) {
-          setAvailableTechnologies(data.map(tech => tech.name));
-        }
+        if (error) throw error;
+        if (data) setAvailableTechnologies(data.map(tech => tech.name));
       } catch (error) {
         console.error('Failed to fetch technologies:', error);
       }
     };
-
     fetchTechnologies();
   }, []);
 
   useEffect(() => {
+    if (!includeTags) return;
     const fetchTags = async () => {
       try {
         const { data, error } = await supabase
           .from('tags')
           .select('id, name')
           .order('name');
-
-        if (error) {
-          console.error('Error fetching tags:', error);
-          return;
-        }
-
-        if (data) {
-          setAvailableTags(data.map(tag => tag.name));
-        }
+        if (error) throw error;
+        if (data) setAvailableTags(data.map(tag => tag.name));
       } catch (error) {
         console.error('Failed to fetch tags:', error);
       }
     };
-
     fetchTags();
-  }, []);
+  }, [includeTags]);
 
-  useEffect(() => {
-    const fetchLatestCommits = async () => {
-      if (!projects || projects.length === 0) return; // Avoid fetching if no projects
+  const updateUrl = useCallback((params) => {
+     const urlParams = new URLSearchParams(searchParams);
+     Object.entries(params).forEach(([key, value]) => {
+       urlParams.delete('page');
+       if (Array.isArray(value) && value.length > 0) {
+           urlParams.set(key, value.join(","));
+       } else if (Array.isArray(value) && value.length === 0) {
+           urlParams.delete(key);
+       } else if (value !== null && value !== undefined && value !== "") {
+           urlParams.set(key, String(value));
+       } else {
+           urlParams.delete(key);
+       }
+     });
+     router.push(`?${urlParams.toString()}`, { scroll: false });
+  }, [router, searchParams]);
 
-      const projectIds = projects.map(p => p.id);
-      if (projectIds.length === 0) return; // Avoid fetching if no IDs
-
-      const { data: commitData, error: commitError } = await supabase
-        .from('project_commits')
-        .select('project_id, timestamp')
-        .in('project_id', projectIds);
-
-      if (commitError) {
-        console.error('Error fetching commit timestamps:', commitError);
-        return;
-      }
-
-      const latestCommitMap = {};
-      if (commitData) {
-        commitData.forEach(commit => {
-          const ts = new Date(commit.timestamp);
-          if (
-            !latestCommitMap[commit.project_id] ||
-            ts > latestCommitMap[commit.project_id]
-          ) {
-            latestCommitMap[commit.project_id] = ts;
-          }
-        });
-      }
-
-      // Check if commit data actually changed anything before updating state
-      let needsUpdate = false;
-      const projectsWithCommits = projects.map(project => {
-        const last_commit_at = latestCommitMap[project.id] || null;
-        if (project.last_commit_at !== last_commit_at) {
-          needsUpdate = true;
-        }
-        return {
-          ...project,
-          last_commit_at,
-        };
-      });
-
-      // Only update state if commit data has changed to prevent loop
-      if (needsUpdate) {
-        setProjects(projectsWithCommits);
-      }
-    };
-
-    fetchLatestCommits();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projects]); // Keep dependency on projects, but logic inside prevents loop
-
-  useEffect(() => {
-    if (!projects) {
-      setFilteredProjects([]);
-      return;
-    }
-
-    let filtered = [...projects];
-
-    if (selectedTechnologies.length > 0) {
-      filtered = filtered.filter(project => {
-        const projectTechs = (project.technologies || []).map(tech => tech.name);
-        if (filterMode === 'AND') {
-          return selectedTechnologies.every(tech => projectTechs.includes(tech));
-        } else {
-          return selectedTechnologies.some(tech => projectTechs.includes(tech));
-        }
-      });
-    }
-
-    if (includeTags && selectedTags.length > 0) {
-      filtered = filtered.filter(project => {
-        const projectTagNames = (project.tags || []).map(t => typeof t === "string" ? t : t.name);
-        if (filterMode === 'AND') {
-          return selectedTags.every(tag => projectTagNames.includes(tag));
-        } else {
-          return selectedTags.some(tag => projectTagNames.includes(tag));
-        }
-      });
-    }
-
-    if (selectedContributionTypes.length > 0) {
-      filtered = filtered.filter(project => {
-        const projectTags = (project.tags || []).map(t => typeof t === "string" ? t : t.name); // Assuming contribution types are stored as tags
-        if (filterMode === 'AND') {
-          return selectedContributionTypes.every(type => projectTags.includes(type));
-        } else {
-          return selectedContributionTypes.some(type => projectTags.includes(type));
-        }
-      });
-    }
-
-    if (selectedDifficulties.length > 0) {
-      filtered = filtered.filter(project => {
-        const projectDifficulty = numericDifficulty ? Number(project.difficulty_level) : project.difficulty_level;
-        const difficultiesToCompare = numericDifficulty ? selectedDifficulties.map(Number) : selectedDifficulties;
-        return difficultiesToCompare.includes(projectDifficulty);
-      });
-    }
-
-    if (selectedLastUpdated) {
-      const now = new Date();
-      let timeLimit;
-
-      if (selectedLastUpdated === "Last 24 hours") {
-        timeLimit = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-      } else if (selectedLastUpdated === "Last 7 days") {
-        timeLimit = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      } else if (selectedLastUpdated === "Last 30 days") {
-        timeLimit = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-      }
-
-      if (timeLimit) {
-        filtered = filtered.filter(project =>
-          project.last_commit_at && new Date(project.last_commit_at) >= timeLimit
-        );
-      }
-    }
-
-    if (selectedLicense) {
-      filtered = filtered.filter(
-        (project) => project.license === selectedLicense
-      );
-    }
-
-    if (selectedMentorship) {
-      filtered = filtered.filter(
-        (project) =>
-          (project.mentorship === true && selectedMentorship === "Yes") ||
-          (project.mentorship === false && selectedMentorship === "No")
-      );
-    }
-
-    if (setupTimeMin) {
-      filtered = filtered.filter(
-        (project) =>
-          project.setup_time !== null &&
-          Number(project.setup_time) >= Number(setupTimeMin)
-      );
-    }
-    if (setupTimeMax) {
-      filtered = filtered.filter(
-        (project) =>
-          project.setup_time !== null &&
-          Number(project.setup_time) <= Number(setupTimeMax)
-      );
-    }
-
-    setFilteredProjects(filtered);
-  }, [
-    projects,
-    selectedTechnologies,
-    selectedContributionTypes,
-    selectedTags,
-    includeTags,
-    selectedDifficulties,
-    selectedLastUpdated,
-    filterMode,
-    numericDifficulty,
-    selectedLicense,
-    selectedMentorship,
-    setupTimeMin,
-    setupTimeMax,
-  ]);
-
-  const updateProjects = useCallback((newProjects) => {
-    setProjects(newProjects);
-  }, []);
-
-  const updateUrl = (params) => {
-    const urlParams = new URLSearchParams(searchParams);
-
-    Object.entries(params).forEach(([key, value]) => {
-      if (Array.isArray(value) && value.length > 0) {
-        urlParams.set(key, value.join(","));
-      } else if (Array.isArray(value) && value.length === 0) {
-        urlParams.delete(key);
-      } else if (value !== null && value !== undefined && value !== "") {
-        urlParams.set(key, value);
-      } else {
-        urlParams.delete(key);
-      }
-    });
-
-    router.push(`?${urlParams.toString()}`, { scroll: false });
-  };
-
-  const handleTechnologiesChange = (techs) => {
+  const handleTechnologiesChange = useCallback((techs) => {
     setSelectedTechnologies(techs);
     updateUrl({ technologies: techs });
-  };
+  }, [updateUrl]);
 
-  const handleContributionTypesChange = (types) => {
+  const handleContributionTypesChange = useCallback((types) => {
     setSelectedContributionTypes(types);
     updateUrl({ contributionTypes: types });
-  };
+  }, [updateUrl]);
 
-  const handleTagsChange = (tags) => {
+  const handleTagsChange = useCallback((tags) => {
     setSelectedTags(tags);
     updateUrl({ tags });
-  };
+  }, [updateUrl]);
 
-  const handleDifficultyChange = (difficulties) => {
+  const handleDifficultyChange = useCallback((difficulties) => {
     setSelectedDifficulties(difficulties);
-    updateUrl({ difficulties: difficulties.length > 0 ? difficulties.join(',') : "" });
-  };
+    updateUrl({ difficulties: difficulties });
+  }, [updateUrl]);
 
-  const handleLastUpdatedChange = (lastUpdated) => {
+  const handleLastUpdatedChange = useCallback((lastUpdated) => {
     setSelectedLastUpdated(lastUpdated || "");
     updateUrl({ lastUpdated: lastUpdated || "" });
-  };
+  }, [updateUrl]);
 
-  const handleFilterModeChange = (mode) => {
+  const handleFilterModeChange = useCallback((mode) => {
     setFilterMode(mode || "AND");
     updateUrl({ filterMode: mode || "AND" });
-  };
+  }, [updateUrl]);
 
-  const handleLicenseChange = (license) => {
+  const handleLicenseChange = useCallback((license) => {
     setSelectedLicense(license);
     updateUrl({ license });
-  };
+  }, [updateUrl]);
 
-  const handleMentorshipChange = (mentorship) => {
+  const handleMentorshipChange = useCallback((mentorship) => {
     setSelectedMentorship(mentorship);
     updateUrl({ mentorship });
-  };
+  }, [updateUrl]);
 
-  const handleSetupTimeMinChange = (min) => {
+  const handleSetupTimeMinChange = useCallback((min) => {
     setSetupTimeMin(min);
     updateUrl({ setupTimeMin: min });
-  };
+  }, [updateUrl]);
 
-  const handleSetupTimeMaxChange = (max) => {
+  const handleSetupTimeMaxChange = useCallback((max) => {
     setSetupTimeMax(max);
     updateUrl({ setupTimeMax: max });
-  };
+  }, [updateUrl]);
 
-  const clearAllFilters = () => {
+  const clearAllFilters = useCallback(() => {
     setSelectedTechnologies([]);
     setSelectedContributionTypes([]);
     setSelectedTags([]);
@@ -359,7 +194,7 @@ export default function useProjectFilters(initialProjects = [], options = {}) {
     setSetupTimeMin("");
     setSetupTimeMax("");
     router.push(`?`, { scroll: false });
-  };
+  }, [router]);
 
   return {
     availableTechnologies,
@@ -374,8 +209,6 @@ export default function useProjectFilters(initialProjects = [], options = {}) {
     selectedMentorship,
     setupTimeMin,
     setupTimeMax,
-    filteredProjects,
-    updateProjects,
     handleTechnologiesChange,
     handleContributionTypesChange,
     handleDifficultyChange,
@@ -386,6 +219,7 @@ export default function useProjectFilters(initialProjects = [], options = {}) {
     handleMentorshipChange,
     handleSetupTimeMinChange,
     handleSetupTimeMaxChange,
-    clearAllFilters
+    clearAllFilters,
+    numericDifficulty
   };
 }
