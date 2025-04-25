@@ -1,136 +1,213 @@
 "use client";
 import React, { useState, useEffect, Suspense, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import ProjectPreview from "../Components/ProjectPreview";
 import ProjectPageLayout from "../Components/ProjectPageLayout";
 import useProjectFilters from "../hooks/useProjectFilters";
 import { supabase } from '@/supabaseClient';
 import { getHybridRecommendations } from '@/services/recommendation-service';
 
-const fetchTagsAndTech = async (projectId) => {
-  if (typeof projectId === 'undefined' || projectId === null) {
-    return { technologies: [], tags: [] };
-  }
-  try {
-    const [{ data: techData }, { data: tagData }] = await Promise.all([
-      supabase
-        .from('project_technologies')
-        .select(`technologies (name), is_highlighted`)
-        .eq('project_id', projectId),
-      supabase
-        .from('project_tags')
-        .select(`tag_id, tags!inner (name, colour), is_highlighted`)
-        .eq('project_id', projectId)
-    ]);
-    return {
-      technologies: techData?.map(tech => ({
-        name: tech.technologies.name,
-        is_highlighted: tech.is_highlighted
-      })) || [],
-      tags: tagData?.map(tag => ({
-        name: tag.tags.name,
-        colour: tag.tags.colour,
-        is_highlighted: tag.is_highlighted
-      })) || []
-    };
-  } catch (error) {
-    console.error(`Error fetching details for project ${projectId}:`, error);
-    return { technologies: [], tags: [] };
-  }
-};
-
 function RecommendedProjectsContent() {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(undefined);
-  const [page, setPage] = useState(1);
-  const router = useRouter();
-  const { filteredProjects, updateProjects: originalUpdateProjects, ...restFilterProps } = useProjectFilters([]);
-  const updateProjects = useCallback(originalUpdateProjects, []);
+  const [projects, setProjects] = useState([]);
+  const [totalPages, setTotalPages] = useState(1);
+  const resultsPerPage = 15;
 
-  const filterProps = { filteredProjects, updateProjects, ...restFilterProps };
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const currentPage = parseInt(searchParams.get("page") || "1", 10) || 1;
+
+  const filterHookProps = useProjectFilters({ includeTags: true });
+  const {
+    selectedTechnologies,
+    selectedContributionTypes,
+    selectedDifficulties,
+    selectedLastUpdated,
+    filterMode,
+    selectedTags,
+    selectedLicense,
+    selectedMentorship,
+    setupTimeMin,
+    setupTimeMax,
+    ...restFilterProps
+  } = filterHookProps;
+
+  const filterPropsForLayout = { ...filterHookProps };
 
   useEffect(() => {
     const checkUser = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       setUser(session?.user || null);
     };
-
     checkUser();
-
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
         setUser(session?.user || null);
     });
-
     return () => {
         authListener?.subscription.unsubscribe();
     };
   }, []);
 
-  useEffect(() => {
-    let isMounted = true;
-
-    const fetchRecommendedProjects = async () => {
-      if (!isMounted || !user) return;
-
-      setLoading(true);
-      try {
-        const initialProjectsData = await getHybridRecommendations(user.id, 15, true);
-
-        if (!Array.isArray(initialProjectsData)) {
-            throw new Error("Recommendations data is not an array");
-        }
-
-        let projectsWithDetails = [];
-        if (initialProjectsData.length > 0) {
-          projectsWithDetails = await Promise.all(
-            initialProjectsData.map(async (project) => {
-              if (!project || typeof project.id === 'undefined') {
-                  return null;
-              }
-              const { technologies, tags } = await fetchTagsAndTech(project.id);
-              return {
-                ...project,
-                technologies: technologies || [],
-                tags: tags || [],
-              };
-            })
-          );
-          projectsWithDetails = projectsWithDetails.filter(p => p !== null);
-        }
-
-        if (isMounted) {
-            updateProjects(projectsWithDetails || []);
-        }
-      } catch (error) {
-        console.error('Error fetching recommended projects:', error);
-        if (isMounted) updateProjects([]);
-      } finally {
-        if (isMounted) {
-            setLoading(false);
-        }
-      }
-    };
-
-    if (user === undefined) {
-      setLoading(true);
-    } else if (user === null) {
+  const fetchRecommendedAndFilteredProjects = useCallback(async (page) => {
+    if (!user) {
+      setProjects([]);
+      setTotalPages(1);
       setLoading(false);
-      updateProjects([]);
-    } else {
-      fetchRecommendedProjects();
+      return;
     }
 
-    return () => {
-      isMounted = false;
-    };
-  }, [user, page, updateProjects]);
+    setLoading(true);
+    try {
+      const recommendedProjectsData = await getHybridRecommendations(user.id, 100, false);
+
+      if (!Array.isArray(recommendedProjectsData) || recommendedProjectsData.length === 0) {
+        setProjects([]);
+        setTotalPages(1);
+        setLoading(false);
+        return;
+      }
+
+      const recommendedProjectIds = recommendedProjectsData.map(p => p.id).filter(id => id !== undefined);
+
+      if (recommendedProjectIds.length === 0) {
+          setProjects([]);
+          setTotalPages(1);
+          setLoading(false);
+          return;
+      }
+
+      const offset = (page - 1) * resultsPerPage;
+      const filtersJSON = {
+        ...(selectedTechnologies.length > 0 && { technologies: selectedTechnologies }),
+        ...(selectedTags.length > 0 && { tags: selectedTags }),
+        ...(selectedContributionTypes.length > 0 && { contribution_types: selectedContributionTypes }),
+        ...(selectedDifficulties.length > 0 && { difficulties: selectedDifficulties }),
+        ...(selectedLastUpdated && { last_updated: selectedLastUpdated }),
+        ...(selectedLicense && { license: selectedLicense }),
+        ...(selectedMentorship && { mentorship: selectedMentorship }),
+        ...(setupTimeMin && { setup_time_min: setupTimeMin }),
+        ...(setupTimeMax && { setup_time_max: setupTimeMax }),
+        filter_mode: filterMode,
+        project_ids: recommendedProjectIds
+      };
+
+      const rpcArgs = {
+        filters: filtersJSON,
+        results_limit: resultsPerPage,
+        results_offset: offset,
+      };
+
+      const { data: filteredData, error: rpcError } = await supabase.rpc(
+        'get_filtered_paginated_projects',
+        rpcArgs
+      );
+
+      if (rpcError) {
+        console.error("Error fetching filtered recommended project IDs:", rpcError);
+        setProjects([]);
+        setTotalPages(1);
+        setLoading(false);
+        return;
+      }
+
+      if (!filteredData || filteredData.length === 0) {
+        setProjects([]);
+        setTotalPages(1);
+        setLoading(false);
+        return;
+      }
+
+      const finalProjectIds = filteredData.map(item => item.project_id);
+      const totalCount = filteredData[0]?.total_filtered_count || 0;
+
+      setTotalPages(Math.ceil(totalCount / resultsPerPage));
+
+      const { data: projectDetails, error: projectError } = await supabase
+        .from('project')
+        .select(`
+          id, repo_name, repo_owner, description_type,
+          custom_description, difficulty_level, created_at,
+          license, mentorship, setup_time, image,
+          project_technologies ( is_highlighted, technologies ( name ) ),
+          project_tags ( is_highlighted, tags ( name, colour ) ),
+          project_contribution_type ( contribution_type ( name ) )
+        `)
+        .in('id', finalProjectIds)
+        .order('created_at', { ascending: false });
+
+      if (projectError) {
+        console.error("Error fetching project details:", projectError);
+        setProjects([]);
+        setLoading(false);
+        return;
+      }
+
+      const processedProjects = (projectDetails || []).map(proj => {
+          const technologies = (proj.project_technologies || []).map(pt => ({
+              name: pt.technologies?.name,
+              is_highlighted: pt.is_highlighted
+          })).filter(t => t.name);
+
+          const tags = (proj.project_tags || []).map(ptag => ({
+              name: ptag.tags?.name,
+              colour: ptag.tags?.colour,
+              is_highlighted: ptag.is_highlighted
+          })).filter(t => t.name);
+
+          return {
+              ...proj,
+              technologies,
+              tags,
+          };
+      });
+
+      setProjects(processedProjects);
+
+    } catch (error) {
+      console.error("Unexpected error fetching recommended projects:", error);
+      setProjects([]);
+      setTotalPages(1);
+    } finally {
+      setLoading(false);
+    }
+  }, [
+      user,
+      selectedTechnologies, selectedTags, selectedContributionTypes, selectedDifficulties,
+      selectedLastUpdated, selectedLicense, selectedMentorship, setupTimeMin,
+      setupTimeMax, filterMode, resultsPerPage
+  ]);
+
+  useEffect(() => {
+    if (user === undefined) {
+      setLoading(true);
+    } else {
+      fetchRecommendedAndFilteredProjects(currentPage);
+    }
+  }, [user, currentPage, fetchRecommendedAndFilteredProjects]);
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      const params = new URLSearchParams(searchParams);
+      params.set('page', String(currentPage + 1));
+      router.push(`?${params.toString()}`, { scroll: false });
+    }
+  };
+
+  const handlePreviousPage = () => {
+    if (currentPage > 1) {
+      const params = new URLSearchParams(searchParams);
+      params.set('page', String(currentPage - 1));
+      router.push(`?${params.toString()}`, { scroll: false });
+    }
+  };
 
   return (
     <ProjectPageLayout
       title={user ? "Recommended Projects" : "Log in for Recommendations"}
-      loading={loading}
-      filterProps={filterProps}
-      projectCount={user && !loading ? filteredProjects.length : 0}
+      loading={loading && user === undefined}
+      filterProps={filterPropsForLayout}
+      projectCount={user && !loading ? projects.length : 0}
     >
       {!user && !loading && user !== undefined && (
         <div className="bg-gray-900 rounded-lg p-6 mb-6 text-center">
@@ -145,7 +222,7 @@ function RecommendedProjectsContent() {
         </div>
       )}
 
-      {loading && (
+      {loading && user !== undefined && (
          <div className="flex items-center justify-center p-12">
             <div className="text-center">
               <div className="mb-4">
@@ -156,45 +233,65 @@ function RecommendedProjectsContent() {
           </div>
       )}
 
-      {!loading && filteredProjects.length === 0 ? (
+      {!loading && user && projects.length === 0 && (
         <div className="text-center py-12 bg-gray-900 rounded-lg">
-          <h3 className="text-xl font-bold mb-3">
-            {user ? "No matching recommendations found" : "No popular projects found"}
-          </h3>
-          <p>
-            {user ? "Try adjusting your filter criteria or interact with more projects" : "Check back later for popular projects!"}
-          </p>
+          <h3 className="text-xl font-bold mb-3">No matching recommendations found</h3>
+          <p>Try adjusting your filter criteria or interact with more projects.</p>
         </div>
-      ) : null}
+      )}
 
-      {!loading && filteredProjects.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredProjects.map(project => {
-            const highlightedTags = project.tags?.filter(tag => tag.is_highlighted) || [];
-            const tagsToShow = highlightedTags.length > 0 ? highlightedTags : project.tags?.slice(0, 3) || [];
-            const techStackToShow = project.technologies
-              ?.filter(tech => tech.is_highlighted)
-              .map(tech => tech.name) || [];
+      {!loading && projects.length > 0 ? (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {projects.map(project => {
+              if (!project || typeof project.id === 'undefined') {
+                  console.warn("Skipping rendering invalid project data:", project);
+                  return null;
+              }
 
-            if (typeof project.id === 'undefined') {
-                return null;
-            }
+              const techStackToShow = project.technologies
+                ?.filter(tech => tech.is_highlighted)
+                .map(tech => tech.name) || [];
 
-            return (
-              <ProjectPreview
-                key={project.id}
-                id={project.id}
-                name={project.repo_name || "Unnamed Project"}
-                date={project.created_at}
-                tags={tagsToShow}
-                description={project.custom_description || "No custom description provided."}
-                techStack={techStackToShow}
-                recommended={!!user}
-                image={project.image}
-              />
-            );
-          })}
-        </div>
+              return (
+                <ProjectPreview
+                  key={project.id}
+                  id={project.id}
+                  name={project.repo_name || "Unnamed Project"}
+                  date={project.created_at || new Date().toISOString()}
+                  tags={Array.isArray(project.tags) ? project.tags : []}
+                  description={project.custom_description || "No custom description provided."}
+                  techStack={techStackToShow}
+                  recommended={true}
+                  image={project.image}
+                  issueCount={0}
+                />
+              );
+            })}
+          </div>
+
+          {totalPages > 1 && (
+             <div className="flex justify-between items-center mt-6">
+               <button
+                 onClick={handlePreviousPage}
+                 disabled={currentPage === 1 || loading}
+                 className="px-4 py-2 bg-gray-800 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed"
+               >
+                 Previous
+               </button>
+               <span className="text-white">
+                 Page {currentPage} of {totalPages}
+               </span>
+               <button
+                 onClick={handleNextPage}
+                 disabled={currentPage === totalPages || loading}
+                 className="px-4 py-2 bg-gray-800 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed"
+               >
+                 Next
+               </button>
+             </div>
+          )}
+        </>
       ) : null}
     </ProjectPageLayout>
   );
