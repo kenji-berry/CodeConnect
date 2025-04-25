@@ -22,7 +22,8 @@ export async function middleware(req: NextRequest) {
     '/trending',
     '/popular',
     '/newest',
-    '/beginner'
+    '/beginner',
+    '/projects'
   ];
 
   const path = req.nextUrl.pathname;
