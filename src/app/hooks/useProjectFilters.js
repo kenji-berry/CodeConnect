@@ -80,7 +80,7 @@ export default function useProjectFilters(options = {}) {
 
     isInitialSyncDone.current = true;
 
-  }, [searchParams, includeTags, numericDifficulty, selectedTechnologies, selectedContributionTypes, selectedTags, selectedDifficulties, selectedLastUpdated, filterMode, selectedLicense, selectedMentorship, setupTimeMin, setupTimeMax]);
+  }, [searchParams, includeTags, numericDifficulty]);
 
   useEffect(() => {
     const fetchTechnologies = async () => {
