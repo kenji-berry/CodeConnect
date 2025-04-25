@@ -3,7 +3,7 @@ import CodeConnectTitle from '../Components/CodeConnectTitle';
 
 const page = () => {
   return (
-    <div className="min-h-screen w-full flex flex-col items-center px-4 py-10 bg-[#18181b]">
+    <div className="min-h-screen w-full flex flex-col items-center px-4 py-10">
       <div className="w-full max-w-[1000px] mx-auto flex flex-col flex-grow">
         <div className="mb-10 flex justify-center">
           <CodeConnectTitle />
