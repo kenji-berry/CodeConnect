@@ -1,9 +1,13 @@
-import { createPagesServerClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
+
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
 
 export default async function handler(req, res) {
   try {
-    // Get raw body for signature verification
     const rawBody = await new Promise((resolve) => {
       let data = '';
       req.on('data', (chunk) => {
@@ -14,7 +18,6 @@ export default async function handler(req, res) {
       });
     });
 
-    // Basic validation with logging
     if (req.method !== 'POST') {
       console.log('Webhook: Ignoring non-POST request');
       res.status(200).json({ success: true });
@@ -35,7 +38,6 @@ export default async function handler(req, res) {
       return;
     }
 
-    // Verify signature
     const secret = process.env.NEXT_PUBLIC_GITHUB_WEBHOOK_SECRET;
     if (!secret) {
       console.error('Webhook: Missing GITHUB_WEBHOOK_SECRET environment variable');
@@ -64,14 +66,11 @@ export default async function handler(req, res) {
       return;
     }
 
-    // Process the webhook asynchronously
-    const supabase = createPagesServerClient({ req, res });
-    await supabase
+    await supabaseAdmin
       .from('project')
       .update({ webhook_active: true })
       .eq('id', projectId);
 
-    // Process webhook events with lightweight operations
     const event = req.headers['x-github-event'];
     const body = JSON.parse(rawBody);
 
@@ -79,13 +78,13 @@ export default async function handler(req, res) {
 
     switch (event) {
       case 'push':
-        await processCommits(body, projectId, supabase);
+        await processCommits(body, projectId, supabaseAdmin);
         break;
       case 'issues':
-        await processIssue(body, projectId, supabase);
+        await processIssue(body, projectId, supabaseAdmin);
         break;
       case 'pull_request':
-        await processPullRequest(body, projectId, supabase);
+        await processPullRequest(body, projectId, supabaseAdmin);
         break;
       case 'ping':
         console.log(`Received ping event for project ${projectId}`);
@@ -94,11 +93,10 @@ export default async function handler(req, res) {
         console.log(`Unhandled event type: ${event}`);
     }
 
-    // At the very end, after all processing:
     res.status(200).json({ success: true });
   } catch (error) {
     console.error('Webhook processing error:', error);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }
 
