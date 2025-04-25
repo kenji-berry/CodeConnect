@@ -23,7 +23,8 @@ export async function middleware(req: NextRequest) {
     '/popular',
     '/newest',
     '/beginner',
-    '/projects'
+    '/projects',
+    '/icon.ico',
   ];
 
   const path = req.nextUrl.pathname;
