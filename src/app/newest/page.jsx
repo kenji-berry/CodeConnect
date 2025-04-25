@@ -10,7 +10,7 @@ function NewestProjectsContent() {
   const [loading, setLoading] = useState(true);
   const [totalPages, setTotalPages] = useState(1);
   const [projects, setProjects] = useState([]);
-  const resultsPerPage = 1;
+  const resultsPerPage = 15;
 
   const filterProps = useProjectFilters({ includeTags: true });
   const {
