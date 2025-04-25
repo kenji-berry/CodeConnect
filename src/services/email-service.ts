@@ -16,8 +16,10 @@ interface Recommendation {
   difficulty_level?: string;
   custom_description?: string;
   tags?: {
-    tag: any; name: string; is_highlighted?: boolean 
-}[];
+    tag: { name: string; id?: number };
+    name: string;
+    is_highlighted?: boolean 
+  }[];
   technologies?: { name: string; is_highlighted?: boolean }[];
   recommendationReason?: string[];
 }
