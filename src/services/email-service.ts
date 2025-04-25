@@ -72,13 +72,6 @@ export async function sendRecommendationEmail(
 function formatRecommendationEmail(recommendations: Recommendation[]): string {
   const domainUrl = process.env.NEXT_PUBLIC_DOMAIN_URL || 'https://codeconnect.cc';
   const logoUrl = `https://i.imgur.com/0GT99ZB.png`;
-  const bgColor = '#18181b';
-  const cardBgColor = '#232323';
-  const textColor = '#e4e4e7';
-  const mutedTextColor = '#a1a1aa';
-  const primaryAccent = '#FE8A18';
-  const secondaryAccent = '#EC7373';
-  const highlightedBorder = '#FE8A18';
 
   let emailContent = `
     <!DOCTYPE html>
@@ -92,24 +85,24 @@ function formatRecommendationEmail(recommendations: Recommendation[]): string {
         body {
           font-family: "Inter", -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
           line-height: 1.6;
-          color: ${textColor};
+          color: #e4e4e7;
           max-width: 600px;
           margin: 0 auto;
           padding: 0;
-          background-color: ${bgColor};
+          background-color: #18181b;
         }
         .wrapper {
-          background-color: ${bgColor};
+          background-color: #18181b;
           border-radius: 12px;
           overflow: hidden;
           margin: 20px 0;
-          border: 1px solid ${secondaryAccent};
+          border: 1px solid #EC7373;
         }
         .header {
-          background-color: ${cardBgColor};
+          background-color: #232323;
           padding: 25px 20px;
           text-align: center;
-          border-bottom: 1px solid ${secondaryAccent};
+          border-bottom: 1px solid #EC7373;
         }
         .header img {
           max-height: 60px;
@@ -119,7 +112,7 @@ function formatRecommendationEmail(recommendations: Recommendation[]): string {
           padding: 30px 25px;
         }
         h1 {
-          color: ${textColor};
+          color: #e4e4e7;
           font-size: 26px;
           margin-top: 0;
           margin-bottom: 20px;
@@ -128,14 +121,14 @@ function formatRecommendationEmail(recommendations: Recommendation[]): string {
         }
         .intro {
           margin-bottom: 30px;
-          color: ${mutedTextColor};
+          color: #a1a1aa;
         }
         .project-card {
           margin-bottom: 25px;
-          border: 1px solid ${secondaryAccent};
+          border: 1px solid #EC7373;
           border-radius: 12px;
           padding: 20px;
-          background-color: ${cardBgColor};
+          background-color: #232323;
           box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
         }
         .project-title {
@@ -143,21 +136,21 @@ function formatRecommendationEmail(recommendations: Recommendation[]): string {
           font-weight: 700;
           margin-top: 0;
           margin-bottom: 10px;
-          color: ${textColor};
+          color: #e4e4e7;
           font-family: "Inria Sans", sans-serif;
         }
         .project-meta {
           font-size: 14px;
-          color: ${mutedTextColor};
+          color: #a1a1aa;
           margin-bottom: 14px;
         }
         .project-meta strong {
-          color: ${textColor};
+          color: #e4e4e7;
           font-weight: 600;
         }
         .project-desc {
           margin-bottom: 16px;
-          color: ${textColor};
+          color: #e4e4e7;
         }
         .tag {
           display: inline-block;
@@ -169,13 +162,13 @@ function formatRecommendationEmail(recommendations: Recommendation[]): string {
           border: 1px solid;
         }
         .tag-highlighted {
-          color: ${primaryAccent};
-          border-color: ${highlightedBorder};
+          color: #FE8A18;
+          border-color: #FE8A18;
           background-color: rgba(254, 138, 24, 0.1);
         }
         .tag-normal {
           background-color: #3f3f46;
-          color: ${textColor};
+          color: #e4e4e7;
           border-color: #52525b;
         }
         .tags-container {
@@ -184,21 +177,21 @@ function formatRecommendationEmail(recommendations: Recommendation[]): string {
         .tags-container strong {
           display: block;
           margin-bottom: 6px;
-          color: ${textColor};
+          color: #e4e4e7;
           font-weight: 600;
         }
         .reason {
           font-size: 13px;
-          color: ${mutedTextColor};
+          color: #a1a1aa;
           font-style: italic;
           margin: 16px 0 12px 0;
           padding-left: 12px;
-          border-left: 3px solid ${primaryAccent};
+          border-left: 3px solid #FE8A18;
         }
         .button {
           display: inline-block;
           padding: 10px 20px;
-          background-color: ${primaryAccent};
+          background-color: #FE8A18;
           color: #ffffff;
           text-decoration: none;
           border-radius: 8px;
@@ -215,12 +208,12 @@ function formatRecommendationEmail(recommendations: Recommendation[]): string {
           padding: 25px 20px;
           text-align: center;
           font-size: 12px;
-          color: ${mutedTextColor};
-          background-color: ${cardBgColor};
-          border-top: 1px solid ${secondaryAccent};
+          color: #a1a1aa;
+          background-color: #232323;
+          border-top: 1px solid #EC7373;
         }
         .footer a {
-          color: ${primaryAccent};
+          color: #FE8A18;
           text-decoration: none;
           font-weight: 600;
         }
@@ -241,17 +234,24 @@ function formatRecommendationEmail(recommendations: Recommendation[]): string {
           <div class="projects-container">
   `;
 
-  recommendations.forEach(project => {
+  recommendations.forEach((project, idx) => {
+    
     const tagsHtml = project.tags && Array.isArray(project.tags) && project.tags.length > 0
-      ? project.tags.map(tag =>
-          `<span class="tag ${tag.is_highlighted ? 'tag-highlighted' : 'tag-normal'}">${tag.name}${tag.is_highlighted ? ' ★' : ''}</span>`
-        ).join('')
+      ? project.tags.map(tag => {
+          if (!tag) return '';
+          const tagName = typeof tag.name === 'string' ? tag.name : 'Unknown';
+          const isHighlighted = Boolean(tag.is_highlighted);
+          return `<span class="tag ${isHighlighted ? 'tag-highlighted' : 'tag-normal'}">${tagName}${isHighlighted ? ' ★' : ''}</span>`;
+        }).filter(Boolean).join('')
       : '<span class="tag tag-normal">No tags</span>';
 
     const technologiesHtml = project.technologies && Array.isArray(project.technologies) && project.technologies.length > 0
-      ? project.technologies.map(tech =>
-          `<span class="tag ${tech.is_highlighted ? 'tag-highlighted' : 'tag-normal'}">${tech.name}${tech.is_highlighted ? ' ★' : ''}</span>`
-        ).join('')
+      ? project.technologies.map(tech => {
+          if (!tech) return '';
+          const techName = typeof tech.name === 'string' ? tech.name : 'Unknown';
+          const isHighlighted = Boolean(tech.is_highlighted);
+          return `<span class="tag ${isHighlighted ? 'tag-highlighted' : 'tag-normal'}">${techName}${isHighlighted ? ' ★' : ''}</span>`;
+        }).filter(Boolean).join('')
       : '<span class="tag tag-normal">No technologies</span>';
 
     const description = project.custom_description
