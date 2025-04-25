@@ -1,30 +1,30 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 
-interface TagWithColour {
+interface HighlightableItem {
   name: string;
-  colour?: string;
   is_highlighted?: boolean;
+  colour?: string;
 }
 
 interface ProjectPreviewProps {
   id: string | number;
   name: string;
   date: string;
-  tags: TagWithColour[];
-  description: string;
+  tags: HighlightableItem[];
   techStack: string[];
+  description: string;
   issueCount: number;
   recommended?: boolean;
   image?: string | null;
 }
 
-const ProjectPreview: React.FC<ProjectPreviewProps> = ({
+const ProjectPreview = React.memo<ProjectPreviewProps>(({
   id,
   name,
   date,
   tags,
-  description,
   techStack,
+  description,
   issueCount,
   recommended = false,
   image = null,
@@ -41,6 +41,15 @@ const ProjectPreview: React.FC<ProjectPreviewProps> = ({
     });
   };
 
+  const tagsToShow = useMemo(() => {
+    if (!Array.isArray(tags)) {
+      console.error("ProjectPreview: 'tags' prop received non-array:", tags);
+      return [];
+    }
+    const highlighted = tags.filter(tag => tag?.is_highlighted);
+    return highlighted.length > 0 ? highlighted : tags.slice(0, 3);
+  }, [tags]);
+
   return (
     <div
       className={`relative bg-[#18181b] shadow-lg rounded-xl border-2 transition-transform cursor-pointer hover:-translate-y-1 hover:shadow-2xl
@@ -51,8 +60,7 @@ const ProjectPreview: React.FC<ProjectPreviewProps> = ({
       onMouseLeave={() => setIsHovered(false)}
     >
       <a href={`/projects/${id}`} className="block h-full">
-        {/* Image */}
-        <div className="w-full aspect-video bg-[#1a1a1a] overflow-hidden flex items-center justify-center">
+         <div className="w-full aspect-video bg-[#1a1a1a] overflow-hidden flex items-center justify-center">
           {image && !imageError ? (
             <img
               src={image}
@@ -70,19 +78,14 @@ const ProjectPreview: React.FC<ProjectPreviewProps> = ({
           )}
         </div>
 
-        {/* Content */}
         <div className="flex flex-col flex-1 p-4">
-          {/* Title & Date */}
           <div className="flex justify-between items-center mb-2">
             <h2 className="text-lg font-bold text-[var(--off-white)] truncate max-w-[70%]">{name}</h2>
             <span className="text-xs text-gray-400 whitespace-nowrap">{formatDate(date)}</span>
           </div>
 
-          {/* Tags - Add Array.isArray check */}
           <div className="flex flex-wrap gap-1 mb-2">
-            {Array.isArray(tags) && tags.map((tag, index) => { // Added check here
-              // Defensive check inside map just in case item is null/undefined
-              if (!tag) return null;
+            {tagsToShow.map((tag, index) => {
               const tagColour = tag.colour ? `#${tag.colour}` : 'var(--muted-red)';
               return (
                 <span
@@ -100,7 +103,6 @@ const ProjectPreview: React.FC<ProjectPreviewProps> = ({
             })}
           </div>
 
-          {/* Description */}
           <div className="flex-1 flex flex-col">
             <p className="text-[var(--off-white)] text-sm bg-[#232323] px-3 py-2 rounded mb-2 min-h-[5rem] max-h-[7.5rem] overflow-hidden line-clamp-5">
               {description}
@@ -108,19 +110,18 @@ const ProjectPreview: React.FC<ProjectPreviewProps> = ({
 
             {Array.isArray(techStack) && techStack.length > 0 && (
               <div className="flex flex-wrap gap-2 mb-2">
-                {techStack.map((tech, index) => (
+                {techStack.map((techName, index) => (
                   <span
                     key={index}
                     className="bg-[#31313a] text-xs text-[var(--off-white)] px-2 py-0.5 rounded font-medium"
                   >
-                    {tech}
+                    {techName}
                   </span>
                 ))}
               </div>
             )}
           </div>
 
-          {/* Issues */}
           <div className="flex justify-between items-center pt-2 border-t border-[#232323] mt-2">
             <div className="text-xs text-[var(--orange)] font-semibold">
               {issueCount} open issue{issueCount === 1 ? "" : "s"}
@@ -135,7 +136,6 @@ const ProjectPreview: React.FC<ProjectPreviewProps> = ({
           </div>
         </div>
 
-        {/* Hover Overlay */}
         <div
           className={`absolute inset-0 bg-black flex items-center justify-center text-white text-base font-semibold transition-opacity duration-300 pointer-events-none ${
             isHovered ? "opacity-70" : "opacity-0"
@@ -146,6 +146,8 @@ const ProjectPreview: React.FC<ProjectPreviewProps> = ({
       </a>
     </div>
   );
-};
+});
+
+ProjectPreview.displayName = 'ProjectPreview';
 
 export default ProjectPreview;
