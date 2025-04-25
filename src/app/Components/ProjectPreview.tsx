@@ -78,9 +78,11 @@ const ProjectPreview: React.FC<ProjectPreviewProps> = ({
             <span className="text-xs text-gray-400 whitespace-nowrap">{formatDate(date)}</span>
           </div>
 
-          {/* Tags */}
+          {/* Tags - Add Array.isArray check */}
           <div className="flex flex-wrap gap-1 mb-2">
-            {tags.map((tag, index) => {
+            {Array.isArray(tags) && tags.map((tag, index) => { // Added check here
+              // Defensive check inside map just in case item is null/undefined
+              if (!tag) return null;
               const tagColour = tag.colour ? `#${tag.colour}` : 'var(--muted-red)';
               return (
                 <span
@@ -98,14 +100,13 @@ const ProjectPreview: React.FC<ProjectPreviewProps> = ({
             })}
           </div>
 
-          {/* Description (flex-grow to fill space) */}
+          {/* Description */}
           <div className="flex-1 flex flex-col">
             <p className="text-[var(--off-white)] text-sm bg-[#232323] px-3 py-2 rounded mb-2 min-h-[5rem] max-h-[7.5rem] overflow-hidden line-clamp-5">
               {description}
             </p>
 
-            {/* Tech Stack */}
-            {techStack.length > 0 && (
+            {Array.isArray(techStack) && techStack.length > 0 && (
               <div className="flex flex-wrap gap-2 mb-2">
                 {techStack.map((tech, index) => (
                   <span
@@ -119,13 +120,13 @@ const ProjectPreview: React.FC<ProjectPreviewProps> = ({
             )}
           </div>
 
-          {/* Issues - always at the bottom */}
+          {/* Issues */}
           <div className="flex justify-between items-center pt-2 border-t border-[#232323] mt-2">
             <div className="text-xs text-[var(--orange)] font-semibold">
               {issueCount} open issue{issueCount === 1 ? "" : "s"}
             </div>
             <div
-              className="w-0 h-0 
+              className="w-0 h-0
               border-t-[6px] border-t-transparent
               border-l-[12px] border-l-[rgb(121,121,121)]
               border-b-[6px] border-b-transparent
