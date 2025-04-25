@@ -161,11 +161,11 @@ function NewestProjectsContent() {
       title="Newest Projects"
       loading={loading}
       filterProps={{ ...filterProps, ...restFilterProps }}
-      projectCount={projects.length}
+      projectCount={projects.length} // This itself could error if projects becomes undefined, though less likely
     >
-      {loading && projects.length === 0 ? (
+      {loading && (!projects || projects.length === 0) ? ( // Added check for !projects
          <div className="text-center py-12">Loading projects...</div>
-      ) : !loading && projects.length === 0 ? (
+      ) : !loading && (!projects || projects.length === 0) ? ( // Added check for !projects
         <div className="text-center py-12 bg-gray-900 rounded-lg">
           <h3 className="text-xl font-bold mb-3">No matching projects found</h3>
           <p>Try adjusting your filter criteria or clearing filters.</p>
@@ -173,25 +173,35 @@ function NewestProjectsContent() {
       ) : (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {projects.map(project => {
+            {/* Ensure projects is an array before mapping */}
+            {Array.isArray(projects) && projects.map(project => {
+              // Defensive check: Ensure project is an object before accessing properties
+              if (!project || typeof project !== 'object') {
+                console.error("Invalid project data encountered:", project);
+                return null; // Skip rendering this invalid item
+              }
+
               console.log(`Rendering ProjectPreview for ID: ${project.id}, Name: ${project.repo_name}`);
 
               return (
                 <ProjectPreview
                   key={project.id}
                   id={project.id}
-                  name={project.repo_name}
-                  date={project.created_at}
-                  tags={project.tags || []}
-                  technologies={project.technologies || []}
-                  description={project.custom_description}
-                  issueCount={0} // Placeholder, fetch if needed
+                  name={project.repo_name || 'Unnamed Project'} // Add fallback for name
+                  date={project.created_at || new Date().toISOString()} // Add fallback for date
+                  // --- Add default empty arrays here ---
+                  tags={Array.isArray(project.tags) ? project.tags : []}
+                  technologies={Array.isArray(project.technologies) ? project.technologies : []}
+                  // --- End default arrays ---
+                  description={project.custom_description || 'No description available.'} // Add fallback
+                  issueCount={0} // Placeholder
                   recommended={false}
                   image={project.image}
                 />
               );
             })}
           </div>
+          {/* ...pagination... */}
           {totalPages > 1 && (
              <div className="flex justify-between items-center mt-6">
                <button
