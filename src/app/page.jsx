@@ -190,11 +190,18 @@ function HomeContent() {
               fetchedRecs.map(async (project) => {
                 const { technologies, tags } = await fetchTagsAndTech(project.id);
                 const openIssueCountMap = await fetchOpenIssueCounts([project.id]);
+                const { data: projectDetails } = await supabase
+                  .from('project')
+                  .select('image')
+                  .eq('id', project.id)
+                  .single();
+                
                 return {
                   ...project,
                   technologies,
                   tags,
-                  issueCount: openIssueCountMap[project.id] || 0
+                  issueCount: openIssueCountMap[project.id] || 0,
+                  image: projectDetails?.image || null
                 };
               })
             );
