@@ -338,7 +338,11 @@ export default async function handler(req, res) {
       console.log('✅ API: Related item IDs fetched');
 
       console.log('🔄 API: Inserting new relations');
-      const projectTagsToInsert = tags
+      const uniqueTags = [...new Set(tags)];
+      const uniqueTechnologies = [...new Set(technologies)];
+      const uniqueContributionTypes = [...new Set(contribution_types)];
+
+      const projectTagsToInsert = uniqueTags
         .map(name => ({
           project_id: finalProjectId,
           tag_id: tagMap.get(name),
@@ -346,7 +350,7 @@ export default async function handler(req, res) {
         }))
         .filter(pt => pt.tag_id !== undefined);
 
-      const projectTechsToInsert = technologies
+      const projectTechsToInsert = uniqueTechnologies
         .map(name => ({
           project_id: finalProjectId,
           technology_id: techMap.get(name),
@@ -354,16 +358,16 @@ export default async function handler(req, res) {
         }))
         .filter(pt => pt.technology_id !== undefined);
 
-      const projectContribsToInsert = contribution_types
+      const projectContribsToInsert = uniqueContributionTypes
         .map(name => ({
           project_id: finalProjectId,
           contribution_type_id: contribMap.get(name)
         }))
         .filter(pc => pc.contribution_type_id !== undefined);
 
-      if (projectTagsToInsert.length !== tags.length) console.warn('⚠️ API: Some tags were not found in the database and were skipped.');
-      if (projectTechsToInsert.length !== technologies.length) console.warn('⚠️ API: Some technologies were not found in the database and were skipped.');
-      if (projectContribsToInsert.length !== contribution_types.length) console.warn('⚠️ API: Some contribution types were not found in the database and were skipped.');
+      if (projectTagsToInsert.length !== uniqueTags.length) console.warn('⚠️ API: Some unique tags were not found in the database and were skipped.');
+      if (projectTechsToInsert.length !== uniqueTechnologies.length) console.warn('⚠️ API: Some unique technologies were not found in the database and were skipped.');
+      if (projectContribsToInsert.length !== uniqueContributionTypes.length) console.warn('⚠️ API: Some unique contribution types were not found in the database and were skipped.');
 
       if (projectTagsToInsert.length > 0) {
         const { error: insertTagsError } = await supabase.from('project_tags').insert(projectTagsToInsert);
