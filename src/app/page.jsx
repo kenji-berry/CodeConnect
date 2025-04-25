@@ -8,20 +8,19 @@ import Notification from "@/app/Components/Notification";
 import { supabase } from '@/supabaseClient';
 import { getPopularProjects, getHybridRecommendations } from '@/services/recommendation-service';
 
-// Function to get trending projects
 async function getTrendingProjects(limit = 5) {
   try {
     const oneWeekAgo = new Date();
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-    
+
     console.log(`Fetching trending projects for past 7 days (since ${oneWeekAgo.toISOString()})`);
-    
+
     console.log('Attempting RPC call to get_trending_projects...');
     const { data, error } = await supabase.rpc('get_trending_projects', {
       lookback_days: 7,
       results_limit: limit
     });
-    
+
     if (error) {
       console.error('RPC Error details:', {
         message: error.message,
@@ -29,11 +28,11 @@ async function getTrendingProjects(limit = 5) {
         hint: error.hint,
         code: error.code
       });
-      
+
       console.log('RPC failed, returning empty array');
       return [];
     }
-    
+
     console.log('RPC succeeded, trending projects:', data);
     return data || [];
   } catch (error) {
@@ -58,21 +57,18 @@ function HomeContent() {
   const [notification, setNotification] = useState(null);
 
   useEffect(() => {
-    // Check for notification in localStorage
     const storedNotification = localStorage.getItem('notification');
     if (storedNotification) {
       try {
         const parsedNotification = JSON.parse(storedNotification);
-        
-        // Only show notifications that are less than 10 seconds old
+
         if (parsedNotification.timestamp && (Date.now() - parsedNotification.timestamp < 10000)) {
           setNotification({
             message: parsedNotification.message,
             type: parsedNotification.type
           });
         }
-        
-        // Remove the notification from localStorage
+
         localStorage.removeItem('notification');
       } catch (e) {
         console.error('Error parsing notification:', e);
@@ -98,19 +94,19 @@ function HomeContent() {
     };
   }, []);
 
-  const CACHE_EXPIRATION = 5 * 60 * 1000; // 5 minutes
+  const CACHE_EXPIRATION = 5 * 60 * 1000;
 
   const getCachedData = (key) => {
     try {
       const item = localStorage.getItem(key);
       if (!item) return null;
-      
+
       const { data, timestamp } = JSON.parse(item);
       if (Date.now() - timestamp > CACHE_EXPIRATION) {
         localStorage.removeItem(key);
         return null;
       }
-      
+
       return data;
     } catch (error) {
       console.error(`Error retrieving cached ${key}:`, error);
@@ -130,7 +126,7 @@ function HomeContent() {
   };
 
   const fetchOpenIssueCounts = async (projectIds) => {
-    if (!projectIds.length) return {};
+    if (!projectIds || !projectIds.length) return {};
     const { data: issuesData } = await supabase
       .from('project_issues')
       .select('project_id, state')
@@ -177,39 +173,40 @@ function HomeContent() {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         const cacheKey = session?.user?.id ? `recommendations_${session.user.id}` : 'recommendations_guest';
-        
+
         const cachedRecommendations = getCachedData(cacheKey);
         if (cachedRecommendations) {
           setRecommendedProjects(cachedRecommendations);
           setLoadingRecommendations(false);
           return;
         }
-        
-        let recommendations;
+
+        let recommendations = [];
         if (session?.user) {
-          recommendations = await getHybridRecommendations(session.user.id, 3, true);
-          
-          if (recommendations?.length > 0) {
+          const fetchedRecs = await getHybridRecommendations(session.user.id, 3, true);
+
+          if (fetchedRecs?.length > 0) {
             const projectsWithData = await Promise.all(
-              recommendations.map(async (project) => {
+              fetchedRecs.map(async (project) => {
                 const { technologies, tags } = await fetchTagsAndTech(project.id);
+                const openIssueCountMap = await fetchOpenIssueCounts([project.id]);
                 return {
                   ...project,
                   technologies,
                   tags,
+                  issueCount: openIssueCountMap[project.id] || 0
                 };
               })
             );
             recommendations = projectsWithData;
           }
-        } else {
         }
-        
+
         if (recommendations?.length > 0) {
           setCachedData(cacheKey, recommendations);
         }
-        
-        setRecommendedProjects(recommendations || []);
+
+        setRecommendedProjects(recommendations);
       } catch (error) {
         console.error('Error fetching recommendations:', error);
         setRecommendedProjects([]);
@@ -217,7 +214,7 @@ function HomeContent() {
         setLoadingRecommendations(false);
       }
     };
-    
+
     fetchRecommendations();
   }, []);
 
@@ -225,15 +222,15 @@ function HomeContent() {
     const fetchTrendingProjects = async () => {
       setLoadingTrending(true);
       try {
-        const cachedTrending = getCachedData('trending_projects');
+        const cacheKey = 'trending_projects';
+        const cachedTrending = getCachedData(cacheKey);
         if (cachedTrending) {
-          console.log('Using cached trending projects:', cachedTrending);
           setTrendingProjects(cachedTrending);
           setLoadingTrending(false);
           return;
         }
 
-        const trendingIds = await getTrendingProjects(5);
+        const trendingIds = await getTrendingProjects(3);
         if (!trendingIds || trendingIds.length === 0) {
           setTrendingProjects([]);
           setLoadingTrending(false);
@@ -248,7 +245,7 @@ function HomeContent() {
         const { data: projects } = await supabase
           .from('project')
           .select(`
-            id, repo_name, repo_owner, description_type, 
+            id, repo_name, repo_owner, description_type,
             custom_description, difficulty_level, created_at, image
           `)
           .in('id', projectIds);
@@ -266,8 +263,15 @@ function HomeContent() {
             };
           })
         );
-        setTrendingProjects(projectsWithData);
+
+        const sortedProjects = projectIds
+          .map(id => projectsWithData.find(p => p.id === id))
+          .filter(Boolean);
+
+        setCachedData(cacheKey, sortedProjects);
+        setTrendingProjects(sortedProjects);
       } catch (error) {
+        console.error('Error fetching trending projects:', error);
         setTrendingProjects([]);
       } finally {
         setLoadingTrending(false);
@@ -280,6 +284,14 @@ function HomeContent() {
     const fetchNewestProjects = async () => {
       setLoadingNewest(true);
       try {
+        const cacheKey = 'newest_projects';
+        const cachedNewest = getCachedData(cacheKey);
+        if (cachedNewest) {
+          setNewestProjects(cachedNewest);
+          setLoadingNewest(false);
+          return;
+        }
+
         const { data: newestIds, error } = await supabase.rpc('get_newest_projects', {
           results_limit: 3
         });
@@ -297,7 +309,7 @@ function HomeContent() {
         const { data: projects } = await supabase
           .from('project')
           .select(`
-            id, repo_name, repo_owner, description_type, 
+            id, repo_name, repo_owner, description_type,
             custom_description, difficulty_level, created_at, image
           `)
           .in('id', projectIds);
@@ -315,8 +327,15 @@ function HomeContent() {
             };
           })
         );
-        setNewestProjects(projectsWithData);
+
+        const sortedProjects = projectIds
+          .map(id => projectsWithData.find(p => p.id === id))
+          .filter(Boolean);
+
+        setCachedData(cacheKey, sortedProjects);
+        setNewestProjects(sortedProjects);
       } catch (error) {
+        console.error('Error fetching newest projects:', error);
         setNewestProjects([]);
       } finally {
         setLoadingNewest(false);
@@ -329,6 +348,14 @@ function HomeContent() {
     const fetchPopularProjects = async () => {
       setLoadingPopular(true);
       try {
+        const cacheKey = 'popular_projects';
+        const cachedPopular = getCachedData(cacheKey);
+        if (cachedPopular) {
+          setPopularProjects(cachedPopular);
+          setLoadingPopular(false);
+          return;
+        }
+
         const { data: popularIds, error } = await supabase.rpc('get_popular_projects', {
           results_limit: 3
         });
@@ -346,7 +373,7 @@ function HomeContent() {
         const { data: projects } = await supabase
           .from('project')
           .select(`
-            id, repo_name, repo_owner, description_type, 
+            id, repo_name, repo_owner, description_type,
             custom_description, difficulty_level, created_at, image
           `)
           .in('id', projectIds);
@@ -364,8 +391,15 @@ function HomeContent() {
             };
           })
         );
-        setPopularProjects(projectsWithData);
+
+        const sortedProjects = projectIds
+          .map(id => projectsWithData.find(p => p.id === id))
+          .filter(Boolean);
+
+        setCachedData(cacheKey, sortedProjects);
+        setPopularProjects(sortedProjects);
       } catch (error) {
+        console.error('Error fetching popular projects:', error);
         setPopularProjects([]);
       } finally {
         setLoadingPopular(false);
@@ -378,6 +412,14 @@ function HomeContent() {
     const fetchBeginnerProjects = async () => {
       setLoadingBeginner(true);
       try {
+        const cacheKey = 'beginner_projects';
+        const cachedBeginner = getCachedData(cacheKey);
+        if (cachedBeginner) {
+          setBeginnerProjects(cachedBeginner);
+          setLoadingBeginner(false);
+          return;
+        }
+
         const { data: beginnerIds, error } = await supabase.rpc('get_beginner_projects', {
           results_limit: 3
         });
@@ -395,7 +437,7 @@ function HomeContent() {
         const { data: projects } = await supabase
           .from('project')
           .select(`
-            id, repo_name, repo_owner, description_type, 
+            id, repo_name, repo_owner, description_type,
             custom_description, difficulty_level, created_at, image
           `)
           .in('id', projectIds);
@@ -413,8 +455,15 @@ function HomeContent() {
             };
           })
         );
-        setBeginnerProjects(projectsWithData);
+
+        const sortedProjects = projectIds
+          .map(id => projectsWithData.find(p => p.id === id))
+          .filter(Boolean);
+
+        setCachedData(cacheKey, sortedProjects);
+        setBeginnerProjects(sortedProjects);
       } catch (error) {
+        console.error('Error fetching beginner projects:', error);
         setBeginnerProjects([]);
       } finally {
         setLoadingBeginner(false);
@@ -423,16 +472,54 @@ function HomeContent() {
     fetchBeginnerProjects();
   }, []);
 
+  const renderLoadingSpinner = (text) => (
+    <div className="flex items-center justify-center p-8">
+      <div className="text-center">
+        <div className="mb-4">
+          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[--title-red] mx-auto"></div>
+        </div>
+        <p className="text-sm text-off-white">{text}</p>
+      </div>
+    </div>
+  );
+
+  const renderProjectList = (projects, type) => (
+    <div className="flex flex-wrap justify-center gap-6">
+      {projects.map((project, index) => {
+        const highlightedTags = project.tags.filter(tag => tag.is_highlighted);
+        const tagsToShow = highlightedTags.length > 0 ? highlightedTags : project.tags.slice(0, 3);
+        return (
+          <ProjectPreview
+            key={`${type}-${project.id}-${index}`}
+            id={project.id}
+            name={project.repo_name}
+            date={project.created_at}
+            tags={tagsToShow}
+            description={project.custom_description}
+            techStack={project.technologies
+              .filter(tech => tech.is_highlighted)
+              .map(tech => tech.name)}
+            issueCount={project.issueCount || 0}
+            recommended={type === 'recommended'}
+            image={project.image}
+          />
+        );
+      })}
+    </div>
+  );
+
   return (
-    <div className="w-full min-h-screen flex flex-col items-center">
-      <CodeConnectTitle />
+    <div className="w-full min-h-screen flex flex-col items-center px-2 sm:px-4">
+      <div className="w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg xl:max-w-xl 2xl:max-w-2xl my-4 md:my-6">
+        <CodeConnectTitle />
+      </div>
       {notification && (
         <Notification
           notification={notification}
           onClose={() => setNotification(null)}
         />
       )}
-      <div className="flex justify-center w-full px-2 sm:px-4 max-w-[1200px]">
+      <div className="flex justify-center w-full max-w-[1200px]">
         <div
           className="
             main-page-contents
@@ -442,253 +529,109 @@ function HomeContent() {
             space-y-8
           "
         >
-          {/* --- Recommended Section --- */}
           <div className="w-full">
-            <div className="flex justify-between items-center mb-2">
+            <div className="flex justify-between items-center mb-2 px-2">
               <h3 className="inter-bold main-subtitle">Recommended For You:</h3>
               <Link href="/recommended" className="text-sm inria-sans-bold title-red hover:underline">View more</Link>
             </div>
             {loadingRecommendations ? (
-              <div className="flex items-center justify-center p-8">
-                <div className="text-center">
-                  <div className="mb-4">
-                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[--title-red] mx-auto"></div>
-                  </div>
-                  <p className="text-sm text-off-white">Loading recommendations...</p>
-                </div>
-              </div>
+              renderLoadingSpinner('Loading recommendations...')
             ) : !user ? (
               <div className="relative">
-                <div className="flex flex-wrap justify-around gap-4 blur-sm opacity-60 space-between">
+                <div className="flex flex-wrap justify-center gap-4 blur-sm opacity-60">
                   {[...Array(3)].map((_, index) => (
-                    <ProjectPreview
-                      key={`placeholder-${index}`}
-                      id={index}
-                      name={`Example Project ${index + 1}`}
-                      date={"2025-03-15"}
-                      tags={["React", "TypeScript", "UI/UX"]}
-                      description="This is a placeholder project description to show the recommendation feature"
-                      techStack={["React", "TypeScript", "Node.js"]}
-                      issueCount={0}
-                      recommended={true}
-                    />
+                    <div key={`placeholder-${index}`} className="w-[calc(100%-1rem)] sm:w-[calc(50%-1rem)] lg:w-[calc(33.333%-1rem)]">
+                      <ProjectPreview
+                        id={index}
+                        name={`Example Project ${index + 1}`}
+                        date={"2025-03-15"}
+                        tags={["React", "TypeScript", "UI/UX"]}
+                        description="This is a placeholder project description to show the recommendation feature"
+                        techStack={["React", "TypeScript", "Node.js"]}
+                        issueCount={0}
+                        recommended={true}
+                      />
+                    </div>
                   ))}
                 </div>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="bg-gray-900 bg-opacity-80 rounded-lg p-6 text-center">
-                    <h3 className="text-lg font-bold mb-2">Log in for personalized recommendations</h3>
-                    <p>See projects tailored to your interests and skills</p>
+                <div className="absolute inset-0 flex items-center justify-center p-4">
+                  <div className="bg-gray-900 bg-opacity-80 rounded-lg p-4 sm:p-6 text-center">
+                    <h3 className="text-md sm:text-lg font-bold mb-2">Log in for personalized recommendations</h3>
+                    <p className="text-xs sm:text-sm">See projects tailored to your interests and skills</p>
                   </div>
                 </div>
               </div>
             ) : recommendedProjects.length === 0 ? (
-              <div className="bg-gray-900 rounded-lg p-8 text-center">
-                <h3 className="text-lg font-bold mb-2">Looking for recommendations?</h3>
-                <p className="mb-3 text-sm">Explore and interact with more projects to help us understand your interests!</p>
+              <div className="bg-gray-900 rounded-lg p-6 sm:p-8 text-center mx-2">
+                <h3 className="text-md sm:text-lg font-bold mb-2">Looking for recommendations?</h3>
+                <p className="mb-3 text-xs sm:text-sm">Explore and interact with more projects to help us understand your interests!</p>
               </div>
             ) : (
-              <div className="flex flex-wrap justify-center gap-6">
-                {recommendedProjects.map((project, index) => (
-                  <ProjectPreview
-                    key={`recommended-${project.id}-${index}`}
-                    id={project.id}
-                    name={project.repo_name}
-                    date={project.created_at}
-                    tags={
-                      project.tags && project.tags.filter(tag => tag.is_highlighted).length > 0
-                        ? project.tags.filter(tag => tag.is_highlighted)
-                        : project.tags.slice(0, 3)
-                    }
-                    description={project.custom_description}
-                    techStack={project.technologies
-                      .filter(tech => tech.is_highlighted)
-                      .map(tech => tech.name)}
-                    issueCount={0}
-                    recommended={true}
-                    image={project.image}
-                  />
-                ))}
-              </div>
+              renderProjectList(recommendedProjects, 'recommended')
             )}
           </div>
 
-          {/* --- Trending Section --- */}
           <div className="w-full">
-            <div className="flex justify-between items-center mb-2">
+            <div className="flex justify-between items-center mb-2 px-2">
               <h3 className="inter-bold main-subtitle">Trending Projects:</h3>
               <Link href="/trending" className="text-sm inria-sans-bold title-red hover:underline">View more</Link>
             </div>
             {loadingTrending ? (
-              <div className="flex items-center justify-center p-8">
-                <div className="text-center">
-                  <div className="mb-4">
-                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[--title-red] mx-auto"></div>
-                  </div>
-                  <p className="text-sm text-off-white">Loading trending projects...</p>
-                </div>
-              </div>
+              renderLoadingSpinner('Loading trending projects...')
             ) : trendingProjects.length === 0 ? (
               <div className="text-center text-gray-400 py-4">
                 No trending projects found
               </div>
             ) : (
-              <div className="flex flex-wrap justify-center gap-6">
-                {trendingProjects.map(project => {
-                  const highlightedTags = project.tags.filter(tag => tag.is_highlighted);
-                  const tagsToShow = highlightedTags.length > 0 ? highlightedTags : project.tags.slice(0, 3);
-                  return (
-                    <ProjectPreview
-                      key={`trending-${project.id}`}
-                      id={project.id}
-                      name={project.repo_name}
-                      date={project.created_at}
-                      tags={tagsToShow}
-                      description={project.custom_description}
-                      techStack={project.technologies
-                        .filter(tech => tech.is_highlighted)
-                        .map(tech => tech.name)}
-                      issueCount={project.issueCount || 0}
-                      recommended={false}
-                      image={project.image}
-                    />
-                  );
-                })}
-              </div>
+              renderProjectList(trendingProjects, 'trending')
             )}
           </div>
 
-          {/* --- Newest Section --- */}
           <div className="w-full">
-            <div className="flex justify-between items-center mb-2">
+            <div className="flex justify-between items-center mb-2 px-2">
               <h3 className="inter-bold main-subtitle">Newest Projects:</h3>
               <Link href="/newest" className="text-sm inria-sans-bold title-red hover:underline">View more</Link>
             </div>
             {loadingNewest ? (
-              <div className="flex items-center justify-center p-8">
-                <div className="text-center">
-                  <div className="mb-4">
-                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[--title-red] mx-auto"></div>
-                  </div>
-                  <p className="text-sm text-off-white">Loading newest projects...</p>
-                </div>
-              </div>
+              renderLoadingSpinner('Loading newest projects...')
             ) : newestProjects.length === 0 ? (
               <div className="text-center text-gray-400 py-4">
                 No new projects found
               </div>
             ) : (
-              <div className="flex flex-wrap justify-center gap-6">
-                {newestProjects.map(project => {
-                  const highlightedTags = project.tags.filter(tag => tag.is_highlighted);
-                  const tagsToShow = highlightedTags.length > 0 ? highlightedTags : project.tags.slice(0, 3);
-                  return (
-                    <ProjectPreview
-                      key={`newest-${project.id}`}
-                      id={project.id}
-                      name={project.repo_name}
-                      date={project.created_at}
-                      tags={tagsToShow}
-                      description={project.custom_description}
-                      techStack={project.technologies
-                        .filter(tech => tech.is_highlighted)
-                        .map(tech => tech.name)}
-                      issueCount={project.issueCount || 0}
-                      recommended={false}
-                      image={project.image}
-                    />
-                  );
-                })}
-              </div>
+              renderProjectList(newestProjects, 'newest')
             )}
           </div>
 
-          {/* --- Popular Section --- */}
           <div className="w-full">
-            <div className="flex justify-between items-center mb-2">
+            <div className="flex justify-between items-center mb-2 px-2">
               <h3 className="inter-bold main-subtitle">Popular Projects:</h3>
               <Link href="/popular" className="text-sm inria-sans-bold title-red hover:underline">View more</Link>
             </div>
             {loadingPopular ? (
-              <div className="flex items-center justify-center p-8">
-                <div className="text-center">
-                  <div className="mb-4">
-                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[--title-red] mx-auto"></div>
-                  </div>
-                  <p className="text-sm text-off-white">Loading popular projects...</p>
-                </div>
-              </div>
+              renderLoadingSpinner('Loading popular projects...')
             ) : popularProjects.length === 0 ? (
               <div className="text-center text-gray-400 py-4">
                 No popular projects found
               </div>
             ) : (
-              <div className="flex flex-wrap justify-center gap-6">
-                {popularProjects.map(project => {
-                  const highlightedTags = project.tags.filter(tag => tag.is_highlighted);
-                  const tagsToShow = highlightedTags.length > 0 ? highlightedTags : project.tags.slice(0, 3);
-                  return (
-                    <ProjectPreview
-                      key={`popular-${project.id}`}
-                      id={project.id}
-                      name={project.repo_name}
-                      date={project.created_at}
-                      tags={tagsToShow}
-                      description={project.custom_description}
-                      techStack={project.technologies
-                        .filter(tech => tech.is_highlighted)
-                        .map(tech => tech.name)}
-                      issueCount={project.issueCount || 0}
-                      recommended={false}
-                      image={project.image}
-                    />
-                  );
-                })}
-              </div>
+              renderProjectList(popularProjects, 'popular')
             )}
           </div>
 
-          {/* --- Beginner Section --- */}
           <div className="w-full">
-            <div className="flex justify-between items-center mb-2">
+            <div className="flex justify-between items-center mb-2 px-2">
               <h3 className="inter-bold main-subtitle">Beginner Projects:</h3>
               <Link href="/beginner" className="text-sm inria-sans-bold title-red hover:underline">View more</Link>
             </div>
             {loadingBeginner ? (
-              <div className="flex items-center justify-center p-8">
-                <div className="text-center">
-                  <div className="mb-4">
-                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[--title-red] mx-auto"></div>
-                  </div>
-                  <p className="text-sm text-off-white">Loading beginner projects...</p>
-                </div>
-              </div>
+              renderLoadingSpinner('Loading beginner projects...')
             ) : beginnerProjects.length === 0 ? (
               <div className="text-center text-gray-400 py-4">
                 No beginner projects found
               </div>
             ) : (
-              <div className="flex flex-wrap justify-center gap-6">
-                {beginnerProjects.map(project => {
-                  const highlightedTags = project.tags.filter(tag => tag.is_highlighted);
-                  const tagsToShow = highlightedTags.length > 0 ? highlightedTags : project.tags.slice(0, 3);
-                  return (
-                    <ProjectPreview
-                      key={`beginner-${project.id}`}
-                      id={project.id}
-                      name={project.repo_name}
-                      date={project.created_at}
-                      tags={tagsToShow}
-                      description={project.custom_description}
-                      techStack={project.technologies
-                        .filter(tech => tech.is_highlighted)
-                        .map(tech => tech.name)}
-                      issueCount={project.issueCount || 0}
-                      recommended={false}
-                      image={project.image}
-                    />
-                  );
-                })}
-              </div>
+              renderProjectList(beginnerProjects, 'beginner')
             )}
             <div className="w-full text-center mt-8">
               <a
