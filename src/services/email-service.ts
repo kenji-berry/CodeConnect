@@ -15,7 +15,9 @@ interface Recommendation {
   repo_owner: string;
   difficulty_level?: string;
   custom_description?: string;
-  tags?: { name: string; is_highlighted?: boolean }[];
+  tags?: {
+    tag: any; name: string; is_highlighted?: boolean 
+}[];
   technologies?: { name: string; is_highlighted?: boolean }[];
   recommendationReason?: string[];
 }
@@ -72,7 +74,19 @@ export async function sendRecommendationEmail(
 function formatRecommendationEmail(recommendations: Recommendation[]): string {
   const domainUrl = process.env.NEXT_PUBLIC_DOMAIN_URL || 'https://codeconnect.cc';
   const logoUrl = `https://i.imgur.com/0GT99ZB.png`;
-
+  
+  // Add diagnostic logging
+  console.log("[EMAIL SERVICE] Formatting email with recommendations:", 
+    recommendations.length > 0 ? `${recommendations.length} recommendations` : "No recommendations");
+  
+  if (recommendations.length > 0) {
+    // Log the structure of the first project's tags and technologies
+    const sampleProject = recommendations[0];
+    console.log("[EMAIL SERVICE] Sample project data structure:");
+    console.log(`Project: ${sampleProject.repo_name} (${sampleProject.id})`);
+    console.log("Raw Tags:", JSON.stringify(sampleProject.tags, null, 2));
+    console.log("Raw Technologies:", JSON.stringify(sampleProject.technologies, null, 2));
+  }
   let emailContent = `
     <!DOCTYPE html>
     <html>
@@ -235,15 +249,44 @@ function formatRecommendationEmail(recommendations: Recommendation[]): string {
   `;
 
   recommendations.forEach((project, idx) => {
+    console.log(`[EMAIL SERVICE] Processing project ${idx+1}: ${project.repo_name}`);
     
-    const tagsHtml = project.tags && Array.isArray(project.tags) && project.tags.length > 0
-      ? project.tags.map(tag => {
-          if (!tag) return '';
-          const tagName = typeof tag.name === 'string' ? tag.name : 'Unknown';
-          const isHighlighted = Boolean(tag.is_highlighted);
-          return `<span class="tag ${isHighlighted ? 'tag-highlighted' : 'tag-normal'}">${tagName}${isHighlighted ? ' ★' : ''}</span>`;
-        }).filter(Boolean).join('')
-      : '<span class="tag tag-normal">No tags</span>';
+    console.log(`[EMAIL SERVICE] Project ${project.repo_name} tags:`, JSON.stringify(project.tags, null, 2));
+    
+    let tagsHtml = '<span class="tag tag-normal">No tags</span>';
+    
+    if (project.tags && Array.isArray(project.tags) && project.tags.length > 0) {
+      // Check if tags have the expected structure
+      const tagElements = project.tags.map((tag, i) => {
+        console.log(`[EMAIL SERVICE] Processing tag ${i}:`, JSON.stringify(tag, null, 2));
+        
+        // Handle different possible structures of tag data
+        let tagName = 'Unknown';
+        let isHighlighted = false;
+        
+        if (tag && typeof tag === 'object') {
+          if (typeof tag.name === 'string') {
+            // Direct name property
+            tagName = tag.name;
+          } else if (tag.tag && typeof tag.tag.name === 'string') {
+            tagName = tag.tag.name;
+          }
+          
+          isHighlighted = Boolean(tag.is_highlighted);
+        } else if (typeof tag === 'string') {
+          tagName = tag;
+        }
+        
+        console.log(`[EMAIL SERVICE] Processed tag name: "${tagName}", highlighted: ${isHighlighted}`);
+        return tagName !== 'Unknown' ? 
+          `<span class="tag ${isHighlighted ? 'tag-highlighted' : 'tag-normal'}">${tagName}${isHighlighted ? ' ★' : ''}</span>` : 
+          '';
+      }).filter(Boolean);
+      
+      if (tagElements.length > 0) {
+        tagsHtml = tagElements.join('');
+      }
+    }
 
     const technologiesHtml = project.technologies && Array.isArray(project.technologies) && project.technologies.length > 0
       ? project.technologies.map(tech => {
