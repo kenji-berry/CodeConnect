@@ -9,11 +9,10 @@ export default function useProjectFilters(initialProjects = [], options = {}) {
     numericDifficulty = false,
     defaultDifficulty = 1
   } = options;
-  
+
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Filter states
   const [availableTechnologies, setAvailableTechnologies] = useState([]);
   const [availableTags, setAvailableTags] = useState([]);
   const [projects, setProjects] = useState(initialProjects);
@@ -28,8 +27,7 @@ export default function useProjectFilters(initialProjects = [], options = {}) {
   const [selectedMentorship, setSelectedMentorship] = useState("");
   const [setupTimeMin, setSetupTimeMin] = useState("");
   const [setupTimeMax, setSetupTimeMax] = useState("");
-  
-  // Load filters from URL parameters
+
   useEffect(() => {
     const technologies = searchParams.get("technologies")?.split(",") || [];
     const contributionTypes = searchParams.get("contributionTypes")?.split(",") || [];
@@ -46,13 +44,10 @@ export default function useProjectFilters(initialProjects = [], options = {}) {
     setSelectedContributionTypes(contributionTypes.filter(Boolean));
     setSelectedTags(tags.filter(Boolean));
 
-    // Ensure we handle the difficulties value consistently
     let difficultiesValue = [];
     if (numericDifficulty) {
-      // For numeric difficulties, parse to numbers
       difficultiesValue = difficultiesParam ? difficultiesParam.split(",").map(Number) : [];
     } else {
-      // For string difficulties, use as-is
       difficultiesValue = difficultiesParam ? difficultiesParam.split(",") : [];
     }
     setSelectedDifficulties(difficultiesValue);
@@ -64,8 +59,7 @@ export default function useProjectFilters(initialProjects = [], options = {}) {
     setSetupTimeMin(setupMin);
     setSetupTimeMax(setupMax);
   }, [searchParams, includeTags, numericDifficulty]);
-  
-  // Fetch available technologies
+
   useEffect(() => {
     const fetchTechnologies = async () => {
       try {
@@ -89,8 +83,7 @@ export default function useProjectFilters(initialProjects = [], options = {}) {
 
     fetchTechnologies();
   }, []);
-  
-  // Fetch available tags - New function
+
   useEffect(() => {
     const fetchTags = async () => {
       try {
@@ -114,11 +107,13 @@ export default function useProjectFilters(initialProjects = [], options = {}) {
 
     fetchTags();
   }, []);
-  
-  // Fetch latest commit timestamps and attach to projects
+
   useEffect(() => {
     const fetchLatestCommits = async () => {
+      if (!projects || projects.length === 0) return; // Avoid fetching if no projects
+
       const projectIds = projects.map(p => p.id);
+      if (projectIds.length === 0) return; // Avoid fetching if no IDs
 
       const { data: commitData, error: commitError } = await supabase
         .from('project_commits')
@@ -130,7 +125,6 @@ export default function useProjectFilters(initialProjects = [], options = {}) {
         return;
       }
 
-      // Build a map of project_id -> latest commit timestamp
       const latestCommitMap = {};
       if (commitData) {
         commitData.forEach(commit => {
@@ -144,28 +138,40 @@ export default function useProjectFilters(initialProjects = [], options = {}) {
         });
       }
 
-      // Attach last_commit_at to each project
-      const projectsWithCommits = projects.map(project => ({
-        ...project,
-        last_commit_at: latestCommitMap[project.id] || null,
-      }));
+      // Check if commit data actually changed anything before updating state
+      let needsUpdate = false;
+      const projectsWithCommits = projects.map(project => {
+        const last_commit_at = latestCommitMap[project.id] || null;
+        if (project.last_commit_at !== last_commit_at) {
+          needsUpdate = true;
+        }
+        return {
+          ...project,
+          last_commit_at,
+        };
+      });
 
-      setProjects(projectsWithCommits);
+      // Only update state if commit data has changed to prevent loop
+      if (needsUpdate) {
+        setProjects(projectsWithCommits);
+      }
     };
 
     fetchLatestCommits();
-  }, [projects]);
-  
-  // Apply filters when filter state or projects change
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projects]); // Keep dependency on projects, but logic inside prevents loop
+
   useEffect(() => {
-    if (!projects.length) return;
+    if (!projects) {
+      setFilteredProjects([]);
+      return;
+    }
 
     let filtered = [...projects];
 
-    // Apply technology filter
     if (selectedTechnologies.length > 0) {
       filtered = filtered.filter(project => {
-        const projectTechs = project.technologies.map(tech => tech.name);
+        const projectTechs = (project.technologies || []).map(tech => tech.name);
         if (filterMode === 'AND') {
           return selectedTechnologies.every(tech => projectTechs.includes(tech));
         } else {
@@ -173,8 +179,7 @@ export default function useProjectFilters(initialProjects = [], options = {}) {
         }
       });
     }
-    
-    // Apply tag filter if enabled
+
     if (includeTags && selectedTags.length > 0) {
       filtered = filtered.filter(project => {
         const projectTagNames = (project.tags || []).map(t => typeof t === "string" ? t : t.name);
@@ -185,11 +190,10 @@ export default function useProjectFilters(initialProjects = [], options = {}) {
         }
       });
     }
-    
-    // Apply contribution type filter
+
     if (selectedContributionTypes.length > 0) {
       filtered = filtered.filter(project => {
-        const projectTags = project.tags || [];
+        const projectTags = (project.tags || []).map(t => typeof t === "string" ? t : t.name); // Assuming contribution types are stored as tags
         if (filterMode === 'AND') {
           return selectedContributionTypes.every(type => projectTags.includes(type));
         } else {
@@ -197,16 +201,15 @@ export default function useProjectFilters(initialProjects = [], options = {}) {
         }
       });
     }
-    
-    // Apply difficulties filter - ensure we're comparing numbers
+
     if (selectedDifficulties.length > 0) {
       filtered = filtered.filter(project => {
-        const projectDifficulty = Number(project.difficulty_level);
-        return selectedDifficulties.map(Number).includes(projectDifficulty);
+        const projectDifficulty = numericDifficulty ? Number(project.difficulty_level) : project.difficulty_level;
+        const difficultiesToCompare = numericDifficulty ? selectedDifficulties.map(Number) : selectedDifficulties;
+        return difficultiesToCompare.includes(projectDifficulty);
       });
     }
-    
-    // Apply lastUpdated filter
+
     if (selectedLastUpdated) {
       const now = new Date();
       let timeLimit;
@@ -226,14 +229,12 @@ export default function useProjectFilters(initialProjects = [], options = {}) {
       }
     }
 
-    // License filter
     if (selectedLicense) {
       filtered = filtered.filter(
         (project) => project.license === selectedLicense
       );
     }
 
-    // Mentorship filter
     if (selectedMentorship) {
       filtered = filtered.filter(
         (project) =>
@@ -242,7 +243,6 @@ export default function useProjectFilters(initialProjects = [], options = {}) {
       );
     }
 
-    // Setup time filter
     if (setupTimeMin) {
       filtered = filtered.filter(
         (project) =>
@@ -269,22 +269,19 @@ export default function useProjectFilters(initialProjects = [], options = {}) {
     selectedLastUpdated,
     filterMode,
     numericDifficulty,
-    selectedLicense, // Ensure this is included in the dependency array
+    selectedLicense,
     selectedMentorship,
     setupTimeMin,
     setupTimeMax,
   ]);
 
-  // Memoize updateProjects to prevent unnecessary re-renders
   const updateProjects = useCallback((newProjects) => {
     setProjects(newProjects);
-    setFilteredProjects(newProjects);
   }, []);
-  
-  // Update URL when filters change
+
   const updateUrl = (params) => {
     const urlParams = new URLSearchParams(searchParams);
-    
+
     Object.entries(params).forEach(([key, value]) => {
       if (Array.isArray(value) && value.length > 0) {
         urlParams.set(key, value.join(","));
@@ -296,39 +293,35 @@ export default function useProjectFilters(initialProjects = [], options = {}) {
         urlParams.delete(key);
       }
     });
-    
+
     router.push(`?${urlParams.toString()}`, { scroll: false });
   };
-  
-  // Filter handlers
+
   const handleTechnologiesChange = (techs) => {
     setSelectedTechnologies(techs);
     updateUrl({ technologies: techs });
   };
-  
+
   const handleContributionTypesChange = (types) => {
     setSelectedContributionTypes(types);
     updateUrl({ contributionTypes: types });
   };
-  
+
   const handleTagsChange = (tags) => {
     setSelectedTags(tags);
     updateUrl({ tags });
   };
-  
+
   const handleDifficultyChange = (difficulties) => {
-    // Update the state first
     setSelectedDifficulties(difficulties);
-    
-    // Then update the URL with a consistent value
-    updateUrl({ difficulties: difficulties.length > 0 ? difficulties : "" });
+    updateUrl({ difficulties: difficulties.length > 0 ? difficulties.join(',') : "" });
   };
-  
+
   const handleLastUpdatedChange = (lastUpdated) => {
     setSelectedLastUpdated(lastUpdated || "");
     updateUrl({ lastUpdated: lastUpdated || "" });
   };
-  
+
   const handleFilterModeChange = (mode) => {
     setFilterMode(mode || "AND");
     updateUrl({ filterMode: mode || "AND" });
@@ -353,7 +346,7 @@ export default function useProjectFilters(initialProjects = [], options = {}) {
     setSetupTimeMax(max);
     updateUrl({ setupTimeMax: max });
   };
-  
+
   const clearAllFilters = () => {
     setSelectedTechnologies([]);
     setSelectedContributionTypes([]);
@@ -370,7 +363,7 @@ export default function useProjectFilters(initialProjects = [], options = {}) {
 
   return {
     availableTechnologies,
-    availableTags, // Add availableTags to the return value
+    availableTags,
     selectedTechnologies,
     selectedContributionTypes,
     selectedDifficulties,
