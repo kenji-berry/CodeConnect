@@ -161,7 +161,7 @@ function NewestProjectsContent() {
       title="Newest Projects"
       loading={loading}
       filterProps={{ ...filterProps, ...restFilterProps }}
-      projectCount={projects.length} // This itself could error if projects becomes undefined, though less likely
+      projectCount={projects.length}
     >
       {loading && (!projects || projects.length === 0) ? ( // Added check for !projects
          <div className="text-center py-12">Loading projects...</div>
@@ -181,20 +181,20 @@ function NewestProjectsContent() {
                 return null; // Skip rendering this invalid item
               }
 
-              console.log(`Rendering ProjectPreview for ID: ${project.id}, Name: ${project.repo_name}`);
+              const techStackToShow = project.technologies
+                ?.filter(tech => tech.is_highlighted)
+                .map(tech => tech.name) || [];
 
               return (
                 <ProjectPreview
                   key={project.id}
                   id={project.id}
-                  name={project.repo_name || 'Unnamed Project'} // Add fallback for name
-                  date={project.created_at || new Date().toISOString()} // Add fallback for date
-                  // --- Add default empty arrays here ---
+                  name={project.repo_name || 'Unnamed Project'} 
+                  date={project.created_at || new Date().toISOString()}
                   tags={Array.isArray(project.tags) ? project.tags : []}
-                  technologies={Array.isArray(project.technologies) ? project.technologies : []}
-                  // --- End default arrays ---
-                  description={project.custom_description || 'No description available.'} // Add fallback
-                  issueCount={0} // Placeholder
+                  techStack={techStackToShow}
+                  description={project.custom_description || 'No description available.'}
+                  issueCount={0}
                   recommended={false}
                   image={project.image}
                 />
