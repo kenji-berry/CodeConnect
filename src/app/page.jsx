@@ -510,7 +510,7 @@ function HomeContent() {
 
   return (
     <div className="w-full min-h-screen flex flex-col items-center px-2 sm:px-4">
-      <div className="hidden md:block w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg xl:max-w-xl 2xl:max-w-2xl my-4 md:my-6">
+      <div className="hidden md:flex w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg xl:max-w-xl 2xl:max-w-2xl my-4 md:my-6 justify-center items-center">
         <CodeConnectTitle />
       </div>
       {notification && (
