@@ -386,21 +386,21 @@ export default async function handler(req, res) {
           console.log(`🔄 API: Processing ${issues.length} GitHub issues`);
           const onlyIssues = issues.filter(issue => !issue.pull_request);
           if (onlyIssues.length > 0) {
-            const issuesToInsert = onlyIssues.map(issue => ({
-              project_id: finalProjectId,
-              issue_number: issue.number,
-              title: issue.title,
-              body: issue.body,
-              state: issue.state,
-              created_at: issue.created_at,
-              updated_at: issue.updated_at,
-              closed_at: issue.closed_at,
-              github_id: String(issue.id),
-              github_url: issue.html_url,
-              user_login: issue.user?.login || null,
-              user_avatar: issue.user?.avatar_url || null,
-              labels: issue.labels?.map(label => label.name) || []
-            }));
+            const issuesToInsert = onlyIssues.map(issue => {
+              const labels = Array.isArray(issue.labels) ? issue.labels.map(l => l.name) : [];
+              return {
+                project_id: finalProjectId,
+                issue_id: String(issue.id),
+                title: issue.title?.substring(0, 1000) || null,
+                body: issue.body?.substring(0, 10000) || null,
+                state: issue.state?.substring(0, 100) || null,
+                created_at: issue.created_at ? new Date(issue.created_at) : null,
+                updated_at: issue.updated_at ? new Date(issue.updated_at) : null,
+                number: issue.number,
+                labels,
+                url: issue.html_url?.substring(0, 500) || null,
+              };
+            });
             for (let i = 0; i < issuesToInsert.length; i += 50) {
               const batch = issuesToInsert.slice(i, i + 50);
               const { error } = await supabase.from('project_issues').insert(batch);
@@ -412,23 +412,22 @@ export default async function handler(req, res) {
           const pulls = await fetchAllFromGitHub(`https://api.github.com/repos/${owner}/${repoName}/pulls?state=all`, githubToken);
           console.log(`🔄 API: Processing ${pulls.length} GitHub pull requests`);
           if (pulls.length > 0) {
-            const prsToInsert = pulls.map(pr => ({
-              project_id: finalProjectId,
-              pr_number: pr.number,
-              title: pr.title,
-              body: pr.body,
-              state: pr.state,
-              created_at: pr.created_at,
-              updated_at: pr.updated_at,
-              closed_at: pr.closed_at,
-              merged_at: pr.merged_at,
-              github_id: String(pr.id),
-              github_url: pr.html_url,
-              user_login: pr.user?.login || null,
-              user_avatar: pr.user?.avatar_url || null,
-              draft: pr.draft || false,
-              merged: !!pr.merged_at
-            }));
+            const prsToInsert = pulls.map(pr => {
+              const labels = Array.isArray(pr.labels) ? pr.labels.map(l => l.name) : [];
+              return {
+                project_id: finalProjectId,
+                pr_id: String(pr.id),
+                title: pr.title?.substring(0, 1000) || null,
+                body: pr.body?.substring(0, 10000) || null,
+                state: pr.state?.substring(0, 100) || null,
+                created_at: pr.created_at ? new Date(pr.created_at) : null,
+                updated_at: pr.updated_at ? new Date(pr.updated_at) : null,
+                number: pr.number,
+                labels,
+                url: pr.html_url?.substring(0, 500) || null,
+                merged: !!pr.merged_at,
+              };
+            });
             for (let i = 0; i < prsToInsert.length; i += 50) {
               const batch = prsToInsert.slice(i, i + 50);
               const { error } = await supabase.from('project_pull_requests').insert(batch);
@@ -442,15 +441,12 @@ export default async function handler(req, res) {
           if (commits.length > 0) {
             const commitsToInsert = commits.map(commit => ({
               project_id: finalProjectId,
-              sha: commit.sha,
-              message: commit.commit?.message || '',
-              author_name: commit.commit?.author?.name || null,
-              author_email: commit.commit?.author?.email || null,
-              author_date: commit.commit?.author?.date || null,
-              github_url: commit.html_url,
-              author_login: commit.author?.login || null,
-              author_avatar: commit.author?.avatar_url || null,
-              verified: commit.commit?.verification?.verified || false
+              commit_id: commit.sha,
+              message: commit.commit?.message?.substring(0, 1000) || null,
+              author: commit.commit?.author?.name?.substring(0, 100) || null,
+              timestamp: commit.commit?.author?.date ? new Date(commit.commit.author.date) : null,
+              url: commit.html_url?.substring(0, 500) || null,
+              branch: null,
             }));
             for (let i = 0; i < commitsToInsert.length; i += 50) {
               const batch = commitsToInsert.slice(i, i + 50);
