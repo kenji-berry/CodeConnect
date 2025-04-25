@@ -83,14 +83,14 @@ function formatRecommendationEmail(recommendations: Recommendation[]): string {
         body {
           font-family: "Inter", -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
           line-height: 1.6;
-          color: #e4e4e7;
+          color: #f5f5f5;
           max-width: 600px;
           margin: 0 auto;
           padding: 0;
           background-color: #18181b;
         }
         .wrapper {
-          background-color: #18181b;
+          background: linear-gradient(135deg, #18181b 0%, #232323 60%, #1a1a1a 100%);
           border-radius: 12px;
           overflow: hidden;
           margin: 20px 0;
@@ -110,7 +110,7 @@ function formatRecommendationEmail(recommendations: Recommendation[]): string {
           padding: 30px 25px;
         }
         h1 {
-          color: #e4e4e7;
+          color: #f5f5f5;
           font-size: 26px;
           margin-top: 0;
           margin-bottom: 20px;
@@ -119,14 +119,14 @@ function formatRecommendationEmail(recommendations: Recommendation[]): string {
         }
         .intro {
           margin-bottom: 30px;
-          color: #a1a1aa;
+          color: #e4e4e7;
         }
         .project-card {
           margin-bottom: 25px;
           border: 1px solid #EC7373;
           border-radius: 12px;
           padding: 20px;
-          background-color: #232323;
+          background-color: rgba(35, 35, 35, 0.7);
           box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
         }
         .project-title {
@@ -134,21 +134,21 @@ function formatRecommendationEmail(recommendations: Recommendation[]): string {
           font-weight: 700;
           margin-top: 0;
           margin-bottom: 10px;
-          color: #e4e4e7;
+          color: #f5f5f5;
           font-family: "Inria Sans", sans-serif;
         }
         .project-meta {
           font-size: 14px;
-          color: #a1a1aa;
+          color: #e4e4e7;
           margin-bottom: 14px;
         }
         .project-meta strong {
-          color: #e4e4e7;
+          color: #f5f5f5;
           font-weight: 600;
         }
         .project-desc {
           margin-bottom: 16px;
-          color: #d4d4d8;
+          color: #f0f0f0;
         }
         .tag {
           display: inline-block;
@@ -166,15 +166,38 @@ function formatRecommendationEmail(recommendations: Recommendation[]): string {
         }
         .tag-normal {
           background-color: #3f3f46; /* Darker gray bg (Tailwind zinc-700) */
-          color: #d4d4d8; /* Lighter gray text */
+          color: #f0f0f0; /* Lighter gray text */
           border-color: #52525b; /* zinc-600 */
         }
         .tags-container {
           margin-bottom: 16px;
         }
+        .highlighted-tech {
+          margin: 16px 0;
+          padding: 10px 15px;
+          background-color: rgba(254, 138, 24, 0.1);
+          border-radius: 8px;
+          border-left: 3px solid #FE8A18;
+        }
+        .highlighted-tech-title {
+          font-weight: 600;
+          color: #FE8A18;
+          margin-bottom: 8px;
+        }
+        .tech-tag {
+          display: inline-block;
+          font-size: 12px;
+          padding: 3px 10px;
+          border-radius: 12px;
+          margin-right: 5px;
+          margin-bottom: 5px;
+          background-color: rgba(254, 138, 24, 0.2);
+          color: #FE8A18;
+          border: 1px solid rgba(254, 138, 24, 0.3);
+        }
         .reason {
           font-size: 13px;
-          color: #a1a1aa;
+          color: #e4e4e7;
           font-style: italic;
           margin: 16px 0 12px 0;
           padding-left: 12px;
@@ -200,7 +223,7 @@ function formatRecommendationEmail(recommendations: Recommendation[]): string {
           padding: 25px 20px;
           text-align: center;
           font-size: 12px;
-          color: #a1a1aa;
+          color: #e4e4e7;
           background-color: #232323;
           border-top: 1px solid #EC7373;
         }
@@ -227,11 +250,24 @@ function formatRecommendationEmail(recommendations: Recommendation[]): string {
   `;
 
   recommendations.forEach(project => {
-    const tagsHtml = project.tags && project.tags.length > 0
-      ? project.tags.map(tag =>
-          `<span class="tag ${tag.is_highlighted ? 'tag-highlighted' : 'tag-normal'}">${tag.name}</span>`
+    // Fix for tags: ensure we safely handle undefined values and empty arrays
+    const tagsHtml = project.tags && Array.isArray(project.tags) && project.tags.length > 0
+      ? project.tags.map(tag => 
+          `<span class="tag ${tag.is_highlighted ? 'tag-highlighted' : 'tag-normal'}">${tag.name || 'Unknown'}</span>`
         ).join('')
       : '<span class="tag tag-normal">No tags</span>';
+    
+    // Extract highlighted technologies from tags
+    const highlightedTags = project.tags && Array.isArray(project.tags) 
+      ? project.tags.filter(tag => tag.is_highlighted)
+      : [];
+    
+    const highlightedTechHtml = highlightedTags.length > 0 
+      ? `<div class="highlighted-tech">
+           <div class="highlighted-tech-title">Highlighted Technologies:</div>
+           ${highlightedTags.map(tag => `<span class="tech-tag">${tag.name || 'Unknown'}</span>`).join('')}
+         </div>`
+      : '';
 
     const description = project.custom_description
       ? (project.custom_description.length > 150
@@ -253,9 +289,13 @@ function formatRecommendationEmail(recommendations: Recommendation[]): string {
         <div class="tags-container">
           ${tagsHtml}
         </div>
+        
+        ${highlightedTechHtml}
 
         <p class="reason">
-          ${project.recommendationReason?.[0] || 'Based on your preferences'}
+          ${project.recommendationReason && Array.isArray(project.recommendationReason) && project.recommendationReason.length > 0 
+            ? project.recommendationReason[0] 
+            : 'Based on your preferences'}
         </p>
 
         <a href="${domainUrl}/projects/${project.id}" class="button">View Project</a>
