@@ -253,7 +253,10 @@ function HomeContent() {
           .from('project')
           .select(`
             id, repo_name, repo_owner, description_type,
-            custom_description, difficulty_level, created_at, image
+            custom_description, difficulty_level, created_at, image,
+            project_commits ( timestamp ),
+            project_issues ( updated_at ),
+            project_pull_requests ( updated_at )
           `)
           .in('id', projectIds);
 
@@ -262,11 +265,24 @@ function HomeContent() {
         const projectsWithData = await Promise.all(
           projects.map(async (project) => {
             const { technologies, tags } = await fetchTagsAndTech(project.id);
+            
+            const dates = [
+              project.created_at,
+              ...(project.project_commits || []).map(commit => commit.timestamp),
+              ...(project.project_issues || []).map(issue => issue.updated_at),
+              ...(project.project_pull_requests || []).map(pr => pr.updated_at)
+            ].filter(Boolean);
+            
+            const latestDate = dates.length > 0 
+              ? new Date(Math.max(...dates.map(date => new Date(date).getTime()))).toISOString()
+              : project.created_at;
+            
             return {
               ...project,
               technologies,
               tags,
-              issueCount: openIssueCountMap[project.id] || 0
+              issueCount: openIssueCountMap[project.id] || 0,
+              latest_activity_date: latestDate
             };
           })
         );
@@ -500,7 +516,7 @@ function HomeContent() {
             key={`${type}-${project.id}-${index}`}
             id={project.id}
             name={project.repo_name}
-            date={project.created_at}
+            date={project.latest_activity_date || project.created_at}
             tags={tagsToShow}
             description={project.custom_description}
             techStack={project.technologies
