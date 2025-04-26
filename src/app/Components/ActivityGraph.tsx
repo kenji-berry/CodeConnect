@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
+import { supabase } from '@/supabaseClient';
 
 interface ActivityGraphProps {
-  owner: string;
-  repo: string;
+  projectId: number;
   weeks?: number;
 }
 
@@ -12,7 +12,7 @@ interface CommitData {
   timestamp: number;
 }
 
-const ActivityGraph: React.FC<ActivityGraphProps> = ({ owner, repo, weeks = 8 }) => {
+const ActivityGraph: React.FC<ActivityGraphProps> = ({ projectId, weeks = 8 }) => {
   const [commitData, setCommitData] = useState<CommitData[]>([]);
   const [maxCount, setMaxCount] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
@@ -20,45 +20,45 @@ const ActivityGraph: React.FC<ActivityGraphProps> = ({ owner, repo, weeks = 8 })
 
   useEffect(() => {
     const fetchCommitActivity = async () => {
-      if (!owner || !repo) {
-        setError("Repository information is missing");
+      if (!projectId) {
+        setError("Project ID is missing");
         setIsLoading(false);
         return;
       }
       
       try {
         setIsLoading(true);
-        const response = await fetch(`/api/github/weekly-commits?owner=${owner}&repo=${repo}&weeks=${weeks}`);
         
-        if (response.status === 202) {
-          setError("GitHub is processing statistics. Please try again in a moment.");
-          setIsLoading(false);
-          return;
+        // Calculate date range for filtering (X weeks back from now)
+        const endDate = new Date();
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - (weeks * 7));
+        
+        // Query commits from Supabase
+        const { data: commits, error: commitError } = await supabase
+          .from('project_commits')
+          .select('timestamp')
+          .eq('project_id', projectId)
+          .gte('timestamp', startDate.toISOString())
+          .lte('timestamp', endDate.toISOString())
+          .order('timestamp', { ascending: true });
+        
+        if (commitError) {
+          throw new Error(commitError.message);
         }
         
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to fetch commit data');
-        }
-        
-        const data = await response.json();
-        
-        // Check if data is valid
-        if (!Array.isArray(data)) {
-          setError('Invalid data received from GitHub');
-          setIsLoading(false);
-          return;
-        }
-        
-        if (data.length === 0) {
+        if (!commits || commits.length === 0) {
           setError(`No commit activity found in the last ${weeks} weeks`);
           setIsLoading(false);
           return;
         }
         
-        const max = Math.max(...data.map(week => week.count));
+        // Group commits by week
+        const weeklyData = processCommitsByWeek(commits, weeks);
+        
+        const max = Math.max(...weeklyData.map(week => week.count));
         setMaxCount(max || 1); // Use 1 as minimum to avoid division by zero
-        setCommitData(data);
+        setCommitData(weeklyData);
         setError(null);
       } catch (error: unknown) {
         console.error('Error fetching commit activity:', error);
@@ -77,7 +77,61 @@ const ActivityGraph: React.FC<ActivityGraphProps> = ({ owner, repo, weeks = 8 })
     };
 
     fetchCommitActivity();
-  }, [owner, repo, weeks]);
+  }, [projectId, weeks]);
+
+  // Process raw commits into weekly data points
+  const processCommitsByWeek = (commits: any[], weeksToShow: number) => {
+    // Create an array of weekly buckets
+    const weeklyBuckets: { [key: string]: number } = {};
+    const today = new Date();
+    
+    // Initialize buckets for each week
+    for (let i = 0; i < weeksToShow; i++) {
+      const weekStart = new Date();
+      weekStart.setDate(today.getDate() - ((weeksToShow - i - 1) * 7));
+      
+      // Format the date as YYYY-MM-DD for the first day of the week
+      const weekKey = formatDateToWeekKey(weekStart);
+      weeklyBuckets[weekKey] = 0;
+    }
+    
+    // Count commits per week
+    commits.forEach(commit => {
+      const commitDate = new Date(commit.timestamp);
+      const weekKey = formatDateToWeekKey(commitDate);
+      
+      if (weeklyBuckets[weekKey] !== undefined) {
+        weeklyBuckets[weekKey]++;
+      } else {
+      }
+    });
+    
+    // Convert to array format for rendering
+    return Object.entries(weeklyBuckets).map(([date, count]) => ({
+      date: formatWeekLabel(date),
+      count,
+      timestamp: new Date(date).getTime()
+    }));
+  };
+  
+  // Format a date to YYYY-MM-DD for week keys
+  const formatDateToWeekKey = (date: Date): string => {
+    // Get the week start (Sunday)
+    const dayOfWeek = date.getDay();
+    const weekStart = new Date(date);
+    weekStart.setDate(date.getDate() - dayOfWeek);
+    
+    return weekStart.toISOString().split('T')[0];
+  };
+  
+  // Format week label for display ("Apr 19")
+  const formatWeekLabel = (dateStr: string): string => {
+    const date = new Date(dateStr);
+    return new Intl.DateTimeFormat('en-US', { 
+      month: 'short', 
+      day: 'numeric'
+    }).format(date);
+  };
 
   if (isLoading) {
     return (
