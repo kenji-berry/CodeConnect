@@ -355,7 +355,7 @@ function RecommendedProjectsContent() {
       loading={loading && user === undefined}
       filterProps={filterPropsForLayout}
       projectCount={user && !loading ? sortedProjects.length : 0}
-      sortOptions={Object.values(SORT_OPTIONS)}
+      availableSortOptions={Object.values(SORT_OPTIONS)}
       selectedSortOption={sortOption}
       onSortChange={setSortOption}
     >
