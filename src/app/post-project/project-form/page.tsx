@@ -330,19 +330,20 @@ function ProjectFormContent() {
             });
         
             const nonRemovableTechnologies = Object.keys(languagesData || {}).map(lang => lang.toLowerCase());
+            /*
             console.log('In fetchAllData, about to set technologies:', 
                         'technologies:', nonRemovableTechnologies,
                         'isEditMode:', isEditMode, 
                         'hasPrefilled:', hasPrefilled);
-            
+            */
             const currentHasPrefilled = isEditMode && hasPrefilled;
-            console.log('Current hasPrefilled value:', currentHasPrefilled);
+            //console.log('Current hasPrefilled value:', currentHasPrefilled);
             
             if (!currentHasPrefilled) {
-              console.log('Setting technologies from fetchAllData');
+              //console.log('Setting technologies from fetchAllData');
               setSelectedTechnologies(nonRemovableTechnologies);
             } else {
-              console.log('Skipping technology update - data already loaded');
+              //console.log('Skipping technology update - data already loaded');
             }
           } catch (error) {
             console.error('Error fetching GitHub repository data:', error);
@@ -359,7 +360,7 @@ function ProjectFormContent() {
 
     const fetchExistingProject = async () => {
       if (!repoName || !owner) return;
-      console.log('Fetching existing project data...');
+      //console.log('Fetching existing project data...');
       
       try {
         const { data: project, error } = await supabase
@@ -411,7 +412,7 @@ function ProjectFormContent() {
           const projectTechs = (project.project_technologies || [])
             .map((pt: ProjectTechnology) => pt.technologies?.name)
             .filter(Boolean);
-          console.log('Loading existing technologies from DB:', projectTechs);
+          //console.log('Loading existing technologies from DB:', projectTechs);
           setSelectedTechnologies(projectTechs);
           
           setHighlightedTechnologies((project.project_technologies || [])
@@ -475,7 +476,7 @@ function ProjectFormContent() {
           setBannerImagePreview(project.image || null);
 
           setTimeout(() => {
-            console.log('Setting hasPrefilled to true');
+            //console.log('Setting hasPrefilled to true');
             setHasPrefilled(true);
           }, 0);
           
@@ -509,7 +510,7 @@ function ProjectFormContent() {
             .filter((tag): tag is { name: string } => tag && typeof tag.name === 'string')
             .map(tag => tag.name)
             .filter(name => name.length > 0);
-          console.log(`Loaded ${tagNames.length} tags`);
+          //console.log(`Loaded ${tagNames.length} tags`);
           setTags(tagNames);
           setAvailableTags(tagNames);
         } else {
@@ -521,7 +522,7 @@ function ProjectFormContent() {
             .filter((tech): tech is { name: string } => tech && typeof tech.name === 'string')
             .map(tech => tech.name)
             .filter(name => name.length > 0);
-          console.log(`Loaded ${techNames.length} technologies`);
+          //console.log(`Loaded ${techNames.length} technologies`);
           setTechnologies(techNames);
           setAvailableTechnologies(techNames);
         } else {
@@ -533,7 +534,7 @@ function ProjectFormContent() {
             .filter((type): type is { name: string } => type && typeof type.name === 'string')
             .map(type => type.name)
             .filter(name => name.length > 0);
-          console.log(`Loaded ${contributionTypeNames.length} contribution types:`, contributionTypeNames);
+          //console.log(`Loaded ${contributionTypeNames.length} contribution types:`, contributionTypeNames);
           setContributionTypes(contributionTypeNames);
         } else {
           console.error('Error loading contribution types:', contributionTypesResponse.error);
@@ -543,17 +544,17 @@ function ProjectFormContent() {
         console.error('Error fetching form options:', error);
       }
 
-      console.log('Checking for existing project data...');
+      //console.log('Checking for existing project data...');
       const existingTechs = await fetchExistingProject();
       
       if (!existingTechs) {
-        console.log('No existing project data found, fetching from GitHub API');
+        //console.log('No existing project data found, fetching from GitHub API');
         fetchAllData();
       } else {
-        console.log('Using existing project data, skipping GitHub API fetch');
+        //console.log('Using existing project data, skipping GitHub API fetch');
       }
       
-      console.log('Project form initialization complete');
+      //console.log('Project form initialization complete');
     };
     
     initializeProjectForm();
@@ -583,9 +584,11 @@ function ProjectFormContent() {
   }, [repoName, owner, availableTags, availableTechnologies]);
 
   useEffect(() => {
+    /*
     console.log('selectedTechnologies changed:', selectedTechnologies, 
                 'isEditMode:', isEditMode, 
                 'hasPrefilled:', hasPrefilled);
+    */
   }, [selectedTechnologies]);
 
   const validateSubmission = async () => {

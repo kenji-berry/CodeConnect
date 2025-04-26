@@ -13,9 +13,9 @@ async function getTrendingProjects(limit = 5) {
     const oneWeekAgo = new Date();
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
 
-    console.log(`Fetching trending projects for past 7 days (since ${oneWeekAgo.toISOString()})`);
+    //console.log(`Fetching trending projects for past 7 days (since ${oneWeekAgo.toISOString()})`);
 
-    console.log('Attempting RPC call to get_trending_projects...');
+    //console.log('Attempting RPC call to get_trending_projects...');
     const { data, error } = await supabase.rpc('get_trending_projects', {
       lookback_days: 7,
       results_limit: limit
@@ -29,11 +29,11 @@ async function getTrendingProjects(limit = 5) {
         code: error.code
       });
 
-      console.log('RPC failed, returning empty array');
+      //console.log('RPC failed, returning empty array');
       return [];
     }
 
-    console.log('RPC succeeded, trending projects:', data);
+    //console.log('RPC succeeded, trending projects:', data);
     return data || [];
   } catch (error) {
     console.error('Unhandled error in getTrendingProjects:', error.message || error);

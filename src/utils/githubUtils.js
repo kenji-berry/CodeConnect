@@ -22,8 +22,8 @@ function levenshteinDistance(a, b) {
 }
 
 export const extractTagsFromReadme = (readmeContent, availableTags = [], availableTechnologies = []) => {
-  console.log('Extracting tags from README with fuzzy matching:');
-  console.log('- README length:', readmeContent?.length || 0);
+  //console.log('Extracting tags from README with fuzzy matching:');
+  //console.log('- README length:', readmeContent?.length || 0);
   
   if (!readmeContent) return { tags: [], technologies: [] };
 
@@ -93,8 +93,8 @@ export const extractTagsFromReadme = (readmeContent, availableTags = [], availab
     tags: [...new Set(tags)]  // Remove duplicates
   };
   
-  console.log('Fuzzy matched tag suggestions:', result.tags);
-  console.log('Fuzzy matched technology suggestions:', result.technologies);
+  //console.log('Fuzzy matched tag suggestions:', result.tags);
+  //console.log('Fuzzy matched technology suggestions:', result.technologies);
   
   return result;
 };

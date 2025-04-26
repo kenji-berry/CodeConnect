@@ -7,12 +7,12 @@ export default async function handler(req, res) {
 
   try {
     const { access_token, expires_in } = req.body;
-    
+    /*
     console.log('Setting access token in cookie:', { 
       hasAccessToken: !!access_token,
       expiresIn: expires_in
     });
-
+    */
     // Set access token cookie only
     const cookie = serialize('github_access_token', access_token, {
       httpOnly: true,

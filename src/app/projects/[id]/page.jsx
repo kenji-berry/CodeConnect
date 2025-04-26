@@ -584,7 +584,7 @@ const ProjectDetails = () => {
 
     try {
       const commentToInsert = await cleanCommentText(trimmedComment);
-      console.log('Cleaned comment to insert:', commentToInsert);
+      //console.log('Cleaned comment to insert:', commentToInsert);
 
       if (typeof commentToInsert !== 'string') {
           console.error('Cleaned comment is not a string:', commentToInsert);

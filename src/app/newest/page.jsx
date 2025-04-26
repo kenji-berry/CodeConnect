@@ -125,7 +125,7 @@ function NewestProjectsContent() {
         results_offset: offset,
       };
 
-      console.log('[Newest Page] Calling RPC get_filtered_paginated_projects with args:', JSON.stringify(rpcArgs, null, 2));
+      //console.log('[Newest Page] Calling RPC get_filtered_paginated_projects with args:', JSON.stringify(rpcArgs, null, 2));
 
 
       const { data: filteredData, error: rpcError } = await supabase.rpc(
@@ -133,8 +133,8 @@ function NewestProjectsContent() {
         rpcArgs
       );
 
-      console.log('[Newest Page] RPC Result (filteredData):', filteredData);
-      console.log('[Newest Page] RPC Error:', rpcError);
+      //console.log('[Newest Page] RPC Result (filteredData):', filteredData);
+      //console.log('[Newest Page] RPC Error:', rpcError);
 
 
       if (rpcError) {
@@ -219,8 +219,8 @@ function NewestProjectsContent() {
           const views = viewCounts[proj.id] || 0;
           const interactionScore = (likes * 2) + (comments * 1.5) + (views * 0.5);
 
-          console.log(`Project ID: ${proj.id}, Likes: ${likes}, Comments: ${comments}, Views: ${views}`);
-          console.log(`Project ID: ${proj.id}, Interaction Score: ${interactionScore}`);
+          //console.log(`Project ID: ${proj.id}, Likes: ${likes}, Comments: ${comments}, Views: ${views}`);
+          //console.log(`Project ID: ${proj.id}, Interaction Score: ${interactionScore}`);
 
           return {
               ...proj,

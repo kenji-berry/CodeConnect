@@ -20,14 +20,14 @@ export default function handler(req, res) {
         }
 
         // Check if the text contains profanity
-        console.log('Checking profanity for text:', text);
+        //console.log('Checking profanity for text:', text);
         const containsProfanity = filter.check(text);
 
         // Clean the text by replacing profane words
-        console.log('Cleaning text:', text);
+        //console.log('Cleaning text:', text);
         const cleanedText = filter.clean(text);
 
-        console.log('Profanity check result:', { containsProfanity, cleanedText });
+       // console.log('Profanity check result:', { containsProfanity, cleanedText });
         return res.status(200).json({ isProfane: containsProfanity, cleanedText });
     } catch (error) {
         console.error('Error processing profanity check:', error);
