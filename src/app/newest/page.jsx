@@ -1,15 +1,25 @@
 "use client";
-import React, { useState, useEffect, Suspense, useCallback } from "react";
+import React, { useState, useEffect, Suspense, useCallback, useMemo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import ProjectPreview from "../Components/ProjectPreview";
 import ProjectPageLayout from "../Components/ProjectPageLayout";
 import useProjectFilters from "../hooks/useProjectFilters";
 import { supabase } from '@/supabaseClient';
 
+const SORT_OPTIONS = {
+  LAST_UPDATED_NEWEST: 'Last Updated (Newest)',
+  LAST_UPDATED_OLDEST: 'Last Updated (Oldest)',
+  DATE_POSTED_NEWEST: 'Date Posted (Newest)',
+  DATE_POSTED_OLDEST: 'Date Posted (Oldest)',
+  MOST_INTERACTIONS: 'Most Interactions',
+  LEAST_INTERACTIONS: 'Least Interactions',
+};
+
 function NewestProjectsContent() {
   const [loading, setLoading] = useState(true);
   const [totalPages, setTotalPages] = useState(1);
   const [projects, setProjects] = useState([]);
+  const [sortOption, setSortOption] = useState(SORT_OPTIONS.DATE_POSTED_NEWEST);
   const resultsPerPage = 15;
 
   const filterProps = useProjectFilters({ includeTags: true });
@@ -27,9 +37,46 @@ function NewestProjectsContent() {
     ...restFilterProps
   } = filterProps;
 
+
   const searchParams = useSearchParams();
   const router = useRouter();
   const currentPage = parseInt(searchParams.get("page") || "1", 10) || 1;
+
+  const fetchInteractionCounts = async (projectIds) => {
+    if (!projectIds || projectIds.length === 0) {
+      return { likeCounts: {}, commentCounts: {}, viewCounts: {} };
+    }
+
+    try {
+      const [likesRes, commentsRes, viewsRes] = await Promise.all([
+        supabase.from('project_likes').select('project_id, count', { count: 'exact' }).in('project_id', projectIds),
+        supabase.from('project_comments').select('project_id, count', { count: 'exact' }).in('project_id', projectIds),
+        supabase.from('user_interactions').select('project_id, count', { count: 'exact' }).eq('interaction_type', 'view').in('project_id', projectIds)
+      ]);
+
+      const likeCounts = likesRes.data?.reduce((acc, { project_id }) => {
+        acc[project_id] = (acc[project_id] || 0) + 1;
+        return acc;
+      }, {}) || {};
+
+      const commentCounts = commentsRes.data?.reduce((acc, { project_id }) => {
+        acc[project_id] = (acc[project_id] || 0) + 1;
+        return acc;
+      }, {}) || {};
+
+      const viewCounts = viewsRes.data?.reduce((acc, { project_id }) => {
+        acc[project_id] = (acc[project_id] || 0) + 1;
+        return acc;
+      }, {}) || {};
+
+      return { likeCounts, commentCounts, viewCounts };
+
+    } catch (error) {
+      console.error("Error fetching interaction counts:", error);
+      return { likeCounts: {}, commentCounts: {}, viewCounts: {} };
+    }
+  };
+
 
   const fetchOpenIssueCounts = async (projectIds) => {
     if (!projectIds || !projectIds.length) return {};
@@ -48,6 +95,7 @@ function NewestProjectsContent() {
     }
     return openIssueCountMap;
   };
+
 
   const fetchFilteredProjects = useCallback(async (page) => {
     setLoading(true);
@@ -73,6 +121,7 @@ function NewestProjectsContent() {
         results_offset: offset,
       };
 
+
       const { data: filteredData, error: rpcError } = await supabase.rpc(
         'get_filtered_paginated_projects',
         rpcArgs
@@ -82,12 +131,14 @@ function NewestProjectsContent() {
         console.error("Error fetching filtered project IDs:", rpcError);
         setProjects([]);
         setTotalPages(1);
+        setLoading(false);
         return;
       }
 
       if (!filteredData || filteredData.length === 0) {
         setProjects([]);
         setTotalPages(1);
+        setLoading(false);
         return;
       }
 
@@ -109,16 +160,21 @@ function NewestProjectsContent() {
           project_issues ( updated_at ),
           project_pull_requests ( updated_at )
         `)
-        .in('id', projectIds)
-        .order('created_at', { ascending: false });
+        .in('id', projectIds);
 
       if (projectError) {
         console.error("Error fetching project details:", projectError);
         setProjects([]);
+        setLoading(false);
         return;
       }
 
-      const openIssueCountMap = await fetchOpenIssueCounts(projectIds);
+      const [openIssueCountMap, interactionCounts] = await Promise.all([
+        fetchOpenIssueCounts(projectIds),
+        fetchInteractionCounts(projectIds)
+      ]);
+      const { likeCounts, commentCounts, viewCounts } = interactionCounts;
+
 
       const processedProjects = (projectDetails || []).map(proj => {
           const technologies = (proj.project_technologies || []).map(pt => ({
@@ -135,17 +191,23 @@ function NewestProjectsContent() {
           const contribution_types = (proj.project_contribution_type || []).map(pct => ({
               name: pct.contribution_type?.name
           })).filter(ct => ct.name);
-          
+
+
           const dates = [
             proj.created_at,
             ...(proj.project_commits || []).map(commit => commit.timestamp),
             ...(proj.project_issues || []).map(issue => issue.updated_at),
             ...(proj.project_pull_requests || []).map(pr => pr.updated_at)
           ].filter(Boolean);
-          
-          const latestDate = dates.length > 0 
+
+          const latestDate = dates.length > 0
             ? new Date(Math.max(...dates.map(date => new Date(date).getTime()))).toISOString()
             : proj.created_at;
+
+          const likes = likeCounts[proj.id] || 0;
+          const comments = commentCounts[proj.id] || 0;
+          const views = viewCounts[proj.id] || 0;
+          const interactionScore = (likes * 2) + (comments * 1.5) + (views * 0.5);
 
           return {
               ...proj,
@@ -153,7 +215,8 @@ function NewestProjectsContent() {
               tags,
               contribution_types,
               latest_activity_date: latestDate,
-              issueCount: openIssueCountMap[proj.id] || 0
+              issueCount: openIssueCountMap[proj.id] || 0,
+              interactionScore: interactionScore
           };
       });
 
@@ -176,6 +239,30 @@ function NewestProjectsContent() {
     fetchFilteredProjects(currentPage);
   }, [currentPage, fetchFilteredProjects]);
 
+  const sortedProjects = useMemo(() => {
+    if (!projects || projects.length === 0) return [];
+
+    const projectsToSort = [...projects];
+
+    switch (sortOption) {
+      case SORT_OPTIONS.LAST_UPDATED_NEWEST:
+        return projectsToSort.sort((a, b) => new Date(b.latest_activity_date) - new Date(a.latest_activity_date));
+      case SORT_OPTIONS.LAST_UPDATED_OLDEST:
+        return projectsToSort.sort((a, b) => new Date(a.latest_activity_date) - new Date(b.latest_activity_date));
+      case SORT_OPTIONS.DATE_POSTED_NEWEST:
+        return projectsToSort.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      case SORT_OPTIONS.DATE_POSTED_OLDEST:
+        return projectsToSort.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+      case SORT_OPTIONS.MOST_INTERACTIONS:
+        return projectsToSort.sort((a, b) => b.interactionScore - a.interactionScore);
+      case SORT_OPTIONS.LEAST_INTERACTIONS:
+        return projectsToSort.sort((a, b) => a.interactionScore - b.interactionScore);
+      default:
+        return projectsToSort;
+    }
+  }, [projects, sortOption]);
+
+
   const handleNextPage = () => {
     if (currentPage < totalPages) {
       const params = new URLSearchParams(searchParams);
@@ -192,16 +279,20 @@ function NewestProjectsContent() {
     }
   };
 
+
   return (
     <ProjectPageLayout
       title="Newest Projects"
-      loading={loading}
+      loading={loading && projects.length === 0}
       filterProps={{ ...filterProps, ...restFilterProps }}
-      projectCount={projects.length}
+      projectCount={sortedProjects.length}
+      sortOption={sortOption}
+      onSortChange={setSortOption}
+      availableSortOptions={Object.values(SORT_OPTIONS)}
     >
-      {loading && (!projects || projects.length === 0) ? (
+      {loading && sortedProjects.length === 0 ? (
          <div className="text-center py-12">Loading projects...</div>
-      ) : !loading && (!projects || projects.length === 0) ? (
+      ) : !loading && sortedProjects.length === 0 ? (
         <div className="text-center py-12 bg-gray-900 rounded-lg">
           <h3 className="text-xl font-bold mb-3">No matching projects found</h3>
           <p>Try adjusting your filter criteria or clearing filters.</p>
@@ -209,7 +300,7 @@ function NewestProjectsContent() {
       ) : (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {Array.isArray(projects) && projects.map(project => {
+            {sortedProjects.map(project => {
               if (!project || typeof project !== 'object') {
                 console.error("Invalid project data encountered:", project);
                 return null;
@@ -223,7 +314,7 @@ function NewestProjectsContent() {
                 <ProjectPreview
                   key={project.id}
                   id={project.id}
-                  name={project.repo_name || 'Unnamed Project'} 
+                  name={project.repo_name || 'Unnamed Project'}
                   date={project.latest_activity_date || project.created_at || new Date().toISOString()}
                   tags={Array.isArray(project.tags) ? project.tags : []}
                   techStack={techStackToShow}
