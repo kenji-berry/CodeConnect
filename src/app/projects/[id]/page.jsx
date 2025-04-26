@@ -797,12 +797,12 @@ const ProjectDetails = () => {
               <button
                 onClick={handleLike}
                 className={`px-5 py-2 rounded-full flex items-center gap-2 font-bold shadow transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[--orange] ${
-                  isLiked ? 'bg-[--orange] hover:bg-[--title-red] text-white scale-105' : 'bg-[#232323] hover:bg-[--orange] text-[--off-white]'
-                }`}
-                disabled={!currentUser}
-                aria-pressed={isLiked}
+                  currentUser && isLiked ? 'bg-[--orange] hover:bg-[--title-red] text-white scale-105' : 'bg-[#232323] hover:bg-[--orange] text-[--off-white]'
+                } ${!currentUser ? 'cursor-pointer' : ''}`}
+                aria-pressed={currentUser ? isLiked : undefined}
+                title={currentUser ? (isLiked ? "Unlike project" : "Like project") : "Log in to like"}
               >
-                <span className="text-xl">{isLiked ? '❤️' : '🤍'}</span>
+                <span className="text-xl">{currentUser && isLiked ? '❤️' : '🤍'}</span>
                 <span className="font-semibold">{likes}</span>
               </button>
               <button
@@ -1250,7 +1250,7 @@ const ProjectDetails = () => {
                       ▼
                     </button>
                   </div>
-                  <p className="text-xs text-gray-400">
+                  <p className="text-xs text-gray-500">
                     {new Date(comment.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                   </p>
                 </div>
