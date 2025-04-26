@@ -18,7 +18,7 @@ function BeginnerProjectsContent() {
 
   const filterHookProps = useProjectFilters({
     includeTags: true,
-    numericDifficulty: true, // Ensure difficulty is treated as number
+    numericDifficulty: true,
   });
   const {
     selectedTechnologies,
@@ -36,20 +36,34 @@ function BeginnerProjectsContent() {
 
   const filterPropsForLayout = { ...filterHookProps };
 
+  const fetchOpenIssueCounts = async (projectIds) => {
+    if (!projectIds || !projectIds.length) return {};
+    const { data: issuesData } = await supabase
+      .from('project_issues')
+      .select('project_id, state')
+      .in('project_id', projectIds);
+
+    const openIssueCountMap = {};
+    if (issuesData) {
+      issuesData.forEach(issue => {
+        if (issue.state === 'open') {
+          openIssueCountMap[issue.project_id] = (openIssueCountMap[issue.project_id] || 0) + 1;
+        }
+      });
+    }
+    return openIssueCountMap;
+  };
+
   const fetchBeginnerAndFilteredProjects = useCallback(async (page) => {
     setLoading(true);
     try {
       const offset = (page - 1) * resultsPerPage;
-
-      // Always include difficulty level 1 for beginner projects
-      // Merge with user-selected difficulties, ensuring 1 is always present
       const difficultiesToFilter = Array.from(new Set([1, ...selectedDifficulties]));
 
       const filtersJSON = {
         ...(selectedTechnologies.length > 0 && { technologies: selectedTechnologies }),
         ...(selectedTags.length > 0 && { tags: selectedTags }),
         ...(selectedContributionTypes.length > 0 && { contribution_types: selectedContributionTypes }),
-        // Use the merged difficulties array
         ...(difficultiesToFilter.length > 0 && { difficulties: difficultiesToFilter }),
         ...(selectedLastUpdated && { last_updated: selectedLastUpdated }),
         ...(selectedLicense && { license: selectedLicense }),
@@ -98,7 +112,10 @@ function BeginnerProjectsContent() {
           license, mentorship, setup_time, image,
           project_technologies ( is_highlighted, technologies ( name ) ),
           project_tags ( is_highlighted, tags ( name, colour ) ),
-          project_contribution_type ( contribution_type ( name ) )
+          project_contribution_type ( contribution_type ( name ) ),
+          project_commits ( timestamp ),
+          project_issues ( updated_at ),
+          project_pull_requests ( updated_at )
         `)
         .in('id', finalProjectIds)
         .order('created_at', { ascending: false });
@@ -109,6 +126,8 @@ function BeginnerProjectsContent() {
         setLoading(false);
         return;
       }
+      
+      const openIssueCountMap = await fetchOpenIssueCounts(finalProjectIds);
 
       const processedProjects = (projectDetails || []).map(proj => {
           const technologies = (proj.project_technologies || []).map(pt => ({
@@ -121,12 +140,24 @@ function BeginnerProjectsContent() {
               colour: ptag.tags?.colour,
               is_highlighted: ptag.is_highlighted
           })).filter(t => t.name);
+          
+          const dates = [
+            proj.created_at,
+            ...(proj.project_commits || []).map(commit => commit.timestamp),
+            ...(proj.project_issues || []).map(issue => issue.updated_at),
+            ...(proj.project_pull_requests || []).map(pr => pr.updated_at)
+          ].filter(Boolean);
+          
+          const latestDate = dates.length > 0 
+            ? new Date(Math.max(...dates.map(date => new Date(date).getTime()))).toISOString()
+            : proj.created_at;
 
           return {
               ...proj,
               technologies,
               tags,
-              issueCount: 0 // Placeholder
+              latest_activity_date: latestDate,
+              issueCount: openIssueCountMap[proj.id] || 0
           };
       });
 
@@ -206,11 +237,11 @@ function BeginnerProjectsContent() {
                   key={project.id}
                   id={project.id}
                   name={project.repo_name || "Unnamed Project"}
-                  date={project.created_at || new Date().toISOString()}
+                  date={project.latest_activity_date || project.created_at || new Date().toISOString()}
                   tags={Array.isArray(project.tags) ? project.tags : []}
                   description={project.custom_description || "No custom description provided."}
                   techStack={techStackToShow}
-                  issueCount={project.issueCount || 0}
+                  issueCount={project.issueCount}
                   recommended={false}
                   image={project.image}
                 />
