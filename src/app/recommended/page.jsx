@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, Suspense, useCallback, useMemo } from "react"; // Added useMemo
+import React, { useState, useEffect, Suspense, useCallback, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import ProjectPreview from "../Components/ProjectPreview";
 import ProjectPageLayout from "../Components/ProjectPageLayout";
@@ -8,7 +8,6 @@ import { supabase } from '@/supabaseClient';
 import { getHybridRecommendations } from '@/services/recommendation-service';
 
 const SORT_OPTIONS = {
-  RELEVANCE: 'Relevance',
   LAST_UPDATED_NEWEST: 'Last Updated (Newest)',
   LAST_UPDATED_OLDEST: 'Last Updated (Oldest)',
   DATE_POSTED_NEWEST: 'Date Posted (Newest)',
@@ -22,7 +21,7 @@ function RecommendedProjectsContent() {
   const [user, setUser] = useState(undefined);
   const [projects, setProjects] = useState([]);
   const [totalPages, setTotalPages] = useState(1);
-  const [sortOption, setSortOption] = useState(SORT_OPTIONS.RELEVANCE);
+  const [sortOption, setSortOption] = useState(SORT_OPTIONS.LAST_UPDATED_NEWEST);
   const resultsPerPage = 15;
 
   const router = useRouter();
@@ -217,7 +216,6 @@ function RecommendedProjectsContent() {
           project_pull_requests ( updated_at )
         `)
         .in('id', finalProjectIds);
-        // Remove client-side ordering, will be handled by useMemo
       console.log('Fetched project details:', projectDetails);
 
       if (projectError) {
@@ -324,9 +322,8 @@ function RecommendedProjectsContent() {
       case SORT_OPTIONS.LEAST_INTERACTIONS:
         sorted.sort((a, b) => a.interactionScore - b.interactionScore);
         break;
-      case SORT_OPTIONS.RELEVANCE:
       default:
-        // Keep the order returned by the recommendation/RPC call
+        sorted.sort((a, b) => new Date(b.latest_activity_date) - new Date(a.latest_activity_date));
         break;
     }
     return sorted;
