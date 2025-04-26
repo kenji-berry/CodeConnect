@@ -125,14 +125,20 @@ function NewestProjectsContent() {
         results_offset: offset,
       };
 
+      console.log('[Newest Page] Calling RPC get_filtered_paginated_projects with args:', JSON.stringify(rpcArgs, null, 2));
+
 
       const { data: filteredData, error: rpcError } = await supabase.rpc(
         'get_filtered_paginated_projects',
         rpcArgs
       );
 
+      console.log('[Newest Page] RPC Result (filteredData):', filteredData);
+      console.log('[Newest Page] RPC Error:', rpcError);
+
+
       if (rpcError) {
-        console.error("Error fetching filtered project IDs:", rpcError);
+        console.error("[Newest Page] Error fetching filtered project IDs:", rpcError);
         setProjects([]);
         setTotalPages(1);
         setLoading(false);
