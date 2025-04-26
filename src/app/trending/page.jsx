@@ -51,6 +51,24 @@ function TrendingProjectsContent() {
 
   const filterPropsForLayout = { ...filterHookProps };
 
+  const fetchOpenIssueCounts = async (projectIds) => {
+    if (!projectIds || !projectIds.length) return {};
+    const { data: issuesData } = await supabase
+      .from('project_issues')
+      .select('project_id, state')
+      .in('project_id', projectIds);
+
+    const openIssueCountMap = {};
+    if (issuesData) {
+      issuesData.forEach(issue => {
+        if (issue.state === 'open') {
+          openIssueCountMap[issue.project_id] = (openIssueCountMap[issue.project_id] || 0) + 1;
+        }
+      });
+    }
+    return openIssueCountMap;
+  };
+
   const fetchTrendingAndFilteredProjects = useCallback(async (page) => {
     setLoading(true);
     try {
@@ -117,7 +135,10 @@ function TrendingProjectsContent() {
           license, mentorship, setup_time, image,
           project_technologies ( is_highlighted, technologies ( name ) ),
           project_tags ( is_highlighted, tags ( name, colour ) ),
-          project_contribution_type ( contribution_type ( name ) )
+          project_contribution_type ( contribution_type ( name ) ),
+          project_commits ( timestamp ),
+          project_issues ( updated_at ),
+          project_pull_requests ( updated_at )
         `)
         .in('id', finalProjectIds)
         .order('created_at', { ascending: false });
@@ -128,6 +149,8 @@ function TrendingProjectsContent() {
         setLoading(false);
         return;
       }
+      
+      const openIssueCountMap = await fetchOpenIssueCounts(finalProjectIds);
 
       const processedProjects = (projectDetails || []).map(proj => {
           const technologies = (proj.project_technologies || []).map(pt => ({
@@ -140,12 +163,24 @@ function TrendingProjectsContent() {
               colour: ptag.tags?.colour,
               is_highlighted: ptag.is_highlighted
           })).filter(t => t.name);
+          
+          const dates = [
+            proj.created_at,
+            ...(proj.project_commits || []).map(commit => commit.timestamp),
+            ...(proj.project_issues || []).map(issue => issue.updated_at),
+            ...(proj.project_pull_requests || []).map(pr => pr.updated_at)
+          ].filter(Boolean);
+          
+          const latestDate = dates.length > 0 
+            ? new Date(Math.max(...dates.map(date => new Date(date).getTime()))).toISOString()
+            : proj.created_at;
 
           return {
               ...proj,
               technologies,
               tags,
-              issueCount: 0
+              latest_activity_date: latestDate,
+              issueCount: openIssueCountMap[proj.id] || 0
           };
       });
 
@@ -227,7 +262,7 @@ function TrendingProjectsContent() {
                   key={project.id}
                   id={project.id}
                   name={project.repo_name || "Unnamed Project"}
-                  date={project.created_at || new Date().toISOString()}
+                  date={project.latest_activity_date || project.created_at || new Date().toISOString()}
                   tags={Array.isArray(project.tags) ? project.tags : []}
                   description={project.custom_description || "No custom description provided."}
                   techStack={techStackToShow}
