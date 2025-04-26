@@ -600,7 +600,7 @@ const ProjectDetails = () => {
           {
             project_id: parseInt(id),
             user_id: currentUser.id,
-            comment: commentToInsert // Use the resolved string value
+            comment: commentToInsert
           }
         ])
         .select()
@@ -1211,7 +1211,6 @@ const ProjectDetails = () => {
             {getFilteredComments().length > 0 ? getFilteredComments().map((comment) => (
               <div key={comment.id} className="p-4 bg-[#1a1a1a] rounded-xl shadow-sm border border-gray-800">
                 <div className="flex justify-between items-start mb-1">
-                  <button onClick={() =>console.log(comment)}>desfes</button>
                   <p className="font-bold text-[var(--orange)]">{comment.profiles?.display_name || 'User'}</p>
                   <div className="flex items-center gap-2">
                     {currentUser && currentUser.id === comment.user_id && (

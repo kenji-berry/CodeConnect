@@ -69,6 +69,7 @@ function RecommendedProjectsContent() {
 
   const fetchRecommendedAndFilteredProjects = useCallback(async (page) => {
     if (!user) {
+      console.log('User not logged in, skipping fetch.');
       setProjects([]);
       setTotalPages(1);
       setLoading(false);
@@ -76,10 +77,13 @@ function RecommendedProjectsContent() {
     }
 
     setLoading(true);
+    console.log(`Fetching page ${page} for user ${user.id}`);
     try {
       const recommendedProjectsData = await getHybridRecommendations(user.id, 100, false);
+      console.log('Raw recommended projects data:', recommendedProjectsData);
 
       if (!Array.isArray(recommendedProjectsData) || recommendedProjectsData.length === 0) {
+        console.log('No recommended projects found or data is invalid.');
         setProjects([]);
         setTotalPages(1);
         setLoading(false);
@@ -87,8 +91,10 @@ function RecommendedProjectsContent() {
       }
 
       const recommendedProjectIds = recommendedProjectsData.map(p => p.id).filter(id => id !== undefined);
+      console.log('Filtered recommended project IDs:', recommendedProjectIds);
 
       if (recommendedProjectIds.length === 0) {
+          console.log('No valid recommended project IDs after filtering.');
           setProjects([]);
           setTotalPages(1);
           setLoading(false);
@@ -115,11 +121,13 @@ function RecommendedProjectsContent() {
         results_limit: resultsPerPage,
         results_offset: offset,
       };
+      console.log('RPC arguments for get_filtered_paginated_projects:', rpcArgs);
 
       const { data: filteredData, error: rpcError } = await supabase.rpc(
         'get_filtered_paginated_projects',
         rpcArgs
       );
+      console.log('RPC result (filteredData):', filteredData);
 
       if (rpcError) {
         console.error("Error fetching filtered recommended project IDs:", rpcError);
@@ -130,6 +138,7 @@ function RecommendedProjectsContent() {
       }
 
       if (!filteredData || filteredData.length === 0) {
+        console.log('No projects returned from RPC call.');
         setProjects([]);
         setTotalPages(1);
         setLoading(false);
@@ -138,6 +147,8 @@ function RecommendedProjectsContent() {
 
       const finalProjectIds = filteredData.map(item => item.project_id);
       const totalCount = filteredData[0]?.total_filtered_count || 0;
+      console.log('Final project IDs for details fetch:', finalProjectIds);
+      console.log('Total filtered count from RPC:', totalCount);
 
       setTotalPages(Math.ceil(totalCount / resultsPerPage));
 
@@ -156,6 +167,7 @@ function RecommendedProjectsContent() {
         `)
         .in('id', finalProjectIds)
         .order('created_at', { ascending: false });
+      console.log('Fetched project details:', projectDetails);
 
       if (projectError) {
         console.error("Error fetching project details:", projectError);
@@ -165,6 +177,7 @@ function RecommendedProjectsContent() {
       }
 
       const openIssueCountMap = await fetchOpenIssueCounts(finalProjectIds);
+      console.log('Open issue counts:', openIssueCountMap);
 
       const processedProjects = (projectDetails || []).map(proj => {
           const technologies = (proj.project_technologies || []).map(pt => ({
@@ -177,15 +190,15 @@ function RecommendedProjectsContent() {
               colour: ptag.tags?.colour,
               is_highlighted: ptag.is_highlighted
           })).filter(t => t.name);
-          
+
           const dates = [
             proj.created_at,
             ...(proj.project_commits || []).map(commit => commit.timestamp),
             ...(proj.project_issues || []).map(issue => issue.updated_at),
             ...(proj.project_pull_requests || []).map(pr => pr.updated_at)
           ].filter(Boolean);
-          
-          const latestDate = dates.length > 0 
+
+          const latestDate = dates.length > 0
             ? new Date(Math.max(...dates.map(date => new Date(date).getTime()))).toISOString()
             : proj.created_at;
 
@@ -197,6 +210,7 @@ function RecommendedProjectsContent() {
               issueCount: openIssueCountMap[proj.id] || 0
           };
       });
+      console.log('Processed projects for display:', processedProjects);
 
       setProjects(processedProjects);
 
@@ -206,6 +220,7 @@ function RecommendedProjectsContent() {
       setTotalPages(1);
     } finally {
       setLoading(false);
+      console.log('Finished fetching recommended projects.');
     }
   }, [
       user,

@@ -35,7 +35,7 @@ const NavBar = () => {
     
     const handleVisibilityChange = () => {
       isTabVisibleRef.current = document.visibilityState === 'visible';
-      console.log('Tab visibility changed:', isTabVisibleRef.current ? 'visible' : 'hidden');
+      //console.log('Tab visibility changed:', isTabVisibleRef.current ? 'visible' : 'hidden');
     };
     
     document.addEventListener('visibilitychange', handleVisibilityChange);

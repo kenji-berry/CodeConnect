@@ -8,7 +8,7 @@ export async function trackProjectView(userId, projectId) {
       return { data: null, error: new Error('Invalid project ID') };
     }
 
-    console.log('Tracking view:', { userId, projectId: numericProjectId });
+    //console.log('Tracking view:', { userId, projectId: numericProjectId });
 
     const { data, error } = await supabase
       .from('user_interactions')
