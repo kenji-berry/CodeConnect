@@ -6,6 +6,7 @@ import { supabase } from '@/supabaseClient';
 import { trackProjectView, trackProjectLike, removeProjectLike } from '@/services/recommendation-service';
 import { useProfanityFilter } from '@/hooks/useProfanityFilter';
 import ActivityGraph from '@/app/Components/ActivityGraph';
+import { formatDistanceToNow } from 'date-fns';
 
 const ProjectDetails = () => {
   const { id } = useParams();
@@ -24,7 +25,7 @@ const ProjectDetails = () => {
 
   const {
     value: reportDescription,
-    onChange: handleReportDescriptionChange, 
+    onChange: handleReportDescriptionChange,
     containsProfanity: reportHasProfanity,
     cleanText: cleanReportText
   } = useProfanityFilter('');
@@ -52,21 +53,30 @@ const ProjectDetails = () => {
 
   const [copiedSecret, setCopiedSecret] = useState(false);
 
+  // State for issues and pull requests
+  const [issues, setIssues] = useState([]);
+  const [pullRequests, setPullRequests] = useState([]);
+  const [showAllIssues, setShowAllIssues] = useState(false);
+  const [showAllPullRequests, setShowAllPullRequests] = useState(false);
+  const [expandedIssueId, setExpandedIssueId] = useState(null);
+  const [expandedPrId, setExpandedPrId] = useState(null);
+
+
   const isOwner = currentUser && project && currentUser.id === project.user_id;
 
   const secret = process.env.NEXT_PUBLIC_GITHUB_WEBHOOK_SECRET;
 
   const redirectToEditPage = () => {
     if (!project || !project.repo_name) return;
-    
+
     const owner = project.repo_owner;
     const repoName = project.repo_name;
-    
+
     if (!owner || !repoName) {
       console.error("Missing repository owner or name");
       return;
     }
-    
+
     window.location.href = `/post-project/project-form?repo=${encodeURIComponent(repoName)}&owner=${encodeURIComponent(owner)}`;
   };
 
@@ -74,28 +84,28 @@ const ProjectDetails = () => {
     if (deleteConfirmation !== project.repo_name) {
       return;
     }
-    
+
     setIsDeletingProject(true);
-    
+
     try {
       const { error } = await supabase
         .from('project')
         .delete()
         .eq('id', project.id);
-        
+
       if (error) {
         console.error('Error deleting project:', error);
         alert('Failed to delete project. Please try again.');
         setIsDeletingProject(false);
         return;
       }
-      
+
       localStorage.setItem('notification', JSON.stringify({
         message: `Project "${project.repo_name}" was successfully deleted`,
         type: 'success',
         timestamp: Date.now()
       }));
-      
+
       window.location.href = '/';
     } catch (err) {
       console.error('Unexpected error deleting project:', err);
@@ -133,7 +143,12 @@ const ProjectDetails = () => {
           setIsLiked(!!data);
         }
       } catch (err) {
-        console.error('Error checking if project is liked:', err);
+        // Ignore single() error if no like exists
+        if (err.code !== 'PGRST116') {
+            console.error('Error checking if project is liked:', err);
+        } else {
+            setIsLiked(false);
+        }
       }
     };
 
@@ -146,11 +161,13 @@ const ProjectDetails = () => {
     const getTotalLikes = async () => {
       const { data, error } = await supabase
         .from('project_likes')
-        .select('id')
+        .select('id', { count: 'exact' })
         .eq('project_id', id);
 
       if (!error && data) {
         setLikes(data.length);
+      } else if (error) {
+        console.error('Error fetching total likes:', error);
       }
     };
 
@@ -236,21 +253,20 @@ const ProjectDetails = () => {
         return;
       }
 
-      const { data: profilesData, error: profilesError } = await supabase
-        .from('profiles')
-        .select('user_id, display_name')
-        .in('user_id', commentsData.map(comment => comment.user_id));
+      const userIds = commentsData.map(comment => comment.user_id);
+      const commentIds = commentsData.map(comment => comment.id);
+
+      const [profilesResult, votesResult] = await Promise.all([
+        supabase.from('profiles').select('user_id, display_name').in('user_id', userIds),
+        supabase.from('project_comment_votes').select('*').in('comment_id', commentIds)
+      ]);
+
+      const { data: profilesData, error: profilesError } = profilesResult;
+      const { data: votesData, error: votesError } = votesResult;
 
       if (profilesError) {
         console.error('Error fetching profiles:', profilesError);
-        return;
       }
-
-      const { data: votesData, error: votesError } = await supabase
-        .from('project_comment_votes')
-        .select('*')
-        .in('comment_id', commentsData.map(comment => comment.id));
-
       if (votesError) {
         console.error('Error fetching comment votes:', votesError);
       }
@@ -275,32 +291,49 @@ const ProjectDetails = () => {
       const commentsWithProfiles = commentsData.map(comment => ({
         ...comment,
         profiles: {
-          display_name: profilesData.find(profile => profile.user_id === comment.user_id)?.display_name
+          display_name: profilesData?.find(profile => profile.user_id === comment.user_id)?.display_name || 'User'
         }
       }));
 
       setComments(commentsWithProfiles);
     };
 
-    const fetchTechnologiesAndTags = async () => {
-      const { data: techs, error: techsError } = await supabase
-        .from('project_technologies')
-        .select('*')
-        .eq('project_id', id);
+    // Fetch Issues
+    const fetchIssues = async () => {
+        const { data, error } = await supabase
+            .from('project_issues')
+            .select('*')
+            .eq('project_id', id)
+            .order('updated_at', { ascending: false });
 
-      const { data: tags, error: tagsError } = await supabase
-        .from('project_tags')
-        .select('*')
-        .eq('project_id', id);
-
-      console.log('techs', techs);
-      console.log('tags', tags);
+        if (error) {
+            console.error('Error fetching issues:', error);
+        } else {
+            setIssues(data || []);
+        }
     };
+
+    // Fetch Pull Requests
+    const fetchPullRequests = async () => {
+        const { data, error } = await supabase
+            .from('project_pull_requests')
+            .select('*')
+            .eq('project_id', id)
+            .order('updated_at', { ascending: false });
+
+        if (error) {
+            console.error('Error fetching pull requests:', error);
+        } else {
+            setPullRequests(data || []);
+        }
+    };
+
 
     getTotalLikes();
     fetchProject();
     fetchComments();
-    fetchTechnologiesAndTags();
+    fetchIssues();
+    fetchPullRequests();
   }, [id, currentUser]);
 
   const redirectToLogin = () => {
@@ -330,6 +363,8 @@ const ProjectDetails = () => {
             console.error('Failed to remove like from recommendation system:', result.error);
           }
         }
+      } else {
+        console.error('Error removing like:', error);
       }
     } else {
       const { error } = await supabase
@@ -345,6 +380,8 @@ const ProjectDetails = () => {
         if (project) {
           trackProjectLike(currentUser.id, project.id);
         }
+      } else {
+        console.error('Error adding like:', error);
       }
     }
   };
@@ -364,7 +401,7 @@ const ProjectDetails = () => {
       // --- Removing vote ---
       scoreChange = voteType === 'up' ? -1 : 1;
       newUserVote = null;
-      
+
       const { error } = await supabase
         .from('project_comment_votes')
         .delete()
@@ -395,8 +432,8 @@ const ProjectDetails = () => {
     if (!dbError) {
       setCommentVotes(prev => {
         // Safely access previous score, defaulting to 0 if commentId doesn't exist yet
-        const existingVoteData = prev[commentId] || { score: 0, userVote: null }; 
-        
+        const existingVoteData = prev[commentId] || { score: 0, userVote: null };
+
         return {
           ...prev,
           [commentId]: {
@@ -471,6 +508,7 @@ const ProjectDetails = () => {
 
     setReportTarget(target);
     setReportReason('');
+    handleReportDescriptionChange({ target: { value: '' } });
     setReportSuccess(false);
     setShowReportModal(true);
   };
@@ -482,7 +520,7 @@ const ProjectDetails = () => {
       alert('Please select a reason for reporting');
       return;
     }
-    
+
     if (reportHasProfanity) {
       alert('Please remove inappropriate language before submitting');
       return;
@@ -494,7 +532,7 @@ const ProjectDetails = () => {
       const reportData = {
         reporter_id: currentUser.id,
         reason: reportReason,
-        description: reportDescription || null,
+        description: cleanReportText(reportDescription) || null, // Use cleaned text
         status: 'pending'
       };
 
@@ -527,23 +565,24 @@ const ProjectDetails = () => {
 
   const handleCommentSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!currentUser) {
       redirectToLogin();
       return;
     }
-    
-    if (!newComment.trim()) {
-      return; 
+
+    const trimmedComment = newComment.trim();
+    if (!trimmedComment) {
+      return;
     }
-    
+
     if (commentHasProfanity) {
       alert('Please remove inappropriate language before submitting');
       return;
     }
-    
+
     setIsSubmittingComment(true);
-    
+
     try {
       const { data, error } = await supabase
         .from('project_comments')
@@ -551,43 +590,50 @@ const ProjectDetails = () => {
           {
             project_id: parseInt(id),
             user_id: currentUser.id,
-            comment: newComment.trim()
+            comment: cleanCommentText(trimmedComment)
           }
         ])
-        .select();
-        
+        .select()
+        .single();
+
       if (error) {
         console.error('Error submitting comment:', error);
         alert('Failed to submit comment. Please try again.');
-        return;
-      }
-      
-      if (!data || !data[0]) {
-        console.error('No data returned after comment insertion');
-        alert('Failed to submit comment. Please try again.');
+        setIsSubmittingComment(false);
         return;
       }
 
-      const newCommentId = data[0].id;
-      
+      if (!data) {
+        console.error('No data returned after comment insertion');
+        alert('Failed to submit comment. Please try again.');
+        setIsSubmittingComment(false);
+        return;
+      }
+
+      const newCommentId = data.id;
+
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('display_name')
         .eq('user_id', currentUser.id)
         .single();
-      
+
       const displayName = profileError ? 'User' : (profileData?.display_name || 'User');
-      
+
       const newCommentWithProfile = {
-        ...data[0],
+        ...data,
         profiles: {
           display_name: displayName
         }
       };
-      
-      setComments(prevComments => [newCommentWithProfile, ...prevComments]);
+
+      setComments(prevComments =>
+        commentFilter === 'new'
+          ? [newCommentWithProfile, ...prevComments]
+          : [...prevComments, newCommentWithProfile]
+      );
       handleCommentChange({ target: { value: '' } });
-      
+
       setCommentVotes(prev => ({
         ...prev,
         [newCommentId]: {
@@ -606,23 +652,44 @@ const ProjectDetails = () => {
 
   const getFilteredComments = () => {
     if (!comments || comments.length === 0) return [];
-    
+
     const filtered = [...comments];
-    
+
     switch (commentFilter) {
       case 'top':
-        return filtered.sort((a, b) => 
+        return filtered.sort((a, b) =>
           (commentVotes[b.id]?.score || 0) - (commentVotes[a.id]?.score || 0)
         );
       case 'old':
-        return filtered.sort((a, b) => 
+        return filtered.sort((a, b) =>
           new Date(a.created_at) - new Date(b.created_at)
         );
       case 'new':
       default:
-        return filtered.sort((a, b) => 
+        return filtered.sort((a, b) =>
           new Date(b.created_at) - new Date(a.created_at)
         );
+    }
+  };
+
+  // Helper to format relative time
+  const formatRelativeTime = (dateString) => {
+    if (!dateString) return '';
+    try {
+      return formatDistanceToNow(new Date(dateString), { addSuffix: true });
+    } catch (e) {
+      console.error("Error formatting date:", e);
+      return dateString; // Fallback
+    }
+  };
+
+  // Helper to get state color
+  const getStateColor = (state, merged = false) => {
+    if (merged) return 'bg-purple-600';
+    switch (state?.toLowerCase()) {
+      case 'open': return 'bg-green-600';
+      case 'closed': return 'bg-red-600';
+      default: return 'bg-gray-600';
     }
   };
 
@@ -638,6 +705,9 @@ const ProjectDetails = () => {
       </div>
     );
   }
+
+  const displayedIssues = showAllIssues ? issues : issues.slice(0, 3);
+  const displayedPullRequests = showAllPullRequests ? pullRequests : pullRequests.slice(0, 3);
 
   return (
     <div className="w-full flex flex-col items-center px-2 py-10">
@@ -762,13 +832,13 @@ const ProjectDetails = () => {
               )}
             </div>
           </div>
-          
+
           {/* Project Description */}
           <div className="mb-6">
             <h2 className="text-xl font-semibold text-[--orange] mb-2">Description</h2>
             <p className="text-[--off-white]">{project.custom_description || "No custom description provided."}</p>
           </div>
-          
+
           {/* Project Details */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
             <div>
@@ -787,12 +857,12 @@ const ProjectDetails = () => {
                 </a>
               </div>
             </div>
-            
+
             <div>
               <h3 className="font-semibold text-[--orange] mb-1">Status</h3>
               <p className="text-[--off-white]">{project.status || "Unknown"}</p>
             </div>
-            
+
             <div>
               <h3 className="font-semibold text-[--orange] mb-1">Difficulty Level</h3>
               <div className="flex items-center">
@@ -813,12 +883,12 @@ const ProjectDetails = () => {
               <h3 className="font-semibold text-[--orange] mb-1">Setup Time</h3>
               <p className="text-[--off-white]">{project.setup_time ? `${project.setup_time} minutes` : "Not specified"}</p>
             </div>
-            
+
             <div>
               <h3 className="font-semibold text-[--orange] mb-1">Mentorship</h3>
               <p className="text-[--off-white]">{project.mentorship ? "Available" : "Not available"}</p>
             </div>
-            
+
             <div>
               <h3 className="font-semibold text-[--orange] mb-1">License</h3>
               <p className="text-[--off-white]">{project.license || "Not specified"}</p>
@@ -879,10 +949,10 @@ const ProjectDetails = () => {
               {project.project_tags && project.project_tags.length > 0
                 ? project.project_tags.map(pt => {
                     const tagColor = pt.tags.colour ? `#${pt.tags.colour}` : null;
-                    
+
                     return (
-                      <span 
-                        key={pt.tags.id} 
+                      <span
+                        key={pt.tags.id}
                         className={`inline-block px-3 py-1 rounded-full text-sm font-medium shadow ${
                           pt.is_highlighted
                             ? "bg-[#232323] text-[var(--off-white)] border-2 border-amber-500 hover:border-amber-400"
@@ -904,7 +974,143 @@ const ProjectDetails = () => {
             </div>
           </section>
         </div>
-        
+
+        {/* Issues and Pull Requests */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+          {/* Recent Issues */}
+          <section className="rounded-xl shadow-lg bg-[#232323] border border-[var(--muted-red)] p-8 flex flex-col">
+            <h2 className="text-xl font-bold text-[var(--off-white)] mb-4">Recent Issues</h2>
+            {issues.length > 0 ? (
+              <div className="flex-grow space-y-3">
+                {displayedIssues.map(issue => (
+                  <div key={issue.id} className="p-3 bg-[#1a1a1a] rounded-lg border border-gray-700">
+                    <div className="flex justify-between items-start mb-1">
+                      <a
+                        href={issue.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-semibold text-[var(--off-white)] hover:text-[var(--orange)] transition-colors mr-2 truncate flex-1"
+                        title={issue.title}
+                      >
+                        #{issue.number} {issue.title}
+                      </a>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium text-white ${getStateColor(issue.state)}`}>
+                        {issue.state}
+                      </span>
+                    </div>
+                    {issue.labels && issue.labels.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mb-1">
+                        {issue.labels.map(label => (
+                          <span key={label.id || label.name} className="px-2 py-0.5 rounded text-xs bg-gray-600 text-gray-200">
+                            {label.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    {issue.body && (
+                      <div className="text-sm text-gray-400 mb-1">
+                        <p className={`${expandedIssueId !== issue.id ? 'line-clamp-2' : ''}`}>
+                          {issue.body}
+                        </p>
+                        {issue.body.length > 100 && ( // Only show toggle if body is long enough
+                          <button
+                            onClick={() => setExpandedIssueId(expandedIssueId === issue.id ? null : issue.id)}
+                            className="text-xs text-[var(--orange)] hover:underline mt-1"
+                          >
+                            {expandedIssueId === issue.id ? 'Show Less' : 'Show More'}
+                          </button>
+                        )}
+                      </div>
+                    )}
+                    <p className="text-xs text-gray-500">
+                      Updated {formatRelativeTime(issue.updated_at)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center text-gray-400 py-4 flex-grow flex items-center justify-center">
+                No issues found for this project.
+              </div>
+            )}
+            {issues.length > 3 && (
+              <button
+                onClick={() => setShowAllIssues(!showAllIssues)}
+                className="mt-4 px-4 py-2 bg-[var(--muted-red)] hover:bg-[var(--title-red)] rounded-lg text-sm font-semibold text-white transition-colors duration-200 self-center"
+              >
+                {showAllIssues ? 'Show Less Issues' : 'View More Issues'}
+              </button>
+            )}
+          </section>
+
+          {/* Recent Pull Requests */}
+          <section className="rounded-xl shadow-lg bg-[#232323] border border-[var(--muted-red)] p-8 flex flex-col">
+            <h2 className="text-xl font-bold text-[var(--off-white)] mb-4">Recent Pull Requests</h2>
+            {pullRequests.length > 0 ? (
+              <div className="flex-grow space-y-3">
+                {displayedPullRequests.map(pr => (
+                  <div key={pr.id} className="p-3 bg-[#1a1a1a] rounded-lg border border-gray-700">
+                    <div className="flex justify-between items-start mb-1">
+                      <a
+                        href={pr.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-semibold text-[var(--off-white)] hover:text-[var(--orange)] transition-colors mr-2 truncate flex-1"
+                        title={pr.title}
+                      >
+                        #{pr.number} {pr.title}
+                      </a>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium text-white ${getStateColor(pr.state, pr.merged)}`}>
+                        {pr.merged ? 'Merged' : pr.state}
+                      </span>
+                    </div>
+                     {pr.labels && pr.labels.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mb-1">
+                        {pr.labels.map(label => (
+                          <span key={label.id || label.name} className="px-2 py-0.5 rounded text-xs bg-gray-600 text-gray-200">
+                            {label.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    {pr.body && (
+                      <div className="text-sm text-gray-400 mb-1">
+                        <p className={`${expandedPrId !== pr.id ? 'line-clamp-2' : ''}`}>
+                          {pr.body}
+                        </p>
+                        {pr.body.length > 100 && ( // Only show toggle if body is long enough
+                          <button
+                            onClick={() => setExpandedPrId(expandedPrId === pr.id ? null : pr.id)}
+                            className="text-xs text-[var(--orange)] hover:underline mt-1"
+                          >
+                            {expandedPrId === pr.id ? 'Show Less' : 'Show More'}
+                          </button>
+                        )}
+                      </div>
+                    )}
+                    <p className="text-xs text-gray-500">
+                      Updated {formatRelativeTime(pr.updated_at)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center text-gray-400 py-4 flex-grow flex items-center justify-center">
+                No pull requests found for this project.
+              </div>
+            )}
+            {pullRequests.length > 3 && (
+              <button
+                onClick={() => setShowAllPullRequests(!showAllPullRequests)}
+                className="mt-4 px-4 py-2 bg-[var(--muted-red)] hover:bg-[var(--title-red)] rounded-lg text-sm font-semibold text-white transition-colors duration-200 self-center"
+              >
+                {showAllPullRequests ? 'Show Less Pull Requests' : 'View More Pull Requests'}
+              </button>
+            )}
+          </section>
+        </div>
+
+
         {/* Resource Links */}
         {project.links && project.links.length > 0 && (
           <section className="rounded-xl shadow-lg bg-[#232323] border border-[var(--muted-red)] p-8 mb-8">
@@ -921,7 +1127,13 @@ const ProjectDetails = () => {
                     return null;
                   }
                 }
-                
+
+                // Basic validation for link object structure
+                if (!linkObj || typeof linkObj !== 'object' || !linkObj.url || !linkObj.name) {
+                    console.warn('Skipping invalid link object:', linkObj);
+                    return null;
+                }
+
                 return (
                   <a
                     key={index}
@@ -953,9 +1165,8 @@ const ProjectDetails = () => {
                 <p className="text-sm text-[var(--off-white)] mb-4">
                   Weekly commit activity for the past 2 months
                 </p>
-                <ActivityGraph 
-                  owner={project.repo_owner} 
-                  repo={project.repo_name}
+                <ActivityGraph
+                  projectId={project.id}
                   weeks={8}
                 />
               </>
@@ -985,7 +1196,7 @@ const ProjectDetails = () => {
               </select>
             </div>
           </div>
-          
+
           <div className="space-y-4 mb-8">
             {getFilteredComments().length > 0 ? getFilteredComments().map((comment) => (
               <div key={comment.id} className="p-4 bg-[#1a1a1a] rounded-xl shadow-sm border border-gray-800">
@@ -1010,7 +1221,7 @@ const ProjectDetails = () => {
                     </button>
                   </div>
                 </div>
-                <p className="text-[var(--off-white)]">{comment.comment}</p>
+                <p className="text-[var(--off-white)] whitespace-pre-wrap break-words">{comment.comment}</p>
                 <div className="flex items-center justify-between mt-2">
                   <div className="flex items-center">
                     <button
@@ -1058,8 +1269,8 @@ const ProjectDetails = () => {
               <form onSubmit={handleCommentSubmit}>
                 <textarea
                   className={`w-full bg-[#18181b] p-3 rounded-xl text-[var(--off-white)] mb-3 resize-none border ${
-                    commentHasProfanity 
-                      ? 'border-2 border-[var(--title-red)]' 
+                    commentHasProfanity
+                      ? 'border-2 border-[var(--title-red)]'
                       : 'border border-[var(--muted-red)]'
                   } focus:ring-2 focus:ring-[var(--title-red)] focus:border-[var(--title-red)] outline-none`}
                   rows="3"
@@ -1076,7 +1287,7 @@ const ProjectDetails = () => {
                 <div className="flex justify-end">
                   <button
                     type="submit"
-                    className="px-4 py-2 bg-[var(--title-red)] hover:bg-[var(--orange)] rounded-xl text-white font-semibold transition-colors duration-200"
+                    className="px-4 py-2 bg-[var(--title-red)] hover:bg-[var(--orange)] rounded-xl text-white font-semibold transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                     disabled={isSubmittingComment || !newComment.trim() || commentHasProfanity}
                   >
                     {isSubmittingComment ? 'Posting...' : 'Post Comment'}
@@ -1100,7 +1311,7 @@ const ProjectDetails = () => {
 
       {/* Report Modal */}
       {showReportModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
           <div className="bg-gray-900 rounded-2xl p-8 w-full max-w-md text-[--off-white] border border-[--muted-red] shadow-2xl">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-bold text-[--title-red]">
@@ -1117,8 +1328,9 @@ const ProjectDetails = () => {
             ) : (
               <form onSubmit={handleReportSubmit}>
                 <div className="mb-4">
-                  <label className="block mb-2">Reason:</label>
+                  <label htmlFor="report-reason" className="block mb-2">Reason:</label>
                   <select
+                    id="report-reason"
                     className="w-full bg-gray-800 p-2 rounded text-[--off-white] border border-gray-700"
                     value={reportReason}
                     onChange={(e) => setReportReason(e.target.value)}
@@ -1134,8 +1346,9 @@ const ProjectDetails = () => {
                   </select>
                 </div>
                 <div className="mb-4">
-                  <label className="block mb-2">Description (optional):</label>
+                  <label htmlFor="report-description" className="block mb-2">Description (optional):</label>
                   <textarea
+                    id="report-description"
                     className={`w-full bg-gray-800 p-2 rounded text-[--off-white] border ${
                       reportHasProfanity ? 'border-red-500' : 'border-gray-700'
                     }`}
@@ -1160,8 +1373,8 @@ const ProjectDetails = () => {
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 rounded bg-[--title-red] hover:bg-[--muted-red] font-semibold"
-                    disabled={reportSubmitting}
+                    className="px-4 py-2 rounded bg-[--title-red] hover:bg-[--muted-red] font-semibold disabled:opacity-50"
+                    disabled={reportSubmitting || !reportReason || reportHasProfanity}
                   >
                     {reportSubmitting ? 'Submitting...' : 'Submit Report'}
                   </button>
@@ -1172,14 +1385,14 @@ const ProjectDetails = () => {
         </div>
       )}
 
-      {/* Delete Modal */}
+      {/* Delete Project Modal */}
       {showDeleteModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
           <div className="bg-gray-900 rounded-2xl p-8 w-full max-w-md text-[--off-white] border border-red-500 shadow-2xl">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-bold text-red-500">Delete Project</h2>
-              <button 
-                onClick={() => setShowDeleteModal(false)} 
+              <button
+                onClick={() => setShowDeleteModal(false)}
                 className="text-gray-400 hover:text-white text-2xl"
                 aria-label="Close"
               >
@@ -1191,11 +1404,11 @@ const ProjectDetails = () => {
                 Are you sure you want to delete this project? This action <span className="font-bold">cannot be undone</span> and will remove all associated data including comments and likes.
               </p>
               <p className="font-semibold mb-2">
-                Type <span className="text-red-400">&ldquo;{project.repo_name}&rdquo;</span> to confirm:
+                Type <span className="text-red-400 font-mono">&ldquo;{project.repo_name}&rdquo;</span> to confirm:
               </p>
               <input
                 type="text"
-                className="w-full bg-gray-800 p-2 rounded text-[--off-white] border border-gray-700"
+                className="w-full bg-gray-800 p-2 rounded text-[--off-white] border border-gray-700 focus:ring-red-500 focus:border-red-500 outline-none"
                 value={deleteConfirmation}
                 onChange={(e) => setDeleteConfirmation(e.target.value)}
                 placeholder="Enter project name to confirm"
@@ -1213,8 +1426,8 @@ const ProjectDetails = () => {
                 type="button"
                 onClick={handleProjectDelete}
                 className={`px-4 py-2 rounded font-semibold ${
-                  deleteConfirmation === project.repo_name 
-                    ? 'bg-red-600 hover:bg-red-700' 
+                  deleteConfirmation === project.repo_name
+                    ? 'bg-red-600 hover:bg-red-700'
                     : 'bg-gray-600 cursor-not-allowed'
                 }`}
                 disabled={deleteConfirmation !== project.repo_name || isDeletingProject}
@@ -1228,7 +1441,7 @@ const ProjectDetails = () => {
 
       {/* Delete Comment Modal */}
       {showDeleteCommentModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
           <div className="bg-gray-900 rounded-2xl p-8 w-full max-w-md text-[--off-white] border border-red-500 shadow-2xl">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-bold text-red-500">Delete Comment</h2>
@@ -1264,7 +1477,7 @@ const ProjectDetails = () => {
               <button
                 type="button"
                 onClick={confirmCommentDelete}
-                className="px-4 py-2 rounded font-semibold bg-red-600 hover:bg-red-700"
+                className="px-4 py-2 rounded font-semibold bg-red-600 hover:bg-red-700 disabled:opacity-50"
                 disabled={isDeletingComment}
               >
                 {isDeletingComment ? 'Deleting...' : 'Delete Comment'}
