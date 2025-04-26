@@ -139,17 +139,10 @@ const ProjectPreview = React.memo<ProjectPreviewProps>(({
           </div>
 
           <div className="flex justify-between items-center pt-2 border-t border-[#232323] mt-2">
-            <span className="text-xs text-gray-400 whitespace-nowrap">Last updated {getDaysAgo(date)}</span>
             <div className="text-xs text-[var(--orange)] font-semibold">
               {issueCount} open issue{issueCount === 1 ? "" : "s"}
             </div>
-            <div
-              className="w-0 h-0
-              border-t-[6px] border-t-transparent
-              border-l-[12px] border-l-[rgb(121,121,121)]
-              border-b-[6px] border-b-transparent
-              transition-colors"
-            />
+            <div className="text-xs text-gray-400 whitespace-nowrap">Last updated {getDaysAgo(date)}</div>
           </div>
         </div>
 
