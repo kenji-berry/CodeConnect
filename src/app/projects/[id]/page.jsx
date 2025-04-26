@@ -584,8 +584,15 @@ const ProjectDetails = () => {
     setIsSubmittingComment(true);
 
     try {
-      const commentToInsert = cleanCommentText(trimmedComment);
-      console.log('Submitting comment:', commentToInsert);
+      const commentToInsert = await cleanCommentText(trimmedComment);
+      console.log('Cleaned comment to insert:', commentToInsert);
+
+      if (typeof commentToInsert !== 'string') {
+          console.error('Cleaned comment is not a string:', commentToInsert);
+          alert('Failed to process comment text. Please try again.');
+          setIsSubmittingComment(false);
+          return;
+      }
 
       const { data, error } = await supabase
         .from('project_comments')
@@ -593,7 +600,7 @@ const ProjectDetails = () => {
           {
             project_id: parseInt(id),
             user_id: currentUser.id,
-            comment: commentToInsert
+            comment: commentToInsert // Use the resolved string value
           }
         ])
         .select()
