@@ -1201,7 +1201,8 @@ const ProjectDetails = () => {
             {getFilteredComments().length > 0 ? getFilteredComments().map((comment) => (
               <div key={comment.id} className="p-4 bg-[#1a1a1a] rounded-xl shadow-sm border border-gray-800">
                 <div className="flex justify-between items-start mb-1">
-                  <p className="font-bold text-[var(--orange)]">{comment.profiles.display_name}</p>
+                  <button onClick={() =>console.log(comment)}>desfes</button>
+                  <p className="font-bold text-[var(--orange)]">{comment.profiles?.display_name || 'User'}</p>
                   <div className="flex items-center gap-2">
                     {currentUser && currentUser.id === comment.user_id && (
                       <button
@@ -1221,7 +1222,11 @@ const ProjectDetails = () => {
                     </button>
                   </div>
                 </div>
-                <p className="text-[var(--off-white)] whitespace-pre-wrap break-words">{comment.comment}</p>
+                <p className="text-[var(--off-white)] whitespace-pre-wrap break-words">
+                  {comment.comment && typeof comment.comment === 'string' && comment.comment !== '{}'
+                    ? comment.comment
+                    : '[Comment content unavailable]'}
+                </p>
                 <div className="flex items-center justify-between mt-2">
                   <div className="flex items-center">
                     <button
@@ -1251,7 +1256,7 @@ const ProjectDetails = () => {
                     </button>
                   </div>
                   <p className="text-xs text-gray-500">
-                    {new Date(comment.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    {comment.created_at ? new Date(comment.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Date unknown'}
                   </p>
                 </div>
               </div>
