@@ -40,6 +40,22 @@ const ProjectPreview = React.memo<ProjectPreviewProps>(({
       year: "2-digit",
     });
   };
+  
+  const getDaysAgo = (dateString: string): string => {
+    const pastDate = new Date(dateString);
+    const currentDate = new Date();
+    
+    pastDate.setHours(0, 0, 0, 0);
+    currentDate.setHours(0, 0, 0, 0);
+    
+    // Calculate difference in milliseconds
+    const diffMs = currentDate.getTime() - pastDate.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) return "today";
+    if (diffDays === 1) return "yesterday";
+    return `${diffDays} days ago`;
+  };
 
   const tagsToShow = useMemo(() => {
     if (!Array.isArray(tags)) {
@@ -123,6 +139,7 @@ const ProjectPreview = React.memo<ProjectPreviewProps>(({
           </div>
 
           <div className="flex justify-between items-center pt-2 border-t border-[#232323] mt-2">
+            <span className="text-xs text-gray-400 whitespace-nowrap">Last updated {getDaysAgo(date)}</span>
             <div className="text-xs text-[var(--orange)] font-semibold">
               {issueCount} open issue{issueCount === 1 ? "" : "s"}
             </div>

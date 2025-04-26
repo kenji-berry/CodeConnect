@@ -86,7 +86,10 @@ function NewestProjectsContent() {
           license, mentorship, setup_time, image,
           project_technologies ( is_highlighted, technologies ( name ) ),
           project_tags ( is_highlighted, tags ( name, colour ) ),
-          project_contribution_type ( contribution_type ( name ) )
+          project_contribution_type ( contribution_type ( name ) ),
+          project_commits ( timestamp ),
+          project_issues ( updated_at ),
+          project_pull_requests ( updated_at )
         `)
         .in('id', projectIds)
         .order('created_at', { ascending: false });
@@ -112,12 +115,25 @@ function NewestProjectsContent() {
           const contribution_types = (proj.project_contribution_type || []).map(pct => ({
               name: pct.contribution_type?.name
           })).filter(ct => ct.name);
+          
+          // Find the most recent activity date
+          const dates = [
+            proj.created_at,
+            ...(proj.project_commits || []).map(commit => commit.timestamp),
+            ...(proj.project_issues || []).map(issue => issue.updated_at),
+            ...(proj.project_pull_requests || []).map(pr => pr.updated_at)
+          ].filter(Boolean);
+          
+          const latestDate = dates.length > 0 
+            ? new Date(Math.max(...dates.map(date => new Date(date).getTime()))).toISOString()
+            : proj.created_at;
 
           return {
               ...proj,
               technologies,
               tags,
-              contribution_types
+              contribution_types,
+              latest_activity_date: latestDate
           };
       });
 
@@ -190,7 +206,7 @@ function NewestProjectsContent() {
                   key={project.id}
                   id={project.id}
                   name={project.repo_name || 'Unnamed Project'} 
-                  date={project.created_at || new Date().toISOString()}
+                  date={project.latest_activity_date || project.created_at || new Date().toISOString()}
                   tags={Array.isArray(project.tags) ? project.tags : []}
                   techStack={techStackToShow}
                   description={project.custom_description || 'No description available.'}
