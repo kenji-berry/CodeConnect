@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, Suspense, useCallback } from "react";
+import React, { useState, useEffect, Suspense, useCallback, useMemo } from "react"; // Added useMemo
 import { useRouter, useSearchParams } from "next/navigation";
 import ProjectPreview from "../Components/ProjectPreview";
 import ProjectPageLayout from "../Components/ProjectPageLayout";
@@ -7,11 +7,22 @@ import useProjectFilters from "../hooks/useProjectFilters";
 import { supabase } from '@/supabaseClient';
 import { getHybridRecommendations } from '@/services/recommendation-service';
 
+const SORT_OPTIONS = {
+  RELEVANCE: 'Relevance',
+  LAST_UPDATED_NEWEST: 'Last Updated (Newest)',
+  LAST_UPDATED_OLDEST: 'Last Updated (Oldest)',
+  DATE_POSTED_NEWEST: 'Date Posted (Newest)',
+  DATE_POSTED_OLDEST: 'Date Posted (Oldest)',
+  MOST_INTERACTIONS: 'Most Interactions',
+  LEAST_INTERACTIONS: 'Least Interactions',
+};
+
 function RecommendedProjectsContent() {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(undefined);
   const [projects, setProjects] = useState([]);
   const [totalPages, setTotalPages] = useState(1);
+  const [sortOption, setSortOption] = useState(SORT_OPTIONS.RELEVANCE);
   const resultsPerPage = 15;
 
   const router = useRouter();
@@ -51,6 +62,45 @@ function RecommendedProjectsContent() {
       });
     }
     return openIssueCountMap;
+  };
+
+  const fetchInteractionCounts = async (projectIds) => {
+    if (!projectIds || projectIds.length === 0) {
+      return { likeCounts: {}, commentCounts: {}, viewCounts: {} };
+    }
+
+    try {
+      const [likesRes, commentsRes, viewsRes] = await Promise.all([
+        supabase.from('project_likes').select('project_id').in('project_id', projectIds),
+        supabase.from('project_comments').select('project_id').in('project_id', projectIds),
+        supabase.from('user_interactions').select('project_id').eq('interaction_type', 'view').in('project_id', projectIds)
+      ]);
+
+      if (likesRes.error) console.error("Error fetching likes:", likesRes.error);
+      if (commentsRes.error) console.error("Error fetching comments:", commentsRes.error);
+      if (viewsRes.error) console.error("Error fetching views:", viewsRes.error);
+
+      const likeCounts = (likesRes.data || []).reduce((acc, { project_id }) => {
+        acc[project_id] = (acc[project_id] || 0) + 1;
+        return acc;
+      }, {});
+
+      const commentCounts = (commentsRes.data || []).reduce((acc, { project_id }) => {
+        acc[project_id] = (acc[project_id] || 0) + 1;
+        return acc;
+      }, {});
+
+      const viewCounts = (viewsRes.data || []).reduce((acc, { project_id }) => {
+        acc[project_id] = (acc[project_id] || 0) + 1;
+        return acc;
+      }, {});
+
+      return { likeCounts, commentCounts, viewCounts };
+
+    } catch (error) {
+      console.error("Error fetching interaction counts:", error);
+      return { likeCounts: {}, commentCounts: {}, viewCounts: {} };
+    }
   };
 
   useEffect(() => {
@@ -127,7 +177,7 @@ function RecommendedProjectsContent() {
         'get_recommended_filtered_paginated_projects',
         rpcArgs
       );
-      console.log('[Recommended Page] RPC Result (filteredData):', filteredData); 
+      console.log('[Recommended Page] RPC Result (filteredData):', filteredData);
       console.log('[Recommended Page] RPC Error:', rpcError);
 
       if (rpcError) {
@@ -166,8 +216,8 @@ function RecommendedProjectsContent() {
           project_issues ( updated_at ),
           project_pull_requests ( updated_at )
         `)
-        .in('id', finalProjectIds)
-        .order('created_at', { ascending: false });
+        .in('id', finalProjectIds);
+        // Remove client-side ordering, will be handled by useMemo
       console.log('Fetched project details:', projectDetails);
 
       if (projectError) {
@@ -177,8 +227,14 @@ function RecommendedProjectsContent() {
         return;
       }
 
-      const openIssueCountMap = await fetchOpenIssueCounts(finalProjectIds);
+      const [openIssueCountMap, interactionCounts] = await Promise.all([
+        fetchOpenIssueCounts(finalProjectIds),
+        fetchInteractionCounts(finalProjectIds)
+      ]);
+      const { likeCounts, commentCounts, viewCounts } = interactionCounts;
+
       console.log('Open issue counts:', openIssueCountMap);
+      console.log('Interaction counts:', interactionCounts);
 
       const processedProjects = (projectDetails || []).map(proj => {
           const technologies = (proj.project_technologies || []).map(pt => ({
@@ -203,12 +259,18 @@ function RecommendedProjectsContent() {
             ? new Date(Math.max(...dates.map(date => new Date(date).getTime()))).toISOString()
             : proj.created_at;
 
+          const likes = likeCounts[proj.id] || 0;
+          const comments = commentCounts[proj.id] || 0;
+          const views = viewCounts[proj.id] || 0;
+          const interactionScore = (likes * 2) + (comments * 1.5) + (views * 0.5);
+
           return {
               ...proj,
               technologies,
               tags,
               latest_activity_date: latestDate,
-              issueCount: openIssueCountMap[proj.id] || 0
+              issueCount: openIssueCountMap[proj.id] || 0,
+              interactionScore: interactionScore
           };
       });
       console.log('Processed projects for display:', processedProjects);
@@ -238,6 +300,39 @@ function RecommendedProjectsContent() {
     }
   }, [user, currentPage, fetchRecommendedAndFilteredProjects]);
 
+  const sortedProjects = useMemo(() => {
+    if (!projects || projects.length === 0) return [];
+
+    let sorted = [...projects];
+
+    switch (sortOption) {
+      case SORT_OPTIONS.LAST_UPDATED_NEWEST:
+        sorted.sort((a, b) => new Date(b.latest_activity_date) - new Date(a.latest_activity_date));
+        break;
+      case SORT_OPTIONS.LAST_UPDATED_OLDEST:
+        sorted.sort((a, b) => new Date(a.latest_activity_date) - new Date(b.latest_activity_date));
+        break;
+      case SORT_OPTIONS.DATE_POSTED_NEWEST:
+        sorted.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        break;
+      case SORT_OPTIONS.DATE_POSTED_OLDEST:
+        sorted.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+        break;
+      case SORT_OPTIONS.MOST_INTERACTIONS:
+        sorted.sort((a, b) => b.interactionScore - a.interactionScore);
+        break;
+      case SORT_OPTIONS.LEAST_INTERACTIONS:
+        sorted.sort((a, b) => a.interactionScore - b.interactionScore);
+        break;
+      case SORT_OPTIONS.RELEVANCE:
+      default:
+        // Keep the order returned by the recommendation/RPC call
+        break;
+    }
+    return sorted;
+  }, [projects, sortOption]);
+
+
   const handleNextPage = () => {
     if (currentPage < totalPages) {
       const params = new URLSearchParams(searchParams);
@@ -259,7 +354,10 @@ function RecommendedProjectsContent() {
       title={user ? "Recommended Projects" : "Log in for Recommendations"}
       loading={loading && user === undefined}
       filterProps={filterPropsForLayout}
-      projectCount={user && !loading ? projects.length : 0}
+      projectCount={user && !loading ? sortedProjects.length : 0}
+      sortOptions={Object.values(SORT_OPTIONS)}
+      selectedSortOption={sortOption}
+      onSortChange={setSortOption}
     >
       {!user && !loading && user !== undefined && (
         <div className="bg-gray-900 rounded-lg p-6 mb-6 text-center">
@@ -285,17 +383,17 @@ function RecommendedProjectsContent() {
           </div>
       )}
 
-      {!loading && user && projects.length === 0 && (
+      {!loading && user && sortedProjects.length === 0 && (
         <div className="text-center py-12 bg-gray-900 rounded-lg">
           <h3 className="text-xl font-bold mb-3">No matching recommendations found</h3>
           <p>Try adjusting your filter criteria or interact with more projects.</p>
         </div>
       )}
 
-      {!loading && projects.length > 0 ? (
+      {!loading && sortedProjects.length > 0 ? (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {projects.map(project => {
+            {sortedProjects.map(project => {
               if (!project || typeof project.id === 'undefined') {
                   console.warn("Skipping rendering invalid project data:", project);
                   return null;
