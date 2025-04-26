@@ -213,6 +213,9 @@ function NewestProjectsContent() {
           const views = viewCounts[proj.id] || 0;
           const interactionScore = (likes * 2) + (comments * 1.5) + (views * 0.5);
 
+          console.log(`Project ID: ${proj.id}, Likes: ${likes}, Comments: ${comments}, Views: ${views}`);
+          console.log(`Project ID: ${proj.id}, Interaction Score: ${interactionScore}`);
+
           return {
               ...proj,
               technologies,
