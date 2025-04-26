@@ -584,13 +584,16 @@ const ProjectDetails = () => {
     setIsSubmittingComment(true);
 
     try {
+      const commentToInsert = cleanCommentText(trimmedComment);
+      console.log('Submitting comment:', commentToInsert);
+
       const { data, error } = await supabase
         .from('project_comments')
         .insert([
           {
             project_id: parseInt(id),
             user_id: currentUser.id,
-            comment: cleanCommentText(trimmedComment)
+            comment: commentToInsert
           }
         ])
         .select()
