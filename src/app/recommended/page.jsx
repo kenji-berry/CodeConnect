@@ -124,10 +124,11 @@ function RecommendedProjectsContent() {
       console.log('RPC arguments for get_filtered_paginated_projects:', rpcArgs);
 
       const { data: filteredData, error: rpcError } = await supabase.rpc(
-        'get_filtered_paginated_projects',
+        'get_recommended_filtered_paginated_projects',
         rpcArgs
       );
-      console.log('RPC result (filteredData):', filteredData);
+      console.log('[Recommended Page] RPC Result (filteredData):', filteredData); 
+      console.log('[Recommended Page] RPC Error:', rpcError);
 
       if (rpcError) {
         console.error("Error fetching filtered recommended project IDs:", rpcError);
