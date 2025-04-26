@@ -396,7 +396,7 @@ function TrendingProjectsContent() {
 export default function TrendingProjectsPage() {
   return (
     <Suspense fallback={
-        <div className="flex items-center justify-center min-h-screen w-full radial-background">
+        <div className="flex items-center justify-center min-h-screen w-full">
             <div className="text-center">
             <div className="mb-4">
                 <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[--title-red] mx-auto"></div>
