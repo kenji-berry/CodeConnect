@@ -31,6 +31,24 @@ function NewestProjectsContent() {
   const router = useRouter();
   const currentPage = parseInt(searchParams.get("page") || "1", 10) || 1;
 
+  const fetchOpenIssueCounts = async (projectIds) => {
+    if (!projectIds || !projectIds.length) return {};
+    const { data: issuesData } = await supabase
+      .from('project_issues')
+      .select('project_id, state')
+      .in('project_id', projectIds);
+
+    const openIssueCountMap = {};
+    if (issuesData) {
+      issuesData.forEach(issue => {
+        if (issue.state === 'open') {
+          openIssueCountMap[issue.project_id] = (openIssueCountMap[issue.project_id] || 0) + 1;
+        }
+      });
+    }
+    return openIssueCountMap;
+  };
+
   const fetchFilteredProjects = useCallback(async (page) => {
     setLoading(true);
     try {
@@ -100,6 +118,8 @@ function NewestProjectsContent() {
         return;
       }
 
+      const openIssueCountMap = await fetchOpenIssueCounts(projectIds);
+
       const processedProjects = (projectDetails || []).map(proj => {
           const technologies = (proj.project_technologies || []).map(pt => ({
               name: pt.technologies?.name,
@@ -116,7 +136,6 @@ function NewestProjectsContent() {
               name: pct.contribution_type?.name
           })).filter(ct => ct.name);
           
-          // Find the most recent activity date
           const dates = [
             proj.created_at,
             ...(proj.project_commits || []).map(commit => commit.timestamp),
@@ -133,7 +152,8 @@ function NewestProjectsContent() {
               technologies,
               tags,
               contribution_types,
-              latest_activity_date: latestDate
+              latest_activity_date: latestDate,
+              issueCount: openIssueCountMap[proj.id] || 0
           };
       });
 
@@ -179,9 +199,9 @@ function NewestProjectsContent() {
       filterProps={{ ...filterProps, ...restFilterProps }}
       projectCount={projects.length}
     >
-      {loading && (!projects || projects.length === 0) ? ( // Added check for !projects
+      {loading && (!projects || projects.length === 0) ? (
          <div className="text-center py-12">Loading projects...</div>
-      ) : !loading && (!projects || projects.length === 0) ? ( // Added check for !projects
+      ) : !loading && (!projects || projects.length === 0) ? (
         <div className="text-center py-12 bg-gray-900 rounded-lg">
           <h3 className="text-xl font-bold mb-3">No matching projects found</h3>
           <p>Try adjusting your filter criteria or clearing filters.</p>
@@ -189,12 +209,10 @@ function NewestProjectsContent() {
       ) : (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* Ensure projects is an array before mapping */}
             {Array.isArray(projects) && projects.map(project => {
-              // Defensive check: Ensure project is an object before accessing properties
               if (!project || typeof project !== 'object') {
                 console.error("Invalid project data encountered:", project);
-                return null; // Skip rendering this invalid item
+                return null;
               }
 
               const techStackToShow = project.technologies
@@ -210,14 +228,13 @@ function NewestProjectsContent() {
                   tags={Array.isArray(project.tags) ? project.tags : []}
                   techStack={techStackToShow}
                   description={project.custom_description || 'No description available.'}
-                  issueCount={0}
+                  issueCount={project.issueCount}
                   recommended={false}
                   image={project.image}
                 />
               );
             })}
           </div>
-          {/* ...pagination... */}
           {totalPages > 1 && (
              <div className="flex justify-between items-center mt-6">
                <button
