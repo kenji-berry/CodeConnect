@@ -1,10 +1,19 @@
 "use client";
-import React, { useState, useEffect, Suspense, useCallback } from "react";
+import React, { useState, useEffect, Suspense, useCallback, useMemo } from "react"; // Added useMemo
 import { useRouter, useSearchParams } from "next/navigation";
 import ProjectPreview from "../Components/ProjectPreview";
 import ProjectPageLayout from "../Components/ProjectPageLayout";
 import useProjectFilters from "../hooks/useProjectFilters";
 import { supabase } from '@/supabaseClient';
+
+const SORT_OPTIONS = {
+  LAST_UPDATED_NEWEST: 'Last Updated (Newest)',
+  LAST_UPDATED_OLDEST: 'Last Updated (Oldest)',
+  DATE_POSTED_NEWEST: 'Date Posted (Newest)',
+  DATE_POSTED_OLDEST: 'Date Posted (Oldest)',
+  MOST_INTERACTIONS: 'Most Interactions',
+  LEAST_INTERACTIONS: 'Least Interactions',
+};
 
 async function getInitialPopularProjectIds(limit = 100) {
   try {
@@ -27,6 +36,7 @@ function PopularProjectsContent() {
   const [loading, setLoading] = useState(true);
   const [projects, setProjects] = useState([]);
   const [totalPages, setTotalPages] = useState(1);
+  const [sortOption, setSortOption] = useState(SORT_OPTIONS.MOST_INTERACTIONS); // Default to most interactions for popular
   const resultsPerPage = 15;
 
   const router = useRouter();
@@ -49,7 +59,46 @@ function PopularProjectsContent() {
   } = filterHookProps;
 
   const filterPropsForLayout = { ...filterHookProps };
-  
+
+  const fetchInteractionCounts = async (projectIds) => {
+    if (!projectIds || projectIds.length === 0) {
+      return { likeCounts: {}, commentCounts: {}, viewCounts: {} };
+    }
+
+    try {
+      const [likesRes, commentsRes, viewsRes] = await Promise.all([
+        supabase.from('project_likes').select('project_id').in('project_id', projectIds),
+        supabase.from('project_comments').select('project_id').in('project_id', projectIds),
+        supabase.from('user_interactions').select('project_id').eq('interaction_type', 'view').in('project_id', projectIds)
+      ]);
+
+      if (likesRes.error) console.error("Error fetching likes:", likesRes.error);
+      if (commentsRes.error) console.error("Error fetching comments:", commentsRes.error);
+      if (viewsRes.error) console.error("Error fetching views:", viewsRes.error);
+
+      const likeCounts = (likesRes.data || []).reduce((acc, { project_id }) => {
+        acc[project_id] = (acc[project_id] || 0) + 1;
+        return acc;
+      }, {});
+
+      const commentCounts = (commentsRes.data || []).reduce((acc, { project_id }) => {
+        acc[project_id] = (acc[project_id] || 0) + 1;
+        return acc;
+      }, {});
+
+      const viewCounts = (viewsRes.data || []).reduce((acc, { project_id }) => {
+        acc[project_id] = (acc[project_id] || 0) + 1;
+        return acc;
+      }, {});
+
+      return { likeCounts, commentCounts, viewCounts };
+
+    } catch (error) {
+      console.error("Error fetching interaction counts:", error);
+      return { likeCounts: {}, commentCounts: {}, viewCounts: {} };
+    }
+  };
+
   const fetchOpenIssueCounts = async (projectIds) => {
     if (!projectIds || !projectIds.length) return {};
     const { data: issuesData } = await supabase
@@ -139,8 +188,8 @@ function PopularProjectsContent() {
           project_issues ( updated_at ),
           project_pull_requests ( updated_at )
         `)
-        .in('id', finalProjectIds)
-        .order('created_at', { ascending: false });
+        .in('id', finalProjectIds);
+
 
       if (projectError) {
         console.error("Error fetching project details:", projectError);
@@ -149,8 +198,12 @@ function PopularProjectsContent() {
         return;
       }
 
-      const openIssueCountMap = await fetchOpenIssueCounts(finalProjectIds);
-      
+      const [openIssueCountMap, interactionCounts] = await Promise.all([
+        fetchOpenIssueCounts(finalProjectIds),
+        fetchInteractionCounts(finalProjectIds)
+      ]);
+      const { likeCounts, commentCounts, viewCounts } = interactionCounts;
+
       const processedProjects = (projectDetails || []).map(proj => {
           const technologies = (proj.project_technologies || []).map(pt => ({
               name: pt.technologies?.name,
@@ -162,24 +215,35 @@ function PopularProjectsContent() {
               colour: ptag.tags?.colour,
               is_highlighted: ptag.is_highlighted
           })).filter(t => t.name);
-          
+
+          const contribution_types = (proj.project_contribution_type || []).map(pct => ({
+              name: pct.contribution_type?.name
+          })).filter(ct => ct.name);
+
           const dates = [
             proj.created_at,
             ...(proj.project_commits || []).map(commit => commit.timestamp),
             ...(proj.project_issues || []).map(issue => issue.updated_at),
             ...(proj.project_pull_requests || []).map(pr => pr.updated_at)
           ].filter(Boolean);
-          
-          const latestDate = dates.length > 0 
+
+          const latestDate = dates.length > 0
             ? new Date(Math.max(...dates.map(date => new Date(date).getTime()))).toISOString()
             : proj.created_at;
+
+          const likes = likeCounts[proj.id] || 0;
+          const comments = commentCounts[proj.id] || 0;
+          const views = viewCounts[proj.id] || 0;
+          const interactionScore = (likes * 2) + (comments * 1.5) + (views * 0.5);
 
           return {
               ...proj,
               technologies,
               tags,
+              contribution_types,
               latest_activity_date: latestDate,
-              issueCount: openIssueCountMap[proj.id] || 0
+              issueCount: openIssueCountMap[proj.id] || 0,
+              interactionScore: interactionScore
           };
       });
 
@@ -202,6 +266,29 @@ function PopularProjectsContent() {
     fetchPopularAndFilteredProjects(currentPage);
   }, [currentPage, fetchPopularAndFilteredProjects]);
 
+  const sortedProjects = useMemo(() => {
+    if (!projects || projects.length === 0) return [];
+
+    const projectsToSort = [...projects];
+
+    switch (sortOption) {
+      case SORT_OPTIONS.LAST_UPDATED_NEWEST:
+        return projectsToSort.sort((a, b) => new Date(b.latest_activity_date) - new Date(a.latest_activity_date));
+      case SORT_OPTIONS.LAST_UPDATED_OLDEST:
+        return projectsToSort.sort((a, b) => new Date(a.latest_activity_date) - new Date(b.latest_activity_date));
+      case SORT_OPTIONS.DATE_POSTED_NEWEST:
+        return projectsToSort.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      case SORT_OPTIONS.DATE_POSTED_OLDEST:
+        return projectsToSort.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+      case SORT_OPTIONS.MOST_INTERACTIONS:
+        return projectsToSort.sort((a, b) => (b.interactionScore ?? 0) - (a.interactionScore ?? 0));
+      case SORT_OPTIONS.LEAST_INTERACTIONS:
+        return projectsToSort.sort((a, b) => (a.interactionScore ?? 0) - (b.interactionScore ?? 0));
+      default:
+        return projectsToSort;
+    }
+  }, [projects, sortOption]);
+
   const handleNextPage = () => {
     if (currentPage < totalPages) {
       const params = new URLSearchParams(searchParams);
@@ -221,11 +308,14 @@ function PopularProjectsContent() {
   return (
     <ProjectPageLayout
       title="Popular Projects"
-      loading={loading}
+      loading={loading && sortedProjects.length === 0}
       filterProps={filterPropsForLayout}
-      projectCount={projects.length}
+      projectCount={sortedProjects.length}
+      sortOption={sortOption}
+      onSortChange={setSortOption}
+      availableSortOptions={Object.values(SORT_OPTIONS)}
     >
-      {loading && (
+      {loading && sortedProjects.length === 0 && (
          <div className="flex items-center justify-center p-12">
             <div className="text-center">
               <div className="mb-4">
@@ -236,17 +326,17 @@ function PopularProjectsContent() {
           </div>
       )}
 
-      {!loading && projects.length === 0 && (
+      {!loading && sortedProjects.length === 0 && (
         <div className="text-center py-12 bg-gray-900 rounded-lg">
           <h3 className="text-xl font-bold mb-3">No matching popular projects found</h3>
           <p>Try adjusting your filter criteria or check back later.</p>
         </div>
       )}
 
-      {!loading && projects.length > 0 ? (
+      {!loading && sortedProjects.length > 0 ? (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {projects.map(project => {
+            {sortedProjects.map(project => {
               if (!project || typeof project.id === 'undefined') {
                   console.warn("Skipping rendering invalid project data:", project);
                   return null;
