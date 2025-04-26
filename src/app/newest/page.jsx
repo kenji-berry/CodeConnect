@@ -49,25 +49,29 @@ function NewestProjectsContent() {
 
     try {
       const [likesRes, commentsRes, viewsRes] = await Promise.all([
-        supabase.from('project_likes').select('project_id, count', { count: 'exact' }).in('project_id', projectIds),
-        supabase.from('project_comments').select('project_id, count', { count: 'exact' }).in('project_id', projectIds),
-        supabase.from('user_interactions').select('project_id, count', { count: 'exact' }).eq('interaction_type', 'view').in('project_id', projectIds)
+        supabase.from('project_likes').select('project_id').in('project_id', projectIds),
+        supabase.from('project_comments').select('project_id').in('project_id', projectIds),
+        supabase.from('user_interactions').select('project_id').eq('interaction_type', 'view').in('project_id', projectIds)
       ]);
 
-      const likeCounts = likesRes.data?.reduce((acc, { project_id }) => {
-        acc[project_id] = (acc[project_id] || 0) + 1;
-        return acc;
-      }, {}) || {};
+      if (likesRes.error) console.error("Error fetching likes:", likesRes.error);
+      if (commentsRes.error) console.error("Error fetching comments:", commentsRes.error);
+      if (viewsRes.error) console.error("Error fetching views:", viewsRes.error);
 
-      const commentCounts = commentsRes.data?.reduce((acc, { project_id }) => {
+      const likeCounts = (likesRes.data || []).reduce((acc, { project_id }) => {
         acc[project_id] = (acc[project_id] || 0) + 1;
         return acc;
-      }, {}) || {};
+      }, {});
 
-      const viewCounts = viewsRes.data?.reduce((acc, { project_id }) => {
+      const commentCounts = (commentsRes.data || []).reduce((acc, { project_id }) => {
         acc[project_id] = (acc[project_id] || 0) + 1;
         return acc;
-      }, {}) || {};
+      }, {});
+
+      const viewCounts = (viewsRes.data || []).reduce((acc, { project_id }) => {
+        acc[project_id] = (acc[project_id] || 0) + 1;
+        return acc;
+      }, {});
 
       return { likeCounts, commentCounts, viewCounts };
 
