@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, Suspense, useCallback, useMemo } from "react"; // Added useMemo
+import React, { useState, useEffect, Suspense, useCallback, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import ProjectPreview from "../Components/ProjectPreview";
 import ProjectPageLayout from "../Components/ProjectPageLayout";
@@ -36,7 +36,7 @@ function PopularProjectsContent() {
   const [loading, setLoading] = useState(true);
   const [projects, setProjects] = useState([]);
   const [totalPages, setTotalPages] = useState(1);
-  const [sortOption, setSortOption] = useState(SORT_OPTIONS.MOST_INTERACTIONS); // Default to most interactions for popular
+  const [sortOption, setSortOption] = useState(SORT_OPTIONS.LAST_UPDATED_NEWEST); 
   const resultsPerPage = 15;
 
   const router = useRouter();
