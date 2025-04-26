@@ -62,7 +62,7 @@ export async function processEmailSchedule(): Promise<EmailScheduleResult> {
         }
 
         // Check if we already sent an email to this user today using supabaseAdmin
-        const { data: recentEmails, error: logError } = await supabaseAdmin // Use admin client
+        const { data: recentEmails, error: logError } = await supabaseAdmin
           .from('user_email_logs')
           .select('sent_at')
           .eq('user_id', user.user_id)
@@ -72,7 +72,6 @@ export async function processEmailSchedule(): Promise<EmailScheduleResult> {
 
         if (logError) {
           console.error(`📧 Error checking email logs for user ${user.user_id}:`, logError);
-          // Decide if you want to skip or continue despite the log check error
           errorCount++;
           continue;
         }
@@ -83,7 +82,7 @@ export async function processEmailSchedule(): Promise<EmailScheduleResult> {
           continue;
         }
 
-        // Get personalized recommendations for this user (getHybridRecommendations might need adjustment if it uses the non-admin client internally)
+        // Get personalized recommendations for this user
         console.log(`📧 Fetching recommendations for user ${user.user_id}`);
         // Assuming getHybridRecommendations is safe or uses admin client where needed
         const recommendations = await getHybridRecommendations(user.user_id, 5);
@@ -100,7 +99,7 @@ export async function processEmailSchedule(): Promise<EmailScheduleResult> {
         if (result.success) {
           console.log(`📧 Successfully sent recommendation email to ${userEmail}`);
           // Log the successful email send using supabaseAdmin
-          const { error: insertLogError } = await supabaseAdmin // Use admin client
+          const { error: insertLogError } = await supabaseAdmin
             .from('user_email_logs')
             .insert({
               user_id: user.user_id,
@@ -109,7 +108,6 @@ export async function processEmailSchedule(): Promise<EmailScheduleResult> {
             });
           if (insertLogError) {
             console.error(`📧 Failed to log successful email for ${userEmail}:`, insertLogError);
-            // Don't count as an error for the overall process, but log it
           }
           successCount++;
         } else {

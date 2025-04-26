@@ -444,7 +444,6 @@ const ProjectDetails = () => {
       });
     } else {
       console.error("Error updating vote in DB:", dbError);
-      // Optionally: Show an error message to the user
     }
   };
 
@@ -532,7 +531,7 @@ const ProjectDetails = () => {
       const reportData = {
         reporter_id: currentUser.id,
         reason: reportReason,
-        description: cleanReportText(reportDescription) || null, // Use cleaned text
+        description: cleanReportText(reportDescription) || null,
         status: 'pending'
       };
 
@@ -689,7 +688,7 @@ const ProjectDetails = () => {
       return formatDistanceToNow(new Date(dateString), { addSuffix: true });
     } catch (e) {
       console.error("Error formatting date:", e);
-      return dateString; // Fallback
+      return dateString;
     }
   };
 
@@ -1022,7 +1021,7 @@ const ProjectDetails = () => {
                         <p className={`${expandedIssueId !== issue.id ? 'line-clamp-2' : ''}`}>
                           {issue.body}
                         </p>
-                        {issue.body.length > 100 && ( // Only show toggle if body is long enough
+                        {issue.body.length > 100 && (
                           <button
                             onClick={() => setExpandedIssueId(expandedIssueId === issue.id ? null : issue.id)}
                             className="text-xs text-[var(--orange)] hover:underline mt-1"
@@ -1088,7 +1087,7 @@ const ProjectDetails = () => {
                         <p className={`${expandedPrId !== pr.id ? 'line-clamp-2' : ''}`}>
                           {pr.body}
                         </p>
-                        {pr.body.length > 100 && ( // Only show toggle if body is long enough
+                        {pr.body.length > 100 && (
                           <button
                             onClick={() => setExpandedPrId(expandedPrId === pr.id ? null : pr.id)}
                             className="text-xs text-[var(--orange)] hover:underline mt-1"

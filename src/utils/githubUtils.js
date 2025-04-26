@@ -1,6 +1,6 @@
 import { supabase } from '@/supabaseClient';
 
-// Add this helper function for Levenshtein distance calculation
+// Helper function for Levenshtein distance calculation
 function levenshteinDistance(a, b) {
   const matrix = Array(b.length + 1).fill().map(() => Array(a.length + 1).fill(0));
   

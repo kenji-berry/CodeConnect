@@ -104,7 +104,6 @@ export default function FilterSidebar({
           <MultiDifficultySelector
             onDifficultiesChange={onDifficultiesChange}
             selectedDifficulties={selectedDifficulties}
-            // isNumeric={numericDifficulty} // Pass if needed
           />
         </div>
 
