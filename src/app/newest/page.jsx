@@ -105,12 +105,17 @@ function NewestProjectsContent() {
     setLoading(true);
     try {
       const offset = (page - 1) * resultsPerPage;
+      
+      // Convert difficulty values to numbers for the SQL query
+      const numericDifficulties = selectedDifficulties.map(d => 
+        typeof d === 'string' ? parseInt(d, 10) : d
+      ).filter(d => !isNaN(d));
 
       const filtersJSON = {
         ...(selectedTechnologies.length > 0 && { technologies: selectedTechnologies }),
         ...(selectedTags.length > 0 && { tags: selectedTags }),
         ...(selectedContributionTypes.length > 0 && { contribution_types: selectedContributionTypes }),
-        ...(selectedDifficulties.length > 0 && { difficulties: selectedDifficulties }),
+        ...(numericDifficulties.length > 0 && { difficulties: numericDifficulties }),
         ...(selectedLastUpdated && { last_updated: selectedLastUpdated }),
         ...(selectedLicense && { license: selectedLicense }),
         ...(selectedMentorship && { mentorship: selectedMentorship }),
