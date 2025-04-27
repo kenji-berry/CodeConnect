@@ -27,8 +27,12 @@ export default function useProjectFilters(options = {}) {
   const [setupTimeMax, setSetupTimeMax] = useState("");
 
   const isInitialSyncDone = useRef(false);
+  const isUpdatingFromUrl = useRef(false);
 
   useEffect(() => {
+    if (isUpdatingFromUrl.current) return;
+    
+    isUpdatingFromUrl.current = true;
     const urlTechnologies = searchParams.get("technologies")?.split(",").filter(Boolean) || [];
     const urlContributionTypes = searchParams.get("contributionTypes")?.split(",").filter(Boolean) || [];
     const urlTags = includeTags ? (searchParams.get("tags")?.split(",").filter(Boolean) || []) : [];
@@ -79,8 +83,11 @@ export default function useProjectFilters(options = {}) {
     }
 
     isInitialSyncDone.current = true;
+    setTimeout(() => {
+      isUpdatingFromUrl.current = false;
+    }, 0);
 
-  }, [searchParams, includeTags, numericDifficulty, selectedDifficulties, selectedTechnologies, selectedContributionTypes, selectedTags, selectedLastUpdated, filterMode, selectedLicense, selectedMentorship, setupTimeMin, setupTimeMax]);
+  }, [searchParams, includeTags]);
 
   useEffect(() => {
     const fetchTechnologies = async () => {
@@ -116,6 +123,8 @@ export default function useProjectFilters(options = {}) {
   }, [includeTags]);
 
   const updateUrl = useCallback((params) => {
+     if (!isInitialSyncDone.current) return;
+     
      const urlParams = new URLSearchParams(searchParams);
      Object.entries(params).forEach(([key, value]) => {
        urlParams.delete('page');
