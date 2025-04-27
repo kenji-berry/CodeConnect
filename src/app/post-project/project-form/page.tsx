@@ -6,7 +6,7 @@ import "../../post-project/style.css";
 import MultiSelector from "@/app/Components/MultiSelector";
 import SingleSelector from "@/app/Components/SingleSelector";
 import HighlightableMultiSelector from "@/app/Components/HighlightableMultiSelector";
-import DifficultySelector from "@/app/Components/DifficultySelector";
+import MultiDifficultySelector from "@/app/Components/MultiDifficultySelector";
 import ProjectPreview from "@/app/Components/ProjectPreview";
 
 import { 
@@ -48,7 +48,7 @@ interface Project {
   repo_owner: string;
   custom_description?: string;
   description_type?: string;
-  difficulty_level?: number;
+  difficulty_level?: number[];
   status?: string;
   mentorship?: boolean;
   license?: string;
@@ -84,7 +84,7 @@ function ProjectFormContent() {
   const [highlightedTechnologies, setHighlightedTechnologies] = useState<string[]>([]);
   const [session, setSession] = useState<{ user: { id: string } } | null>(null);
   const [projectStatus, setProjectStatus] = useState<string>("Active Development");
-  const [difficulty, setDifficulty] = useState<number>(1);
+  const [difficulty, setDifficulty] = useState<number[]>([1]);
   const [resourceLinks, setResourceLinks] = useState<ResourceLink[]>([]);
   const [customDescription, setCustomDescription] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
@@ -153,8 +153,8 @@ function ProjectFormContent() {
     setProjectStatus(status || "Active Development");
   };
 
-  const handleDifficultyChange = (level: number) => {
-    setDifficulty(level);
+  const handleDifficultiesChange = (levels: number[]) => {
+    setDifficulty(levels);
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -396,7 +396,7 @@ function ProjectFormContent() {
           setHasRepoAccess(true);
           
           setCustomDescription(project.custom_description || '');
-          setDifficulty(project.difficulty_level || 1);
+          setDifficulty(project.difficulty_level || [1]);
           setProjectStatus(project.status || "Active Development");
           setMentorship(project.mentorship ? "Yes" : "No");
           setLicense(project.license || "MIT");
@@ -716,7 +716,7 @@ function ProjectFormContent() {
       formData.append('owner', owner ?? '');
       formData.append('github_link', githubLink);
       formData.append('custom_description', customDescription);
-      formData.append('difficulty_level', String(difficulty));
+      formData.append('difficulty_level', JSON.stringify(difficulty));
       formData.append('tags', JSON.stringify(selectedTags));
       formData.append('highlighted_tags', JSON.stringify(highlightedTags));
       formData.append('technologies', JSON.stringify(selectedTechnologies));
@@ -1152,9 +1152,9 @@ function ProjectFormContent() {
                 Difficulty Level <span className="text-[var(--title-red)]">*</span>
               </h3>
               <div className="flex items-center justify-center">
-                <DifficultySelector
-                  onDifficultyChange={handleDifficultyChange}
-                  initialDifficulty={difficulty}
+                <MultiDifficultySelector
+                  onDifficultiesChange={handleDifficultiesChange}
+                  selectedDifficulties={difficulty}
                 />
               </div>
             </section>

@@ -84,6 +84,7 @@ export default async function handler(req, res) {
     const description_type = parseField(data.fields.description_type);
     const custom_description = parseField(data.fields.custom_description);
     const difficulty_level_raw = parseField(data.fields.difficulty_level);
+    const difficulty = difficulty_level_raw ? JSON.parse(difficulty_level_raw) : [1];
     const tags = JSON.parse(parseField(data.fields.tags) || '[]');
     const technologies = JSON.parse(parseField(data.fields.technologies) || '[]');
     const highlighted_technologies = JSON.parse(parseField(data.fields.highlighted_technologies) || '[]');
@@ -104,8 +105,8 @@ export default async function handler(req, res) {
     if (!Array.isArray(highlighted_technologies) || highlighted_technologies.length === 0) return res.status(400).json({ error: "At least one highlighted technology is required." });
     if (!setup_time_raw || isNaN(setup_time_raw) || Number(setup_time_raw) < 1) return res.status(400).json({ error: "Estimated setup time is required." });
     if (!custom_description || custom_description.trim().length < 50) return res.status(400).json({ error: "Project description is required and should be at least 50 characters." });
+    if (!Array.isArray(difficulty) || difficulty.length === 0) return res.status(400).json({ error: "At least one difficulty level is required." });
 
-    const difficulty = difficulty_level_raw ? parseInt(difficulty_level_raw, 10) : null;
     const setupTime = setup_time_raw ? parseInt(setup_time_raw, 10) : null;
 
     let imageUrl = null;
@@ -237,7 +238,7 @@ export default async function handler(req, res) {
           github_link: github_link || null,
           description_type: description_type || null,
           custom_description: custom_description || null,
-          difficulty_level: isNaN(difficulty) ? null : difficulty,
+          difficulty_level: Array.isArray(difficulty) ? difficulty : [1],
           links: links,
           status: status || null,
           repo_name_owner: `${repoName || 'Untitled Project'} by ${owner || session.user.email}`,
@@ -270,7 +271,7 @@ export default async function handler(req, res) {
           github_link: github_link || null,
           description_type: description_type || null,
           custom_description: custom_description || null,
-          difficulty_level: isNaN(difficulty) ? null : difficulty,
+          difficulty_level: Array.isArray(difficulty) ? difficulty : [1],
           links: links,
           status: status || null,
           user_id: session.user.id,
