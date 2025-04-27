@@ -6,7 +6,7 @@ import { supabase } from '@/supabaseClient';
 export default function useProjectFilters(options = {}) {
   const {
     includeTags = false,
-    numericDifficulty = false,
+    numericDifficulty = true,
   } = options;
 
   const router = useRouter();
@@ -42,9 +42,9 @@ export default function useProjectFilters(options = {}) {
 
     let urlDifficultiesValue = [];
     if (urlDifficultiesParam) {
-        urlDifficultiesValue = numericDifficulty
-            ? urlDifficultiesParam.split(",").map(Number).filter(n => !isNaN(n))
-            : urlDifficultiesParam.split(",").filter(Boolean);
+        urlDifficultiesValue = urlDifficultiesParam.split(",")
+            .map(Number)
+            .filter(n => !isNaN(n) && n >= 1 && n <= 5);
     }
 
     if (JSON.stringify(urlTechnologies) !== JSON.stringify(selectedTechnologies)) {
@@ -80,7 +80,7 @@ export default function useProjectFilters(options = {}) {
 
     isInitialSyncDone.current = true;
 
-  }, [searchParams, includeTags, numericDifficulty]);
+  }, [searchParams, includeTags, numericDifficulty, selectedDifficulties, selectedTechnologies, selectedContributionTypes, selectedTags, selectedLastUpdated, filterMode, selectedLicense, selectedMentorship, setupTimeMin, setupTimeMax]);
 
   useEffect(() => {
     const fetchTechnologies = async () => {
@@ -148,8 +148,12 @@ export default function useProjectFilters(options = {}) {
   }, [updateUrl]);
 
   const handleDifficultyChange = useCallback((difficulties) => {
-    setSelectedDifficulties(difficulties);
-    updateUrl({ difficulties: difficulties });
+    const numericDifficulties = difficulties.map(d => 
+      typeof d === 'string' ? parseInt(d, 10) : d
+    ).filter(d => !isNaN(d));
+    
+    setSelectedDifficulties(numericDifficulties);
+    updateUrl({ difficulties: numericDifficulties });
   }, [updateUrl]);
 
   const handleLastUpdatedChange = useCallback((lastUpdated) => {
@@ -220,6 +224,6 @@ export default function useProjectFilters(options = {}) {
     handleSetupTimeMinChange,
     handleSetupTimeMaxChange,
     clearAllFilters,
-    numericDifficulty
+    numericDifficulty: true
   };
 }
