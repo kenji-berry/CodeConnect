@@ -988,7 +988,7 @@ const ProjectDetails = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
           {/* Recent Issues */}
           <section className="rounded-xl shadow-lg bg-[#232323] border border-[var(--muted-red)] p-8 flex flex-col">
-            <h2 className="text-xl font-bold text-[var(--off-white)] mb-4">Recent Issues</h2>
+            <h2 className="text-xl font-bold text-[var(--off-white)] mb-4">Recently Updated Issues</h2>
             {issues.length > 0 ? (
               <div className="flex-grow space-y-3">
                 {displayedIssues.map(issue => (
@@ -1054,7 +1054,7 @@ const ProjectDetails = () => {
 
           {/* Recent Pull Requests */}
           <section className="rounded-xl shadow-lg bg-[#232323] border border-[var(--muted-red)] p-8 flex flex-col">
-            <h2 className="text-xl font-bold text-[var(--off-white)] mb-4">Recent Pull Requests</h2>
+            <h2 className="text-xl font-bold text-[var(--off-white)] mb-4">Recently Updated Pull Requests</h2>
             {pullRequests.length > 0 ? (
               <div className="flex-grow space-y-3">
                 {displayedPullRequests.map(pr => (

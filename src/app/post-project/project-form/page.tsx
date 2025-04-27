@@ -848,7 +848,7 @@ function ProjectFormContent() {
                 Project Banner Image <span className="text-[var(--title-red)]">*</span>
               </h2>
               <p className="text-sm text-gray-400 mb-2">
-                This image will be shown at the top of your project page. Recommended: 16:9 aspect ratio (1280×720px or similar).
+                This image will be shown in your project preview. Recommended: 16:9 aspect ratio (1280×720px or similar).
               </p>
               {fieldErrors.bannerImage && (
                 <p className="text-sm text-[var(--title-red)] mb-2">
@@ -1149,7 +1149,7 @@ function ProjectFormContent() {
             </section>
             <section className="rounded-xl shadow-lg bg-[#232323] border border-[var(--muted-red)] p-8 flex flex-col gap-4">
               <h3 className="text-xl font-bold text-[var(--off-white)] mb-2">
-                Beginner Friendliness <span className="text-[var(--title-red)]">*</span>
+                Difficulty Level <span className="text-[var(--title-red)]">*</span>
               </h3>
               <div className="flex items-center justify-center">
                 <DifficultySelector
