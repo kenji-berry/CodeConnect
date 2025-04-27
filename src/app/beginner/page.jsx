@@ -107,7 +107,12 @@ function BeginnerProjectsContent() {
     setLoading(true);
     try {
       const offset = (page - 1) * resultsPerPage;
-      const difficultiesToFilter = Array.from(new Set([1, ...selectedDifficulties]));
+      
+      const numericDifficulties = selectedDifficulties.map(d => 
+        typeof d === 'string' ? parseInt(d, 10) : d
+      ).filter(d => !isNaN(d));
+      
+      const difficultiesToFilter = Array.from(new Set([1, ...numericDifficulties]));
 
       const filtersJSON = {
         ...(selectedTechnologies.length > 0 && { technologies: selectedTechnologies }),
