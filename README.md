@@ -4,6 +4,21 @@
 
 This submission includes the full source code for my final year project, **CodeConnect**, as well as this README to explain the contents and limitations regarding execution.
 
+## Directory Structure
+
+- **src/** - Contains all frontend components, layouts, and client-side logic
+  - **services/** - Frontend service modules and utilities
+
+- **pages/api/** - Backend API endpoints and serverless functions
+
+- **public/** - Static assets including images, icons, and resources
+
+- **Root Directory** - Configuration files for project setup:
+  - Package management (package.json, package-lock.json)
+  - Next.js configuration (next.config.js)
+  - Environment setup (.env.example)
+  - Build and deployment configurations
+
 ## Execution Notes
 
 Unfortunately, the submitted code **cannot be run directly** by examiners due to the following reasons:
