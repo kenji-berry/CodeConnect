@@ -3,10 +3,6 @@
       {
         "path": "/api/cron/email-schedule?cron=daily",
         "schedule": "0 9 * * *"
-      },
-      {
-        "path": "/api/cron/email-schedule?cron=weekly",
-        "schedule": "0 10 * * 0"
       }
     ]
   }
