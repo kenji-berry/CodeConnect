@@ -53,30 +53,21 @@ const ProjectPreview = React.memo<ProjectPreviewProps>(({
     console.log('Parsed owner:', owner, 'repo:', repo);
     const fetchIssues = async () => {
       try {
-        console.log(`Fetching GitHub issues for ${owner}/${repo}`);
-        const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/issues?state=open&per_page=1`);
-        console.log('GitHub API response status:', res.status);
-        if (!res.ok) throw new Error('GitHub API error');
-        const linkHeader = res.headers.get('Link');
-        console.log('GitHub API Link header:', linkHeader);
-        let count = 0;
-        if (linkHeader) {
-          // Parse last page number from Link header
-          const lastPageMatch = linkHeader.match(/&page=(\d+)>; rel="last"/);
-          console.log('Last page match:', lastPageMatch);
-          if (lastPageMatch) {
-            count = parseInt(lastPageMatch[1], 10);
-          }
-        } else {
-          // If no Link header, count is the length of the returned array
-          const data = await res.json();
-          console.log('GitHub API data array:', data);
-          count = Array.isArray(data) ? data.length : 0;
+        console.log(`Fetching GitHub open issue count for ${owner}/${repo}`);
+        const searchUrl = `https://api.github.com/search/issues?q=repo:${owner}/${repo}+is:issue+is:open`;
+        const res = await fetch(searchUrl);
+        console.log('GitHub Search API response status:', res.status);
+        if (res.status === 404) {
+          setGithubIssueCount(null);
+          return;
         }
+        if (!res.ok) throw new Error('GitHub Search API error');
+        const data = await res.json();
+        const count = typeof data.total_count === 'number' ? data.total_count : 0;
         console.log(`GitHub open issues for ${owner}/${repo}:`, count);
         setGithubIssueCount(count);
       } catch (e) {
-        console.error('Error fetching GitHub issues:', e);
+        console.error('Error fetching GitHub open issue count:', e);
         setGithubIssueCount(null);
       }
     };
