@@ -59,8 +59,10 @@ const ProjectPreview = React.memo<ProjectPreviewProps>(({
           const data = await res.json();
           count = Array.isArray(data) ? data.length : 0;
         }
+        console.log(`GitHub open issues for ${owner}/${repo}:`, count);
         setGithubIssueCount(count);
       } catch (e) {
+        console.error('Error fetching GitHub issues:', e);
         setGithubIssueCount(null);
       }
     };
