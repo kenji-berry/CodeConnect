@@ -36,27 +36,41 @@ const ProjectPreview = React.memo<ProjectPreviewProps>(({
   const [githubIssueCount, setGithubIssueCount] = useState<number | null>(null);
   // Fetch open issue count from GitHub API if github_link is provided
   React.useEffect(() => {
-    if (!github_link) return;
+    console.log('ProjectPreview github_link prop:', github_link);
+    if (!github_link) {
+      console.warn('No github_link provided to ProjectPreview');
+      return;
+    }
     // Extract owner and repo from github_link
     const match = github_link.match(/github.com\/(.+?)\/(.+?)(?:$|\/|\?)/);
-    if (!match) return;
+    console.log('GitHub link match result:', match);
+    if (!match) {
+      console.warn('Could not parse owner/repo from github_link:', github_link);
+      return;
+    }
     const owner = match[1];
     const repo = match[2];
+    console.log('Parsed owner:', owner, 'repo:', repo);
     const fetchIssues = async () => {
       try {
+        console.log(`Fetching GitHub issues for ${owner}/${repo}`);
         const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/issues?state=open&per_page=1`);
+        console.log('GitHub API response status:', res.status);
         if (!res.ok) throw new Error('GitHub API error');
         const linkHeader = res.headers.get('Link');
+        console.log('GitHub API Link header:', linkHeader);
         let count = 0;
         if (linkHeader) {
           // Parse last page number from Link header
           const lastPageMatch = linkHeader.match(/&page=(\d+)>; rel="last"/);
+          console.log('Last page match:', lastPageMatch);
           if (lastPageMatch) {
             count = parseInt(lastPageMatch[1], 10);
           }
         } else {
           // If no Link header, count is the length of the returned array
           const data = await res.json();
+          console.log('GitHub API data array:', data);
           count = Array.isArray(data) ? data.length : 0;
         }
         console.log(`GitHub open issues for ${owner}/${repo}:`, count);
