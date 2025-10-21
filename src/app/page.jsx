@@ -555,9 +555,7 @@ function HomeContent() {
           <div className="w-full">
             <div className="flex justify-between items-center mb-2 px-2">
               <h3 className="inter-bold main-subtitle">Recommended For You:</h3>
-              {user && (
-                <Link href="/recommended" className="text-sm inria-sans-bold title-red hover:underline">View more</Link>
-              )}
+              <Link href="/recommended" className="text-sm inria-sans-bold title-red hover:underline">View more</Link>
             </div>
             {loadingRecommendations ? (
               renderLoadingSpinner('Loading recommendations...')
