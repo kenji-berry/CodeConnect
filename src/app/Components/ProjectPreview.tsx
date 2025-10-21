@@ -13,7 +13,8 @@ interface ProjectPreviewProps {
   tags: HighlightableItem[];
   techStack: string[];
   description: string;
-  issueCount: number;
+  issueCount?: number;
+  github_link?: string;
   recommended?: boolean;
   image?: string | null;
 }
@@ -26,11 +27,45 @@ const ProjectPreview = React.memo<ProjectPreviewProps>(({
   techStack,
   description,
   issueCount,
+  github_link,
   recommended = false,
   image = null,
 }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [githubIssueCount, setGithubIssueCount] = useState<number | null>(null);
+  // Fetch open issue count from GitHub API if github_link is provided
+  React.useEffect(() => {
+    if (!github_link) return;
+    // Extract owner and repo from github_link
+    const match = github_link.match(/github.com\/(.+?)\/(.+?)(?:$|\/|\?)/);
+    if (!match) return;
+    const owner = match[1];
+    const repo = match[2];
+    const fetchIssues = async () => {
+      try {
+        const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/issues?state=open&per_page=1`);
+        if (!res.ok) throw new Error('GitHub API error');
+        const linkHeader = res.headers.get('Link');
+        let count = 0;
+        if (linkHeader) {
+          // Parse last page number from Link header
+          const lastPageMatch = linkHeader.match(/&page=(\d+)>; rel="last"/);
+          if (lastPageMatch) {
+            count = parseInt(lastPageMatch[1], 10);
+          }
+        } else {
+          // If no Link header, count is the length of the returned array
+          const data = await res.json();
+          count = Array.isArray(data) ? data.length : 0;
+        }
+        setGithubIssueCount(count);
+      } catch (e) {
+        setGithubIssueCount(null);
+      }
+    };
+    fetchIssues();
+  }, [github_link]);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -140,7 +175,9 @@ const ProjectPreview = React.memo<ProjectPreviewProps>(({
 
           <div className="flex justify-between items-center pt-2 border-t border-[#232323] mt-2">
             <div className="text-xs text-[var(--orange)] font-semibold">
-              {issueCount} open issue{issueCount === 1 ? "" : "s"}
+              {github_link && githubIssueCount !== null
+                ? `${githubIssueCount} open issue${githubIssueCount === 1 ? '' : 's'} (GitHub)`
+                : `${issueCount ?? 0} open issue${(issueCount ?? 0) === 1 ? '' : 's'}`}
             </div>
             <div className="text-xs text-gray-400 whitespace-nowrap">Last updated {getDaysAgo(date)}</div>
           </div>
