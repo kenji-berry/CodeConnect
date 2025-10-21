@@ -34,7 +34,7 @@ export async function middleware(req: NextRequest) {
   );
 
   if (!session && !isPublicPath) {
-    const returnUrl = new URL('/auth-required', req.url);
+  const returnUrl = new URL('/login', req.url);
     returnUrl.searchParams.set('returnTo', path);
     // console.log(`[Middleware] No session, redirecting to: ${returnUrl.toString()}`);
     return NextResponse.redirect(returnUrl);
