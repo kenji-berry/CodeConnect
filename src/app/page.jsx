@@ -192,7 +192,7 @@ function HomeContent() {
                 const openIssueCountMap = await fetchOpenIssueCounts([project.id]);
                 const { data: projectDetails } = await supabase
                   .from('project')
-                  .select('image')
+                  .select('image, github_link')
                   .eq('id', project.id)
                   .single();
                 
@@ -201,7 +201,8 @@ function HomeContent() {
                   technologies,
                   tags,
                   issueCount: openIssueCountMap[project.id] || 0,
-                  image: projectDetails?.image || null
+                  image: projectDetails?.image || null,
+                  github_link: projectDetails?.github_link || null
                 };
               })
             );
@@ -253,7 +254,7 @@ function HomeContent() {
           .from('project')
           .select(`
             id, repo_name, repo_owner, description_type,
-            custom_description, difficulty_level, created_at, image,
+            custom_description, difficulty_level, created_at, image, github_link,
             project_commits ( timestamp ),
             project_issues ( updated_at ),
             project_pull_requests ( updated_at )
@@ -333,7 +334,7 @@ function HomeContent() {
           .from('project')
           .select(`
             id, repo_name, repo_owner, description_type,
-            custom_description, difficulty_level, created_at, image
+            custom_description, difficulty_level, created_at, image, github_link
           `)
           .in('id', projectIds);
 
@@ -397,7 +398,7 @@ function HomeContent() {
           .from('project')
           .select(`
             id, repo_name, repo_owner, description_type,
-            custom_description, difficulty_level, created_at, image
+            custom_description, difficulty_level, created_at, image, github_link
           `)
           .in('id', projectIds);
 
@@ -461,7 +462,7 @@ function HomeContent() {
           .from('project')
           .select(`
             id, repo_name, repo_owner, description_type,
-            custom_description, difficulty_level, created_at, image
+            custom_description, difficulty_level, created_at, image, github_link
           `)
           .in('id', projectIds);
 
@@ -525,6 +526,7 @@ function HomeContent() {
             issueCount={project.issueCount || 0}
             recommended={type === 'recommended'}
             image={project.image}
+            github_link={project.github_link}
           />
         );
       })}

@@ -27,19 +27,7 @@ function ContributionsContent() {
         // Fetch user's projects
         const { data: projects, error } = await supabase
           .from('project')
-          .select(`
-            id, 
-            repo_name,
-            repo_owner,
-            description_type,
-            custom_description,
-            difficulty_level,
-            created_at,
-            license,
-            mentorship,
-            setup_time,
-            image
-          `)
+          .select(`id, repo_name, repo_owner, description_type, custom_description, difficulty_level, created_at, license, mentorship, setup_time, image, github_link`)
           .eq('user_id', session.user.id)
           .order('created_at', { ascending: false });
 
@@ -197,6 +185,7 @@ function ContributionsContent() {
                   issueCount={project.issueCount || 0}
                   recommended={false}
                   image={project.image}
+                  github_link={project.github_link}
                 />
               );
             })}

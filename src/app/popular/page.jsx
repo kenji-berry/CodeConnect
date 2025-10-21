@@ -185,7 +185,7 @@ function PopularProjectsContent() {
         .select(`
           id, repo_name, repo_owner, description_type,
           custom_description, difficulty_level, created_at,
-          license, mentorship, setup_time, image,
+          license, mentorship, setup_time, image, github_link,
           project_technologies ( is_highlighted, technologies ( name ) ),
           project_tags ( is_highlighted, tags ( name, colour ) ),
           project_contribution_type ( contribution_type ( name ) ),
@@ -363,6 +363,7 @@ function PopularProjectsContent() {
                   recommended={false}
                   image={project.image}
                   issueCount={project.issueCount || 0}
+                  github_link={project.github_link}
                 />
               );
             })}
