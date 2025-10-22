@@ -1,10 +1,7 @@
 "use client";
-import React, { useState, useEffect, Suspense, useCallback, useMemo } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import ProjectPreview from "../Components/ProjectPreview";
-import ProjectPageLayout from "../Components/ProjectPageLayout";
-import useProjectFilters from "../hooks/useProjectFilters";
-import { supabase } from '@/supabaseClient';
+
+import React, { Suspense } from "react";
+import ProjectListPage from "../Components/ProjectListPage";
 
 const SORT_OPTIONS = {
   LAST_UPDATED_NEWEST: 'Last Updated (Newest)',
@@ -16,19 +13,17 @@ const SORT_OPTIONS = {
 };
 
 async function getInitialTrendingProjectIds(limit = 100) {
+  const { supabase } = require("../../supabaseClient");
   try {
     const { data, error } = await supabase.rpc('get_trending_projects', {
       lookback_days: 7,
       results_limit: limit
     });
-
     if (error) {
-      console.error('Error fetching initial trending project IDs:', error);
       return [];
     }
     return (data || []).map(item => item.project_id).filter(id => id !== undefined);
-  } catch (error) {
-    console.error('Error in getInitialTrendingProjectIds:', error);
+  } catch {
     return [];
   }
 }
@@ -411,7 +406,14 @@ export default function TrendingProjectsPage() {
             </div>
         </div>
     }>
-      <TrendingProjectsContent />
+      <ProjectListPage
+        title="Trending Projects"
+        getInitialProjectIds={getInitialTrendingProjectIds}
+        rpcFunctionName="get_filtered_paginated_projects"
+        sortOptions={SORT_OPTIONS}
+        defaultSortOption={SORT_OPTIONS.DATE_POSTED_NEWEST}
+        recommended={false}
+      />
     </Suspense>
   );
 }

@@ -3,6 +3,21 @@ import React from "react";
 import Link from "next/link";
 import FilterSidebar from "./FilterSidebar";
 
+/**
+ * @typedef {Object} ProjectPageLayoutProps
+ * @property {string} title
+ * @property {React.ReactNode} children
+ * @property {boolean} loading
+ * @property {any} filterProps
+ * @property {number} [projectCount]
+ * @property {string} [sortOption]
+ * @property {(option: string) => void} [onSortChange]
+ * @property {string[]} [availableSortOptions]
+ */
+
+/**
+ * @param {ProjectPageLayoutProps} props
+ */
 export default function ProjectPageLayout({
   title,
   children,
