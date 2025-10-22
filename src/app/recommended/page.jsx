@@ -1,3 +1,5 @@
+"use client";
+
 async function getUserId() {
   const { supabase } = require("../../supabaseClient");
   const { data: { session } } = await supabase.auth.getSession();
@@ -9,7 +11,6 @@ async function getInitialRecommendedProjectIds(limit = 100, userId) {
   const recs = await getHybridRecommendations(userId, limit, false);
   return Array.isArray(recs) ? recs.map(p => p.id).filter(id => id !== undefined) : [];
 }
-"use client";
 
 export default function RecommendedProjectsPage() {
   return (
