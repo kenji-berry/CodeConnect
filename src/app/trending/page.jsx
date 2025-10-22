@@ -1,7 +1,9 @@
+
 "use client";
 
 import React, { Suspense } from "react";
 import ProjectListPage from "../Components/ProjectListPage";
+import { supabase } from "../../supabaseClient";
 
 const SORT_OPTIONS = {
   LAST_UPDATED_NEWEST: 'Last Updated (Newest)',
@@ -13,7 +15,6 @@ const SORT_OPTIONS = {
 };
 
 async function getInitialTrendingProjectIds(limit = 100) {
-  const { supabase } = require("../../supabaseClient");
   try {
     const { data, error } = await supabase.rpc('get_trending_projects', {
       lookback_days: 7,

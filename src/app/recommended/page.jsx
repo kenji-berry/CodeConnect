@@ -1,7 +1,21 @@
+
 "use client";
 
+import React, { Suspense } from "react";
+import ProjectListPage from "../Components/ProjectListPage";
+import { supabase } from "../../supabaseClient";
+import { getHybridRecommendations } from "../../services/recommendation-service";
+
+const SORT_OPTIONS = {
+  LAST_UPDATED_NEWEST: 'Last Updated (Newest)',
+  LAST_UPDATED_OLDEST: 'Last Updated (Oldest)',
+  DATE_POSTED_NEWEST: 'Date Posted (Newest)',
+  DATE_POSTED_OLDEST: 'Date Posted (Oldest)',
+  MOST_INTERACTIONS: 'Most Interactions',
+  LEAST_INTERACTIONS: 'Least Interactions',
+};
+
 async function getUserId() {
-  const { supabase } = require("../../supabaseClient");
   const { data: { session } } = await supabase.auth.getSession();
   return session?.user?.id || null;
 }
