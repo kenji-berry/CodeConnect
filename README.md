@@ -105,7 +105,7 @@ Code Connect is a platform that connects open‑source projects with developers 
 ---
 
 ## 🌐 Deployment & SEO
-- Deployed on Vercel with custom domain [codeconnect.cc](https://www.codeconnect.cc/).  
+- Deployed on Vercel with the custom domain [codeconnect.cc](https://www.codeconnect.cc/).  
 - Configured with sitemap and robots.txt to improve Google search rankings and discoverability.  
 
 ---
